@@ -18,7 +18,7 @@ application-level code can focus on behaviour rather than network communication.
 
 Note that there's no expectation that this will ever actually make it into the live
 Mouse Without Borders project, but hopefully there'll be enough lessons learned along the way
-to be able to feed some incrememtal ideas and improvements into the existing code.
+to be able to feed some incremental ideas and improvements into the existing code.
 
 ---
 
