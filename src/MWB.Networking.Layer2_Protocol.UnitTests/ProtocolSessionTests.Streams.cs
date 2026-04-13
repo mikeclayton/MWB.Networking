@@ -10,7 +10,7 @@ public partial class ProtocolSessionTests
     /// Covers snapshot state, outbound frame emission, and protocol violation guards.
     /// </summary>
     [TestClass]
-    public sealed class Streams
+    public sealed partial class Streams
     {
         public TestContext TestContext
         {

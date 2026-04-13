@@ -1,4 +1,3 @@
-using MWB.Networking.Layer2_Protocol;
 using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Requests;
 
@@ -11,7 +10,7 @@ public partial class ProtocolSessionTests
     /// null/unknown-kind guards, and mixed request + stream scenarios.
     /// </summary>
     [TestClass]
-    public sealed class Session
+    public sealed partial class Session
     {
         public TestContext TestContext
         {

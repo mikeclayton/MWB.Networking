@@ -1,4 +1,5 @@
 ﻿using MWB.Networking.Layer2_Protocol.Requests;
+using System.Diagnostics.CodeAnalysis;
 
 namespace MWB.Networking.Layer2_Protocol.Streams;
 
@@ -30,6 +31,7 @@ internal sealed class StreamContext
         get;
     }
 
+    [MemberNotNullWhen(true, nameof(OwningRequest))]
     internal bool IsRequestScoped
         => this.OwningRequest is not null;
 

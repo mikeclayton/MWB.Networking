@@ -1,4 +1,3 @@
-using MWB.Networking.Layer2_Protocol;
 using MWB.Networking.Layer2_Protocol.Internal;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
@@ -10,7 +9,7 @@ public partial class ProtocolSessionTests
     /// fire-and-forget, terminal, no request/stream lifecycle.
     /// </summary>
     [TestClass]
-    public sealed class Events
+    public sealed partial class Events
     {
         public TestContext TestContext
         {

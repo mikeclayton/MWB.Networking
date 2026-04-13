@@ -1,4 +1,3 @@
-using MWB.Networking.Layer2_Protocol;
 using MWB.Networking.Layer2_Protocol.Internal;
 using System.Diagnostics;
 
@@ -13,7 +12,7 @@ public partial class ProtocolSessionTests
     /// after the run to ensure no frames were silently dropped.
     /// </summary>
     [TestClass]
-    public sealed class Performance
+    public sealed partial class Performance
     {
         public TestContext TestContext
         {
