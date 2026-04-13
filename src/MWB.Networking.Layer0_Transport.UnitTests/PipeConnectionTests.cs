@@ -47,8 +47,6 @@ public class PipeConnectionTests
                 eventType: null,
                 requestId: 1,
                 streamId: null,
-                chunkIndex: null,
-                isFinalChunk: false,
                 payload: new([0x01, 0x02, 0x03]));
             await clientAdapter.WriteFrameAsync(
                 writeFrame,
@@ -62,8 +60,6 @@ public class PipeConnectionTests
             Assert.AreEqual(writeFrame.Kind, readFrame.Kind);
             Assert.AreEqual(writeFrame.RequestId, readFrame.RequestId);
             Assert.AreEqual(writeFrame.StreamId, readFrame.StreamId);
-            Assert.AreEqual(writeFrame.ChunkIndex, readFrame.ChunkIndex);
-            Assert.AreEqual(writeFrame.IsFinalChunk, readFrame.IsFinalChunk);
             CollectionAssert.AreEqual(writeFrame.Payload.ToArray(), readFrame.Payload.ToArray());
         }
 
@@ -111,8 +107,6 @@ public class PipeConnectionTests
                         eventType: null,
                         requestId: (uint)(i + 1),
                         streamId: null,
-                        chunkIndex: null,
-                        isFinalChunk: false,
                         payload: payload);
                     await clientAdapter.WriteFrameAsync(frame, TestContext.CancellationToken);
                 }

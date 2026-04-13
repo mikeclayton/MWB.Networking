@@ -16,18 +16,17 @@ internal static class ProtocolFrames
     public static ProtocolFrame Request(uint requestId, ReadOnlyMemory<byte> payload)
         => new(ProtocolFrameKind.Request, null, requestId, null, payload);
 
+    public static ProtocolFrame Response(uint requestId)
+        => new(ProtocolFrameKind.Response, null, requestId, null, ReadOnlyMemory<byte>.Empty);
+
     public static ProtocolFrame Response(uint requestId, ReadOnlyMemory<byte> payload)
         => new(ProtocolFrameKind.Response, null, requestId, null, payload);
 
-    public static ProtocolFrame RequestError(uint requestId, ReadOnlyMemory<byte> payload)
+    public static ProtocolFrame Error(uint requestId)
+        => new(ProtocolFrameKind.Error, null, requestId, null, ReadOnlyMemory<byte>.Empty);
+
+    public static ProtocolFrame Error(uint requestId, ReadOnlyMemory<byte> payload)
         => new(ProtocolFrameKind.Error, null, requestId, null, payload);
-
-    public static ProtocolFrame CompleteRequest(uint requestId)
-        => new(ProtocolFrameKind.Complete, null, requestId, null, ReadOnlyMemory<byte>.Empty);
-
-    public static ProtocolFrame CancelRequest(uint? requestId)
-        => new(ProtocolFrameKind.Cancel, null, requestId, null, ReadOnlyMemory<byte>.Empty);
-
 
     // --------------------------------------------------------------
     // Streams

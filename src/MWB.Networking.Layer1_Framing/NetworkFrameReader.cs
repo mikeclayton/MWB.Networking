@@ -28,8 +28,6 @@ public sealed class NetworkFrameReader : INetworkFrameReader
         var eventType = (uint?)null;
         var requestId = (uint?)null;
         var streamId = (uint?)null;
-        var chunkIndex = (uint?)null;
-        var isFinalChunk = flags.HasFlag(NetworkFrameFlags.IsFinalChunk);
 
         // 2) Read optional fields
         if (flags.HasFlag(NetworkFrameFlags.HasEventType))
@@ -53,19 +51,6 @@ public sealed class NetworkFrameReader : INetworkFrameReader
             offset += 4;
         }
 
-        if (flags.HasFlag(NetworkFrameFlags.HasChunkIndex))
-        {
-            chunkIndex = BinaryPrimitives.ReadUInt32BigEndian(
-                span.Slice(offset, 4));
-            offset += 4;
-        }
-
-        if (flags.HasFlag(NetworkFrameFlags.IsFinalChunk))
-        {
-            // isFinalChunk is encoded as a flag, so we don't need to read any bytes
-            isFinalChunk = true;
-        }
-
         // 3) Remaining bytes are payload (zero-copy slice)
         var payload = (offset < buffer.Length)
             ? buffer.AsMemory(offset)
@@ -76,8 +61,6 @@ public sealed class NetworkFrameReader : INetworkFrameReader
             eventType: eventType,
             requestId: requestId,
             streamId: streamId,
-            chunkIndex: chunkIndex,
-            isFinalChunk: isFinalChunk,
             payload: payload
         );
     }

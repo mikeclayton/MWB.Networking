@@ -43,8 +43,6 @@ public class MemoryConnectionTests
                         eventType: null,
                         requestId: (uint)(i + 1),
                         streamId: null,
-                        chunkIndex: null,
-                        isFinalChunk: false,
                         payload: payload);
                     await clientAdapter.WriteFrameAsync(frame, TestContext.CancellationToken);
                 }

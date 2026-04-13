@@ -35,17 +35,7 @@ public enum NetworkFrameKind : byte
     /// </summary>
     Response = 0x03,
 
-    /// <summary>
-    /// Marks the point at which the responder has finished *initiating* response
-    /// activity (responses or streams) for a given request.
-    ///
-    /// Receipt of this frame guarantees that no additional response frames or
-    /// stream openings will occur for the associated RequestId, but existing
-    /// streams may continue transferring data until individually closed.
-    /// </summary>
-    Complete = 0x04,
-
-    Cancel = 0x05,
+    Error = 0x04,
 
     /// <summary>
     /// Announces the creation of a new logical stream identified by a StreamId.
@@ -89,6 +79,4 @@ public enum NetworkFrameKind : byte
     /// streams and request lifecycles are otherwise unaffected.
     /// </summary>
     StreamReset = 0x13,
-
-    Error = 0x20,
 }

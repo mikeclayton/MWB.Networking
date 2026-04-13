@@ -9,16 +9,12 @@ public sealed class NetworkFrame
         uint? eventType,
         uint? requestId = null,
         uint? streamId = null,
-        uint? chunkIndex = null,
-        bool isFinalChunk = false,
         ReadOnlyMemory<byte> payload = default)
     {
         this.Kind = kind;
         this.EventType = eventType;
         this.RequestId = requestId;
         this.StreamId = streamId;
-        this.ChunkIndex = chunkIndex;
-        this.IsFinalChunk = isFinalChunk;
         this.Payload = payload;
     }
 
@@ -42,17 +38,6 @@ public sealed class NetworkFrame
 
     // Stream multiplexing (opaque at Layer 0)
     public uint? StreamId
-    {
-        get;
-    }
-
-    // Chunking / sequencing (structural only)
-    public uint? ChunkIndex
-    {
-        get;
-    }
-
-    public bool IsFinalChunk
     {
         get;
     }

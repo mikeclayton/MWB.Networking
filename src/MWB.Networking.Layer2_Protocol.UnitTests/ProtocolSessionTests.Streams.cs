@@ -1,4 +1,5 @@
 using MWB.Networking.Layer2_Protocol.Internal;
+using MWB.Networking.Layer2_Protocol.Requests;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
@@ -136,16 +137,16 @@ public partial class ProtocolSessionTests
             var session = (ProtocolSession)CreateSession();
             var runtime = (IProtocolSessionRuntime)session;
 
-            const uint streamId = 7;
             var metadata = new byte[] { 0x01, 0x02 };
 
-            // Local outbound emission (NOT inbound ProcessFrame)
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamOpen(streamId, metadata));
+            // Open a session-scoped stream via intent-level API
+            var stream = session.OpenSessionStream(metadata);
+
             var outbound = runtime.DrainOutboundFrames();
 
             Assert.HasCount(1, outbound);
             Assert.AreEqual(ProtocolFrameKind.StreamOpen, outbound[0].Kind);
-            Assert.AreEqual(streamId, outbound[0].StreamId);
+            Assert.AreEqual(stream.StreamId, outbound[0].StreamId);
             CollectionAssert.AreEqual(metadata, outbound[0].Payload.ToArray());
         }
 
@@ -155,19 +156,22 @@ public partial class ProtocolSessionTests
             var session = (ProtocolSession)CreateSession();
             var runtime = (IProtocolSessionRuntime)session;
 
-            const uint streamId = 1;
             var data = new byte[] { 0xDE, 0xAD };
 
-            // Local outbound emission
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamOpen(streamId, Empty));
-            runtime.DrainOutboundFrames(); // discard StreamOpen
+            // Open a session-scoped stream
+            var stream = session.OpenSessionStream(Empty);
 
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamData(streamId, data));
+            // Discard StreamOpen
+            runtime.DrainOutboundFrames();
+
+            // Send data via intent-level API
+            stream.SendData(data);
+
             var outbound = runtime.DrainOutboundFrames();
 
             Assert.HasCount(1, outbound);
             Assert.AreEqual(ProtocolFrameKind.StreamData, outbound[0].Kind);
-            Assert.AreEqual(streamId, outbound[0].StreamId);
+            Assert.AreEqual(stream.StreamId, outbound[0].StreamId);
             CollectionAssert.AreEqual(data, outbound[0].Payload.ToArray());
         }
 
@@ -190,18 +194,22 @@ public partial class ProtocolSessionTests
             var session = (ProtocolSession)CreateSession();
             var runtime = (IProtocolSessionRuntime)session;
 
-            const uint streamId = 1;
+            // Open a session-scoped stream
+            var stream = session.OpenSessionStream(Empty);
 
-            // Local outbound emission
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamOpen(streamId, Empty));
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamData(streamId, new byte[] { 10 }));
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamData(streamId, new byte[] { 20 }));
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamData(streamId, new byte[] { 30 }));
+            // Emit multiple data frames
+            stream.SendData(new byte[] { 10 });
+            stream.SendData(new byte[] { 20 });
+            stream.SendData(new byte[] { 30 });
+
             var outbound = runtime.DrainOutboundFrames();
 
-            Assert.HasCount(4, outbound);
+            Assert.AreEqual(4, outbound.Count);
 
-            // Assert stream data ordering (skip StreamOpen at index 0)
+            // First frame is StreamOpen
+            Assert.AreEqual(ProtocolFrameKind.StreamOpen, outbound[0].Kind);
+
+            // StreamData frames in order
             Assert.AreEqual((byte)10, outbound[1].Payload.Span[0]);
             Assert.AreEqual((byte)20, outbound[2].Payload.Span[0]);
             Assert.AreEqual((byte)30, outbound[3].Payload.Span[0]);
@@ -213,33 +221,44 @@ public partial class ProtocolSessionTests
             var session = (ProtocolSession)CreateSession();
             var runtime = (IProtocolSessionRuntime)session;
 
-            const uint streamId = 1;
+            // Open a session-scoped stream
+            var stream = session.OpenSessionStream(Empty);
 
-            // Local outbound emission
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamOpen(streamId, Empty));
-            runtime.DrainOutboundFrames(); // discard StreamOpen
+            // Discard the StreamOpen frame
+            runtime.DrainOutboundFrames();
 
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamClose(streamId));
+            // Close the stream via intent-level API
+            stream.Close();
+
             var outbound = runtime.DrainOutboundFrames();
 
             Assert.HasCount(1, outbound);
             Assert.AreEqual(ProtocolFrameKind.StreamClose, outbound[0].Kind);
-            Assert.AreEqual(streamId, outbound[0].StreamId);
+            Assert.AreEqual(stream.StreamId, outbound[0].StreamId);
         }
 
         [TestMethod]
-        public void FullStreamLifecycle_AllFramesEmittedInOrder()
+        public void FullRequestScopedStreamLifecycle_AllFramesEmittedInOrder()
         {
             var session = (ProtocolSession)CreateSession();
             var runtime = (IProtocolSessionRuntime)session;
 
-            const uint streamId = 1;
+            IncomingRequest? request = null;
 
-            // Local side emits stream lifecycle
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamOpen(streamId, new byte[] { 0xF0 }));
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamData(streamId, new byte[] { 0xA1 }));
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamData(streamId, new byte[] { 0xA2 }));
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamClose(streamId));
+            session.RequestReceived += (req, _) => request = req;
+
+            // Inbound request
+            runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
+            runtime.DrainOutboundFrames();
+
+            Assert.IsNotNull(request);
+
+            // Open request-scoped stream
+            var stream = request.OpenRequestStream();
+
+            stream.SendData(new byte[] { 0xA1 });
+            stream.SendData(new byte[] { 0xA2 });
+            stream.Close();
 
             var outbound = runtime.DrainOutboundFrames();
 
@@ -251,23 +270,46 @@ public partial class ProtocolSessionTests
         }
 
         [TestMethod]
-        public void InterleavedStreams_FramesEmittedInOrder()
+        public void FullSessionScopedStreamLifecycle_AllFramesEmittedInOrder()
         {
             var session = (ProtocolSession)CreateSession();
             var runtime = (IProtocolSessionRuntime)session;
 
-            const uint stream1 = 1;
-            const uint stream2 = 2;
+            // Open a session-scoped stream
+            var stream = session.OpenSessionStream(new byte[] { 0xF0 });
 
-            // Local outbound emission — NOT inbound ProcessFrame calls
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamOpen(stream1, Empty));
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamOpen(stream2, Empty));
+            // Send data and close
+            stream.SendData(new byte[] { 0xA1 });
+            stream.SendData(new byte[] { 0xA2 });
+            stream.Close();
 
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamData(stream1, new byte[] { 0x01 }));
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamData(stream2, new byte[] { 0x02 }));
+            var outbound = runtime.DrainOutboundFrames();
 
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamClose(stream1));
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamClose(stream2));
+            Assert.HasCount(4, outbound);
+
+            Assert.AreEqual(ProtocolFrameKind.StreamOpen, outbound[0].Kind);
+            Assert.AreEqual(ProtocolFrameKind.StreamData, outbound[1].Kind);
+            Assert.AreEqual(ProtocolFrameKind.StreamData, outbound[2].Kind);
+            Assert.AreEqual(ProtocolFrameKind.StreamClose, outbound[3].Kind);
+        }
+
+        [TestMethod]
+        public void InterleavedSessionStreams_FramesEmittedInOrder()
+        {
+            var session = (ProtocolSession)CreateSession();
+            var runtime = (IProtocolSessionRuntime)session;
+
+            // Open two session-scoped streams
+            var stream1 = session.OpenSessionStream(Empty);
+            var stream2 = session.OpenSessionStream(Empty);
+
+            // Interleave data writes
+            stream1.SendData(new byte[] { 0x01 });
+            stream2.SendData(new byte[] { 0x02 });
+
+            // Close in the same interleaved order
+            stream1.Close();
+            stream2.Close();
 
             var outbound = runtime.DrainOutboundFrames();
 
@@ -275,24 +317,15 @@ public partial class ProtocolSessionTests
 
             // Open frames
             Assert.AreEqual(ProtocolFrameKind.StreamOpen, outbound[0].Kind);
-            Assert.AreEqual(stream1, outbound[0].StreamId);
-
             Assert.AreEqual(ProtocolFrameKind.StreamOpen, outbound[1].Kind);
-            Assert.AreEqual(stream2, outbound[1].StreamId);
 
             // Interleaved data
             Assert.AreEqual(ProtocolFrameKind.StreamData, outbound[2].Kind);
-            Assert.AreEqual(stream1, outbound[2].StreamId);
-
             Assert.AreEqual(ProtocolFrameKind.StreamData, outbound[3].Kind);
-            Assert.AreEqual(stream2, outbound[3].StreamId);
 
             // Close frames
             Assert.AreEqual(ProtocolFrameKind.StreamClose, outbound[4].Kind);
-            Assert.AreEqual(stream1, outbound[4].StreamId);
-
             Assert.AreEqual(ProtocolFrameKind.StreamClose, outbound[5].Kind);
-            Assert.AreEqual(stream2, outbound[5].StreamId);
         }
 
         // ---------------------------------------------------------------
@@ -395,48 +428,44 @@ public partial class ProtocolSessionTests
         }
 
         [TestMethod]
-        public void LocalStreams_MayInterleaveOutboundFrames()
+        public void LocalSessionStreams_MayInterleaveOutboundFrames()
         {
-            var session = new ProtocolSession();
+            var session = (ProtocolSession)CreateSession();
             var runtime = (IProtocolSessionRuntime)session;
 
-            // Create two local stream IDs explicitly
-            const uint stream1 = 10;
-            const uint stream2 = 20;
+            var s1 = session.OpenSessionStream(Empty);
+            var s2 = session.OpenSessionStream(Empty);
 
-            // Emit outbound stream opens locally
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamOpen(stream1, Empty));
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamOpen(stream2, Empty));
+            s1.SendData(new byte[] { 0x01 });
+            s2.SendData(new byte[] { 0x02 });
+            s1.SendData(new byte[] { 0x03 });
+            s2.SendData(new byte[] { 0x04 });
 
-            // Interleave data emitted locally
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamData(stream1, new byte[] { 0x01 }));
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamData(stream2, new byte[] { 0x02 }));
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamData(stream1, new byte[] { 0x03 }));
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamData(stream2, new byte[] { 0x04 }));
-
-            // Close streams
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamClose(stream1));
-            session.EnqueueOutboundFrame(ProtocolFrames.StreamClose(stream2));
+            s1.Close();
+            s2.Close();
 
             var outbound = runtime.DrainOutboundFrames();
 
+            Assert.AreEqual(8, outbound.Count);
+
+            // Open frames
             Assert.AreEqual(ProtocolFrameKind.StreamOpen, outbound[0].Kind);
-            Assert.AreEqual(stream1, outbound[0].StreamId);
-
             Assert.AreEqual(ProtocolFrameKind.StreamOpen, outbound[1].Kind);
-            Assert.AreEqual(stream2, outbound[1].StreamId);
 
-            Assert.AreEqual(stream1, outbound[2].StreamId);
-            Assert.AreEqual(stream2, outbound[3].StreamId);
-            Assert.AreEqual(stream1, outbound[4].StreamId);
-            Assert.AreEqual(stream2, outbound[5].StreamId);
+            var id1 = outbound[0].StreamId;
+            var id2 = outbound[1].StreamId;
 
+            // Interleaved data
+            Assert.AreEqual(id1, outbound[2].StreamId);
+            Assert.AreEqual(id2, outbound[3].StreamId);
+            Assert.AreEqual(id1, outbound[4].StreamId);
+            Assert.AreEqual(id2, outbound[5].StreamId);
+
+            // Close frames
             Assert.AreEqual(ProtocolFrameKind.StreamClose, outbound[6].Kind);
-            Assert.AreEqual(stream1, outbound[6].StreamId);
-
+            Assert.AreEqual(id1, outbound[6].StreamId);
             Assert.AreEqual(ProtocolFrameKind.StreamClose, outbound[7].Kind);
-            Assert.AreEqual(stream2, outbound[7].StreamId);
+            Assert.AreEqual(id2, outbound[7].StreamId);
         }
-
     }
 }

@@ -92,7 +92,7 @@ public partial class ProtocolSessionTests
         }
 
         [TestMethod]
-        public void CannotEmitStreamOpen_AfterResponse()
+        public void CannotOpenRequestScopedStream_AfterResponse()
         {
             var session = (ProtocolSession)CreateSession();
             var runtime = (IProtocolSessionRuntime)session;
@@ -107,16 +107,17 @@ public partial class ProtocolSessionTests
             // Inbound request
             runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
 
-            // Send the single response (closes the request)
+            // Respond to the request (closes it)
             Assert.IsNotNull(request);
             request.Respond(new byte[] { 0xAA });
 
-            // Attempting to emit a stream after the response is invalid
+            // Attempting to open a request-scoped stream after response is invalid
             Assert.Throws<InvalidOperationException>(() =>
             {
-                session.EnqueueOutboundFrame(ProtocolFrames.StreamOpen(10, Empty));
+                request.OpenRequestStream();
             });
         }
+
 
         [TestMethod]
         public void StreamsMayBeOpenedIndependentlyOfRequests()
@@ -157,7 +158,7 @@ public partial class ProtocolSessionTests
             var runtime = (IProtocolSessionRuntime)session;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
-            runtime.ProcessFrame(ProtocolFrames.CompleteRequest(1));
+            runtime.ProcessFrame(ProtocolFrames.Response(1));
 
             Assert.IsEmpty(session.Snapshot().OpenRequests);
         }
@@ -181,7 +182,7 @@ public partial class ProtocolSessionTests
             var runtime = (IProtocolSessionRuntime)session;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
-            runtime.ProcessFrame(ProtocolFrames.CancelRequest(1));
+            runtime.ProcessFrame(ProtocolFrames.Error(1));
 
             Assert.IsEmpty(session.Snapshot().OpenRequests);
         }
@@ -212,7 +213,7 @@ public partial class ProtocolSessionTests
 
             runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
             runtime.ProcessFrame(ProtocolFrames.Request(2, Empty));
-            runtime.ProcessFrame(ProtocolFrames.CompleteRequest(1));
+            runtime.ProcessFrame(ProtocolFrames.Response(1));
 
             var snap = session.Snapshot();
 
@@ -228,7 +229,7 @@ public partial class ProtocolSessionTests
             var runtime = (IProtocolSessionRuntime)session;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
-            runtime.ProcessFrame(ProtocolFrames.CompleteRequest(1));
+            runtime.ProcessFrame(ProtocolFrames.Response(1));
 
             // The same ID may be used again once the previous context has closed.
             runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
@@ -294,20 +295,7 @@ public partial class ProtocolSessionTests
         }
 
         [TestMethod]
-        public void Inbound_ResponseFrame_IsRejected()
-        {
-            var session = CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
-
-            runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
-
-            Assert.Throws<ProtocolException>(() =>
-                runtime.ProcessFrame(ProtocolFrames.Response(1, new byte[] { 10 }))
-            );
-        }
-
-        [TestMethod]
-        public void CompleteRequest_IsEmittedToOutbound()
+        public void Inbound_ResponseFrame_IsAccepted()
         {
             var session = CreateSession();
             var runtime = (IProtocolSessionRuntime)session;
@@ -315,16 +303,15 @@ public partial class ProtocolSessionTests
             runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
             runtime.DrainOutboundFrames();
 
-            runtime.ProcessFrame(ProtocolFrames.CompleteRequest(1));
-            var outbound = runtime.DrainOutboundFrames();
+            runtime.ProcessFrame(ProtocolFrames.Response(1, new byte[] { 10 }));
 
-            Assert.HasCount(1, outbound);
-            Assert.AreEqual(ProtocolFrameKind.Complete, outbound[0].Kind);
-            Assert.AreEqual(1u, outbound[0].RequestId);
+            // No exception = success
+            var outbound = runtime.DrainOutboundFrames();
+            Assert.HasCount(0, outbound);
         }
 
         [TestMethod]
-        public void Error_IsEmittedToOutbound()
+        public void Inbound_Response_DoesNotEmitOutbound()
         {
             var session = CreateSession();
             var runtime = (IProtocolSessionRuntime)session;
@@ -332,16 +319,30 @@ public partial class ProtocolSessionTests
             runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
             runtime.DrainOutboundFrames();
 
-            runtime.ProcessFrame(MakeError(1));
+            runtime.ProcessFrame(ProtocolFrames.Response(1));
             var outbound = runtime.DrainOutboundFrames();
 
-            Assert.HasCount(1, outbound);
-            Assert.AreEqual(ProtocolFrameKind.Error, outbound[0].Kind);
-            Assert.AreEqual(1u, outbound[0].RequestId);
+            Assert.HasCount(0, outbound);
+        }
+
+
+        [TestMethod]
+        public void Inbound_RequestError_DoesNotEmitOutbound()
+        {
+            var session = CreateSession();
+            var runtime = (IProtocolSessionRuntime)session;
+
+            runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
+            runtime.DrainOutboundFrames();
+
+            runtime.ProcessFrame(ProtocolFrames.Error(1));
+            var outbound = runtime.DrainOutboundFrames();
+
+            Assert.HasCount(0, outbound);
         }
 
         [TestMethod]
-        public void CancelRequest_IsEmittedToOutbound()
+        public void Inbound_RequestError_DoesNotEmitOutboundFrame()
         {
             var session = CreateSession();
             var runtime = (IProtocolSessionRuntime)session;
@@ -349,12 +350,10 @@ public partial class ProtocolSessionTests
             runtime.ProcessFrame(ProtocolFrames.Request(5, Empty));
             runtime.DrainOutboundFrames();
 
-            runtime.ProcessFrame(ProtocolFrames.CancelRequest(5));
+            runtime.ProcessFrame(ProtocolFrames.Error(5));
             var outbound = runtime.DrainOutboundFrames();
 
-            Assert.HasCount(1, outbound);
-            Assert.AreEqual(ProtocolFrameKind.Cancel, outbound[0].Kind);
-            Assert.AreEqual(5u, outbound[0].RequestId);
+            Assert.HasCount(0, outbound);
         }
 
         [TestMethod]
@@ -401,11 +400,11 @@ public partial class ProtocolSessionTests
 
             session.RequestReceived += (req, payload) =>
             {
-                if (req.RequestId == 1)
+                if (req.Context.RequestId == 1)
                 {
                     req1 = req;
                 }
-                else if (req.RequestId == 2)
+                else if (req.Context.RequestId == 2)
                 {
                     req2 = req;
                 }
@@ -473,7 +472,7 @@ public partial class ProtocolSessionTests
             var runtime = (IProtocolSessionRuntime)session;
 
             Assert.Throws<ProtocolException>(
-                () => runtime.ProcessFrame(ProtocolFrames.CompleteRequest(99)));
+                () => runtime.ProcessFrame(ProtocolFrames.Response(99)));
         }
 
         [TestMethod]
@@ -483,7 +482,7 @@ public partial class ProtocolSessionTests
             var runtime = (IProtocolSessionRuntime)session;
 
             Assert.Throws<ProtocolException>(
-                () => runtime.ProcessFrame(ProtocolFrames.CancelRequest(99)));
+                () => runtime.ProcessFrame(ProtocolFrames.Error(99)));
         }
 
         [TestMethod]
@@ -503,7 +502,7 @@ public partial class ProtocolSessionTests
             var runtime = (IProtocolSessionRuntime)session;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
-            runtime.ProcessFrame(ProtocolFrames.CompleteRequest(1));
+            runtime.ProcessFrame(ProtocolFrames.Response(1));
 
             Assert.Throws<ProtocolException>(
                 () => runtime.ProcessFrame(ProtocolFrames.Response(1, Empty)));
@@ -516,10 +515,10 @@ public partial class ProtocolSessionTests
             var runtime = (IProtocolSessionRuntime)session;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
-            runtime.ProcessFrame(ProtocolFrames.CompleteRequest(1));
+            runtime.ProcessFrame(ProtocolFrames.Response(1));
 
             Assert.Throws<ProtocolException>(
-                () => runtime.ProcessFrame(ProtocolFrames.CompleteRequest(1)));
+                () => runtime.ProcessFrame(ProtocolFrames.Response(1)));
         }
 
         [TestMethod]
@@ -541,7 +540,7 @@ public partial class ProtocolSessionTests
             var runtime = (IProtocolSessionRuntime)session;
 
             Assert.Throws<ProtocolException>(
-                () => runtime.ProcessFrame(ProtocolFrames.CancelRequest(5)));
+                () => runtime.ProcessFrame(ProtocolFrames.Error(5)));
         }
     }
 }

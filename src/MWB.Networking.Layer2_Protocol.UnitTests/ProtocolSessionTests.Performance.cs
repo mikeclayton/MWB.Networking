@@ -83,7 +83,7 @@ public partial class ProtocolSessionTests
             for (var i = 0; i < WarmupIterations; i++)
             {
                 runtime.ProcessFrame(ProtocolFrames.Request(Id, Empty));
-                runtime.ProcessFrame(ProtocolFrames.CompleteRequest(Id));
+                runtime.ProcessFrame(ProtocolFrames.Response(Id));
             }
             runtime.DrainOutboundFrames();
 
@@ -91,7 +91,7 @@ public partial class ProtocolSessionTests
             for (var i = 0; i < Iterations; i++)
             {
                 runtime.ProcessFrame(ProtocolFrames.Request(Id, Empty));
-                runtime.ProcessFrame(ProtocolFrames.CompleteRequest(Id));
+                runtime.ProcessFrame(ProtocolFrames.Response(Id));
             }
             sw.Stop();
 

@@ -12,13 +12,11 @@ internal static class FrameConverter
             NetworkFrameKind.Event => ProtocolFrameKind.Event,
             NetworkFrameKind.Request => ProtocolFrameKind.Request,
             NetworkFrameKind.Response => ProtocolFrameKind.Response,
-            NetworkFrameKind.Complete => ProtocolFrameKind.Complete,
-            NetworkFrameKind.Cancel => ProtocolFrameKind.Cancel,
+            NetworkFrameKind.Error => ProtocolFrameKind.Error,
             NetworkFrameKind.StreamOpen => ProtocolFrameKind.StreamOpen,
             NetworkFrameKind.StreamData => ProtocolFrameKind.StreamData,
             NetworkFrameKind.StreamClose => ProtocolFrameKind.StreamOpen,
             NetworkFrameKind.StreamReset => ProtocolFrameKind.StreamReset,
-            NetworkFrameKind.Error => ProtocolFrameKind.Error,
             _ =>
                 throw new InvalidOperationException()
         };
@@ -32,13 +30,11 @@ internal static class FrameConverter
             ProtocolFrameKind.Event => NetworkFrameKind.Event,
             ProtocolFrameKind.Request => NetworkFrameKind.Request,
             ProtocolFrameKind.Response => NetworkFrameKind.Response,
-            ProtocolFrameKind.Complete => NetworkFrameKind.Complete,
-            ProtocolFrameKind.Cancel => NetworkFrameKind.Cancel,
+            ProtocolFrameKind.Error => NetworkFrameKind.Error,
             ProtocolFrameKind.StreamOpen => NetworkFrameKind.StreamOpen,
             ProtocolFrameKind.StreamData => NetworkFrameKind.StreamData,
             ProtocolFrameKind.StreamClose => NetworkFrameKind.StreamOpen,
             ProtocolFrameKind.StreamReset => NetworkFrameKind.StreamReset,
-            ProtocolFrameKind.Error => NetworkFrameKind.Error,
             _ =>
                 throw new InvalidOperationException()
         };

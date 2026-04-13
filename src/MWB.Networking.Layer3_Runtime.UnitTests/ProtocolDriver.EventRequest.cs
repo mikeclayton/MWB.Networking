@@ -122,7 +122,6 @@ public sealed class ProtocolDriverEndToEndTests
         // ------------------------------------------------------------
 
         // Event should arrive via EventReceived
-        //Assert.IsNotNull(receivedEvent);
         Assert.AreEqual(1u, receivedEvent.EventType);
         CollectionAssert.AreEqual(
             eventPayload,
@@ -130,7 +129,7 @@ public sealed class ProtocolDriverEndToEndTests
 
         // Request should arrive via RequestReceived
         Assert.IsNotNull(receivedRequest);
-        Assert.AreEqual(1u, receivedRequest.RequestId);
+        Assert.AreEqual(1u, receivedRequest.Context.RequestId);
 
         // ------------------------------------------------------------
         // Cleanup

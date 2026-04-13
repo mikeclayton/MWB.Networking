@@ -2,67 +2,87 @@
 
 namespace MWB.Networking.Layer2_Protocol.Requests;
 
-public sealed class RequestContext
+internal sealed class RequestContext
 {
-    private enum State
-    {
-        Open,
-        Completed,
-        Cancelled,
-        Failed
-    }
-
-    private State _state = State.Open;
-    private readonly uint _requestId;
-
     public RequestContext(uint requestId)
     {
-        _requestId = requestId;
+        this.RequestId = requestId;
     }
 
-    internal void ProcessFrame(
-        ProtocolFrame frame,
-        Action<ProtocolFrame> emit,
-        Action<uint> onTerminal)
+    public uint RequestId
     {
-        switch (frame.Kind)
-        {
-            case ProtocolFrameKind.Response:
-                Ensure(State.Open);
-                emit(frame);
-                break;
-
-            case ProtocolFrameKind.Complete:
-                Ensure(State.Open);
-                _state = State.Completed;
-                emit(frame);
-                onTerminal(_requestId);
-                break;
-
-            case ProtocolFrameKind.Cancel:
-                _state = State.Cancelled;
-                emit(frame);
-                onTerminal(_requestId);
-                break;
-
-            case ProtocolFrameKind.Error:
-                _state = State.Failed;
-                emit(frame);
-                onTerminal(_requestId);
-                break;
-
-            default:
-                throw new ProtocolException(
-                    ProtocolErrorKind.InvalidFrameSequence,
-                    $"Invalid frame for request: {frame.Kind}");
-        }
+        get;
     }
 
-    private void Ensure(State expected)
+    private RequestStateMachine StateMachine
     {
-        if (_state != expected)
-            throw new ProtocolException(
-                ProtocolErrorKind.InvalidFrameSequence,
-                $"Request {_requestId} is {_state}");
+        get;
+    } = new RequestStateMachine();
+
+    private TaskCompletionSource<ProtocolFrame> ResponseTcs
+    {
+        get;
+    } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public Task<ProtocolFrame> ResponseTask
+        => this.ResponseTcs.Task;
+
+    /// <summary>
+    /// Indicates whether a Request-scoped Stream has been opened.
+    /// </summary>
+    public bool HasStream
+        => this.StateMachine.HasStream;
+
+    /// <summary>
+    /// Indicates whether the Request has already been responded to.
+    /// </summary>
+    public bool IsCompleted
+        => this.StateMachine.IsResponded;
+
+    /// <summary>
+    /// Opens the single Request-scoped Stream associated with this Request.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown if the Request has already been responded to, or if a
+    /// Request-scoped Stream has already been opened.
+    /// </exception>
+    public void OpenStream()
+    {
+        this.StateMachine.OpenStream();
+    }
+
+    /// <summary>
+    /// Marks the request as responded (terminal).
+    /// Outbound emission is handled by ProtocolSession.
+    /// </summary>
+    public void Close()
+    {
+        this.StateMachine.Respond();
+    }
+
+    /// <summary>
+    /// Completes the Request based on an inbound terminal Response or Error frame.
+    /// </summary>
+    /// <remarks>
+    /// This method is used when processing Responses to Requests initiated by the
+    /// local peer. It MUST NOT emit any protocol frames.
+    /// </remarks>
+    public void CloseFromInbound(ProtocolFrame inboundFrame)
+    {
+        // Transition the Request lifecycle to terminal
+        this.StateMachine.Respond();
+        // Complete the awaiting caller with the received frame
+        this.ResponseTcs.TrySetResult(inboundFrame);
+    }
+
+    /// <summary>
+    /// Ensures the Request is still open and able to perform Request-scoped operations.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown if the Request has already been responded to.
+    /// </exception>
+    public void EnsureOpen()
+    {
+        this.StateMachine.EnsureOpen();
     }
 }

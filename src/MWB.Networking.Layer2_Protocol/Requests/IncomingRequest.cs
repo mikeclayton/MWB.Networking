@@ -1,61 +1,53 @@
-﻿namespace MWB.Networking.Layer2_Protocol.Requests;
+﻿using MWB.Networking.Layer2_Protocol.Streams;
+
+namespace MWB.Networking.Layer2_Protocol.Requests;
 
 public sealed class IncomingRequest
 {
-    internal IncomingRequest(IProtocolRequestSink requestSink, uint requestId)
+    internal IncomingRequest(
+        ProtocolSession session,
+        RequestContext context)
     {
-        this.RequestSink = requestSink ?? throw new ArgumentNullException(nameof(requestSink));
-        this.RequestId = requestId;
+        this.Session = session ?? throw new ArgumentNullException(nameof(session));
+        this.Context = context ?? throw new ArgumentNullException(nameof(context));
     }
 
-    private IProtocolRequestSink RequestSink
-    {
-        get;
-    }
-
-    internal uint RequestId
+    internal ProtocolSession Session
     {
         get;
     }
 
-    internal bool Completed
+    internal RequestContext Context
     {
         get;
-        set;
     }
 
+    /// <summary>
+    /// Sends the Response for this Request and closes the Requet.
+    /// </summary>
     public void Respond(ReadOnlyMemory<byte> payload)
     {
-        this.EnsureNotCompleted();
-        this.RequestSink.SendResponse(this.RequestId, payload);
-        this.Complete();
+        this.Session.CloseRequestWithResponse(this.Context, payload);
     }
 
-    public void Fail(ReadOnlyMemory<byte> errorPayload)
+    /// <summary>
+    /// Sends an error Response for this Request and closes the Request.
+    /// </summary>
+    public void Fail(ReadOnlyMemory<byte> payload)
     {
-        this.EnsureNotCompleted();
-        this.RequestSink.SendError(this.RequestId, errorPayload);
-        this.Complete();
+        this.Session.CloseRequestWithError(this.Context, payload);
     }
 
-    public void Cancel()
-    {
-        this.EnsureNotCompleted();
-        this.RequestSink.SendCancel(this.RequestId);
-        this.Complete();
-    }
+    /// <summary>
+    /// Opens the single Request-scoped Stream for this Request.
+    /// </summary>
 
-    private void Complete()
+    public IncomingStream OpenRequestStream()
     {
-        this.Completed = true;
-        this.RequestSink.CompleteRequest(this.RequestId);
-    }
+        // validate request is open
+        this.Context.OpenStream();
 
-    private void EnsureNotCompleted()
-    {
-        if (this.Completed)
-        {
-            throw new InvalidOperationException("Request already completed.");
-        }
+        // delegate to ProtocolSession
+        return this.Session.OpenRequestStream(this.Context);
     }
 }

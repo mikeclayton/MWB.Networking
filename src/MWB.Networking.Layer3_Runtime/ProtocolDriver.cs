@@ -5,7 +5,7 @@ namespace MWB.Networking.Layer3_Runtime;
 
 /// <summary>
 /// Drives a ProtocolSession using a NetworkAdapter.
-/// 
+///
 /// The ProtocolDriver owns execution, concurrency, cancellation and lifetime.
 /// It contains no protocol semantics and no transport logic.
 /// </summary>
@@ -20,7 +20,7 @@ internal sealed class ProtocolDriver
         this.SessionRuntime = this.Session;
     }
 
-    private NetworkAdapter Adapter 
+    private NetworkAdapter Adapter
     {
         get;
     }

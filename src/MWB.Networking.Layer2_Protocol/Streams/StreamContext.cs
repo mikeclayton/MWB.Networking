@@ -1,6 +1,8 @@
-﻿namespace MWB.Networking.Layer2_Protocol.Streams;
+﻿using MWB.Networking.Layer2_Protocol.Requests;
 
-public sealed class StreamContext
+namespace MWB.Networking.Layer2_Protocol.Streams;
+
+internal sealed class StreamContext
 {
     private enum StreamState
     {
@@ -8,15 +10,28 @@ public sealed class StreamContext
         Closed
     }
 
-    public StreamContext(uint streamId)
+    public StreamContext(uint streamId, RequestContext? owningRequest)
     {
         this.StreamId = streamId;
+        this.OwningRequest = owningRequest;
     }
 
     private uint StreamId
     {
         get;
     }
+
+    /// <summary>
+    /// The Request that owns this Stream, if any.
+    /// Null indicates a session-scoped Stream.
+    /// </summary>
+    internal RequestContext? OwningRequest
+    {
+        get;
+    }
+
+    internal bool IsRequestScoped
+        => this.OwningRequest is not null;
 
     private StreamState State
     {
@@ -32,10 +47,18 @@ public sealed class StreamContext
                 ProtocolErrorKind.InvalidFrameSequence,
                 $"Stream {this.StreamId} is closed");
         }
+        // If this is a request-scoped stream, the owning request must still be open
+        this.OwningRequest?.EnsureOpen();
     }
 
-    internal void MarkClosed()
+    internal void Close()
     {
+        if (this.State == StreamState.Closed)
+        {
+            throw new ProtocolException(
+                ProtocolErrorKind.InvalidFrameSequence,
+                $"Stream {StreamId} already closed");
+        }
         this.State = StreamState.Closed;
     }
 }

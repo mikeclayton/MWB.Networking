@@ -2,18 +2,18 @@
 
 public sealed class IncomingStream
 {
-    internal IncomingStream(IProtocolStreamSink streamSink, uint streamId)
+    internal IncomingStream(ProtocolSession session, uint streamId)
     {
-        this.StreamSink = streamSink ?? throw new ArgumentNullException(nameof(streamSink));
+        this.Session = session ?? throw new ArgumentNullException(nameof(session));
         this.StreamId = streamId;
     }
 
-    private IProtocolStreamSink StreamSink
+    private ProtocolSession Session
     {
         get;
     }
 
-    private uint StreamId
+    internal uint StreamId
     {
         get;
     }
@@ -26,21 +26,20 @@ public sealed class IncomingStream
 
     public void SendData(ReadOnlyMemory<byte> dataPayload)
     {
-        this.EnsureNotClosed();
-        this.StreamSink.SendData(this.StreamId, dataPayload);
+        this.Session.SendStreamData(this.StreamId, dataPayload);
     }
 
     public void Close()
     {
         this.EnsureNotClosed();
-        this.StreamSink.SendClose(this.StreamId);
+        this.Session.CloseStream(this.StreamId);
         this.Closed = true;
     }
 
     public void Fail(ReadOnlyMemory<byte> errorPayload)
     {
         this.EnsureNotClosed();
-        this.StreamSink.SendError(this.StreamId, errorPayload);
+        this.Session.CloseStreamWithError(this.StreamId, errorPayload);
         this.Closed = true;
     }
 

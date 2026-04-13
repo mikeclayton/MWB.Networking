@@ -31,14 +31,6 @@ public sealed class NetworkFrameWriter : INetworkFrameWriter
         {
             flags |= NetworkFrameFlags.HasStreamId;
         }
-        if (frame.ChunkIndex.HasValue)
-        {
-            flags |= NetworkFrameFlags.HasChunkIndex;
-        }
-        if (frame.IsFinalChunk)
-        {
-            flags |= NetworkFrameFlags.IsFinalChunk;
-        }
 
         // ---- 2. Compute frame header size ---------------------------------
 
@@ -47,7 +39,6 @@ public sealed class NetworkFrameWriter : INetworkFrameWriter
         if (frame.EventType.HasValue) headerLength += 4;
         if (frame.RequestId.HasValue) headerLength += 4;
         if (frame.StreamId.HasValue) headerLength += 4;
-        if (frame.ChunkIndex.HasValue) headerLength += 4;
 
         // ---- 3. Rent header buffer ----------------------------------------
 
@@ -84,14 +75,6 @@ public sealed class NetworkFrameWriter : INetworkFrameWriter
                 BinaryPrimitives.WriteUInt32BigEndian(
                     span.Slice(offset, 4),
                     frame.StreamId.Value);
-                offset += 4;
-            }
-
-            if (frame.ChunkIndex.HasValue)
-            {
-                BinaryPrimitives.WriteUInt32BigEndian(
-                    span.Slice(offset, 4),
-                    frame.ChunkIndex.Value);
                 offset += 4;
             }
 
