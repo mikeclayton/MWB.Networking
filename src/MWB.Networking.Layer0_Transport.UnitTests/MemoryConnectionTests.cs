@@ -1,5 +1,4 @@
-﻿using MouseWithoutBorders.Networking.PeerTransport.Layer2_Protocol;
-using MWB.Networking.Layer0_Transport.Memory;
+﻿using MWB.Networking.Layer0_Transport.Memory;
 using MWB.Networking.Layer1_Framing;
 using System.Diagnostics;
 

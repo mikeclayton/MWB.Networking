@@ -7,11 +7,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Internal\ProtocolSessionFactory.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Events\" />
+    <Compile Remove="ProtocolSession_Requests.cs" />
+    <Compile Remove="ProtocolSession_Requests_Inbound.cs" />
+    <Compile Remove="ProtocolSession_Requests_Outbound.cs" />
   </ItemGroup>
 
 </Project>

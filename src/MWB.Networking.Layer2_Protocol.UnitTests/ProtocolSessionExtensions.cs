@@ -1,4 +1,6 @@
-﻿namespace MWB.Networking.Layer2_Protocol.UnitTests;
+﻿using MWB.Networking.Layer2_Protocol.Session;
+
+namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
 internal static class ProtocolSessionExtensions
 {

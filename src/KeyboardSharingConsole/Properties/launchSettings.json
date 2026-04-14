@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "Peer A": {
+      "commandName": "Project",
+      "commandLineArgs": "--listen-port 9000 --connect-port 9001"
+    },
+    "Peer B": {
+      "commandName": "Project",
+      "commandLineArgs": "--listen-port 9001 --connect-port 9000"
+    }
+  }
+}

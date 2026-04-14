@@ -1,4 +1,4 @@
-﻿namespace MWB.Networking.Layer2_Protocol.Internal;
+﻿namespace MWB.Networking.Layer2_Protocol.Requests;
 
 /// <summary>
 /// Encapsulates the protocol lifecycle rules for a Request, its Response,

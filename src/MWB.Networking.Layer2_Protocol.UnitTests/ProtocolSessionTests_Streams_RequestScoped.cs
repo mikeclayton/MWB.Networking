@@ -1,6 +1,8 @@
 using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Requests;
 
+using static MWB.Networking.Layer2_Protocol.UnitTests.Helpers.ProtocolSessionHelpers;
+
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
 public partial class ProtocolSessionTests
@@ -18,12 +20,6 @@ public partial class ProtocolSessionTests
             set;
         }
 
-#pragma warning disable CA1859 // Use concrete types when possible for improved performance
-        private static IProtocolSession CreateSession() => new ProtocolSession();
-#pragma warning restore CA1859 // Use concrete types when possible for improved performance
-
-        private static readonly ReadOnlyMemory<byte> Empty = ReadOnlyMemory<byte>.Empty;
-
         // ---------------------------------------------------------------
         // Streams - Request scoped
         // ---------------------------------------------------------------
@@ -31,15 +27,15 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void FullRequestScopedStreamLifecycle_AllFramesEmittedInOrder()
         {
-            var session = (ProtocolSession)CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var session = CreateSession();
+            var runtime = session.Runtime;
 
             IncomingRequest? request = null;
 
-            session.RequestReceived += (req, _) => request = req;
+            session.Observer.RequestReceived += (req, _) => request = req;
 
             // Inbound request
-            runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
+            runtime.ProcessFrame(ProtocolFrames.Request(1));
             runtime.DrainOutboundFrames();
 
             Assert.IsNotNull(request);
@@ -63,18 +59,18 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void CannotOpenRequestScopedStream_AfterResponse()
         {
-            var session = (ProtocolSession)CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var session = CreateSession();
+            var runtime = session.Runtime;
 
             IncomingRequest? request = null;
 
-            session.RequestReceived += (req, payload) =>
+            session.Observer.RequestReceived += (req, payload) =>
             {
                 request = req;
             };
 
             // Inbound request
-            runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
+            runtime.ProcessFrame(ProtocolFrames.Request(1));
 
             // Respond to the request (closes it)
             Assert.IsNotNull(request);

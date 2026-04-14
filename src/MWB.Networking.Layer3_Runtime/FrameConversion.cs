@@ -1,5 +1,4 @@
-﻿using MouseWithoutBorders.Networking.PeerTransport.Layer2_Protocol;
-using MWB.Networking.Layer1_Framing;
+﻿using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer2_Protocol;
 
 namespace MWB.Networking.Layer3_Runtime;
@@ -15,8 +14,8 @@ internal static class FrameConverter
             NetworkFrameKind.Error => ProtocolFrameKind.Error,
             NetworkFrameKind.StreamOpen => ProtocolFrameKind.StreamOpen,
             NetworkFrameKind.StreamData => ProtocolFrameKind.StreamData,
-            NetworkFrameKind.StreamClose => ProtocolFrameKind.StreamOpen,
-            NetworkFrameKind.StreamReset => ProtocolFrameKind.StreamReset,
+            NetworkFrameKind.StreamClose => ProtocolFrameKind.StreamClose,
+            NetworkFrameKind.StreamAbort => ProtocolFrameKind.StreamAbort,
             _ =>
                 throw new InvalidOperationException()
         };
@@ -33,8 +32,8 @@ internal static class FrameConverter
             ProtocolFrameKind.Error => NetworkFrameKind.Error,
             ProtocolFrameKind.StreamOpen => NetworkFrameKind.StreamOpen,
             ProtocolFrameKind.StreamData => NetworkFrameKind.StreamData,
-            ProtocolFrameKind.StreamClose => NetworkFrameKind.StreamOpen,
-            ProtocolFrameKind.StreamReset => NetworkFrameKind.StreamReset,
+            ProtocolFrameKind.StreamClose => NetworkFrameKind.StreamClose,
+            ProtocolFrameKind.StreamAbort => NetworkFrameKind.StreamAbort,
             _ =>
                 throw new InvalidOperationException()
         };

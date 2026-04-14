@@ -21,6 +21,9 @@
   <Folder Name="/Layer3_Runtime/">
     <Project Path="MWB.Networking.Layer3_Runtime/MWB.Networking.Layer3_Runtime.csproj" />
   </Folder>
+  <Folder Name="/Samples/">
+    <Project Path="KeyboardSharingConsole/KeyboardSharingConsole.csproj" Id="643612fb-44e4-4339-8f89-2c204ec2e1fa" />
+  </Folder>
   <Folder Name="/UnitTests/">
     <Project Path="MWB.Networking.Layer0_Transport.UnitTests/MWB.Networking.Layer0_Transport.UnitTests.csproj" />
     <Project Path="MWB.Networking.Layer2_Protocol.UnitTests/MWB.Networking.Layer2_Protocol.UnitTests.csproj" Id="4474b7c6-afc3-4ed1-bc36-e40945c2c5cf" />

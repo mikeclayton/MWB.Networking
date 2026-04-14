@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
-using MouseWithoutBorders.Networking.PeerTransport.Layer2_Protocol;
 using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer1_Framing;
 using System.Diagnostics;

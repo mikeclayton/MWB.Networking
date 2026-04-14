@@ -1,6 +1,8 @@
 using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Requests;
 
+using static MWB.Networking.Layer2_Protocol.UnitTests.Helpers.ProtocolSessionHelpers;
+
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
 public partial class ProtocolSessionTests
@@ -18,12 +20,6 @@ public partial class ProtocolSessionTests
             set;
         }
 
-#pragma warning disable CA1859 // Use concrete types when possible for improved performance
-        private static IProtocolSession CreateSession() => new ProtocolSession();
-#pragma warning restore CA1859 // Use concrete types when possible for improved performance
-
-        private static readonly ReadOnlyMemory<byte> Empty = ReadOnlyMemory<byte>.Empty;
-
         // ---------------------------------------------------------------
         // Streams - Session scoped
         // ---------------------------------------------------------------
@@ -32,26 +28,27 @@ public partial class ProtocolSessionTests
         public void StreamsMayBeOpenedIndependentlyOfRequests()
         {
             var session = CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var runtime = session.Runtime;
+            var observer = session.Observer;
 
             IncomingRequest? request = null;
 
-            session.RequestReceived += (req, payload) =>
+            session.Observer.RequestReceived += (req, payload) =>
             {
                 request = req;
             };
 
             // Open a request
-            runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
+            runtime.ProcessFrame(ProtocolFrames.Request(1));
 
             // Respond, closing the request
             Assert.IsNotNull(request);
             request.Respond(new byte[] { 0xAA });
 
             // Open an independent stream (inbound)
-            runtime.ProcessFrame(ProtocolFrames.StreamOpen(10, Empty));
+            runtime.ProcessFrame(ProtocolFrames.StreamOpen(10));
 
-            var snapshot = session.Snapshot();
+            var snapshot = observer.GetSnapshot();
 
             // Request is closed
             Assert.DoesNotContain(1u, snapshot.OpenRequests);
@@ -63,13 +60,14 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void StreamOpen_IsEmittedToOutbound()
         {
-            var session = (ProtocolSession)CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var session = CreateSession();
+            var runtime = session.Runtime;
+            var commands = session.Commands;
 
             var metadata = new byte[] { 0x01, 0x02 };
 
             // Open a session-scoped stream via intent-level API
-            var stream = session.OpenSessionStream(metadata);
+            var stream = commands.OpenSessionStream(metadata);
 
             var outbound = runtime.DrainOutboundFrames();
 
@@ -82,13 +80,14 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void StreamData_IsEmittedToOutbound()
         {
-            var session = (ProtocolSession)CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var session = CreateSession();
+            var runtime = session.Runtime;
+            var commands = session.Commands;
 
             var data = new byte[] { 0xDE, 0xAD };
 
             // Open a session-scoped stream
-            var stream = session.OpenSessionStream(Empty);
+            var stream = commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
 
             // Discard StreamOpen
             runtime.DrainOutboundFrames();
@@ -107,11 +106,12 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void StreamClose_IsEmittedToOutbound()
         {
-            var session = (ProtocolSession)CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var session = CreateSession();
+            var runtime = session.Runtime;
+            var commands = session.Commands;
 
             // Open a session-scoped stream
-            var stream = session.OpenSessionStream(Empty);
+            var stream = commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
 
             // Discard the StreamOpen frame
             runtime.DrainOutboundFrames();

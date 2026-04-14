@@ -1,6 +1,8 @@
-﻿namespace MWB.Networking.Layer2_Protocol.Streams;
+﻿using MWB.Networking.Layer2_Protocol.Session;
 
-public sealed class IncomingStream
+namespace MWB.Networking.Layer2_Protocol.Streams;
+
+public sealed class IncomingStream : IProtocolStream
 {
     internal IncomingStream(ProtocolSession session, uint streamId)
     {
@@ -18,36 +20,51 @@ public sealed class IncomingStream
         get;
     }
 
-    private bool Closed
+    uint IProtocolStream.StreamId
+        => this.StreamId;
+
+    private IncomingStreamState State
     {
         get;
         set;
-    }
+    } = IncomingStreamState.Open;
 
-    public void SendData(ReadOnlyMemory<byte> dataPayload)
+    /// <summary>
+    /// Marks the stream as cleanly closed by the remote peer
+    /// following receipt of a StreamClose frame.
+    /// </summary>
+    internal void Close()
     {
-        this.Session.SendStreamData(this.StreamId, dataPayload);
-    }
-
-    public void Close()
-    {
-        this.EnsureNotClosed();
-        this.Session.CloseStream(this.StreamId);
-        this.Closed = true;
-    }
-
-    public void Fail(ReadOnlyMemory<byte> errorPayload)
-    {
-        this.EnsureNotClosed();
-        this.Session.CloseStreamWithError(this.StreamId, errorPayload);
-        this.Closed = true;
-    }
-
-    private void EnsureNotClosed()
-    {
-        if (this.Closed)
+        if (this.State != IncomingStreamState.Open)
         {
-            throw new InvalidOperationException("Stream already closed.");
+            // we only abort an open stream
+            return;
         }
+        this.State = IncomingStreamState.Closed;
+    }
+
+    /// <summary>
+    /// Marks the stream as cleanly closed by the remote peer
+    /// following receipt of a StreamClose frame.
+    /// </summary>
+    void IProtocolStream.Close()
+    {
+        this.Close();
+    }
+
+    /// <summary>
+    /// Abort this incoming stream due to a failure condition.
+    /// This sends a StreamAbort frame to the peer and tears down local state.
+    /// </summary>
+    public void Abort()
+    {
+        if (this.State != IncomingStreamState.Open)
+        {
+            // we only abort an open stream
+            return;
+        }
+
+        this.State = IncomingStreamState.Aborted;
+        this.Session.StreamManager.AbortIncomingStream(this.StreamId);
     }
 }

@@ -1,7 +1,8 @@
 ﻿using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer1_Framing;
-using MWB.Networking.Layer2_Protocol;
 using MWB.Networking.Layer2_Protocol.Requests;
+using MWB.Networking.Layer2_Protocol.Session;
+using MWB.Networking.Layer2_Protocol.Streams;
 using System.IO.Pipelines;
 
 namespace MWB.Networking.Layer3_Runtime.UnitTests;
@@ -42,8 +43,10 @@ public sealed class ProtocolDriverEndToEndTests
             new NetworkFrameReader());
 
         // Protocol sessions (Layer 2)
-        var serverSession = new ProtocolSession();
-        var clientSession = new ProtocolSession();
+#pragma warning disable CS0618 // Type or member is obsolete
+        var serverSession = ProtocolSessionFactory.CreateSession(new(OddEvenStreamIdParity.Odd));
+        var clientSession = ProtocolSessionFactory.CreateSession(new(OddEvenStreamIdParity.Even));
+#pragma warning restore CS0618 // Type or member is obsolete
 
         // Protocol drivers (Layer 3)
         var serverDriver = new ProtocolDriver(serverAdapter, serverSession);
@@ -71,12 +74,12 @@ public sealed class ProtocolDriverEndToEndTests
             new TaskCompletionSource<IncomingRequest>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
 
-        serverSession.EventReceived += (evt, payload) =>
+        serverSession.Observer.EventReceived += (evt, payload) =>
         {
             eventTcs.TrySetResult((evt, payload));
         };
 
-        serverSession.RequestReceived += (req, payload) =>
+        serverSession.Observer.RequestReceived += (req, payload) =>
         {
             requestTcs.TrySetResult(req);
         };
@@ -93,10 +96,10 @@ public sealed class ProtocolDriverEndToEndTests
         var requestPayload = new byte[] { 0xBE, 0xEF };
 
         // Client application sends an event
-        clientSession.SendEvent(1, eventPayload);
+        clientSession.Commands.SendEvent(1, eventPayload);
 
         // Client application sends a request
-        clientSession.SendRequest(requestPayload);
+        _ = clientSession.Commands.SendRequest(requestPayload);
 
         // Give the drivers time to move bytes through the pipes
         var completedEvent = await Task.WhenAny(

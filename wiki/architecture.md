@@ -1,4 +1,4 @@
-## Architecure
+## Architecture
 
 This project is built on a layered network stack where each layer handles a single responsibility
 and has a strictly defined boundary, as follows:

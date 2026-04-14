@@ -1,5 +1,5 @@
 using MWB.Networking.Layer2_Protocol.Internal;
-using MWB.Networking.Layer2_Protocol.Requests;
+using static MWB.Networking.Layer2_Protocol.UnitTests.Helpers.ProtocolSessionHelpers;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
@@ -18,26 +18,20 @@ public partial class ProtocolSessionTests
             set;
         }
 
-#pragma warning disable CA1859 // Use concrete types when possible for improved performance
-        private static IProtocolSession CreateSession() => new ProtocolSession();
-#pragma warning restore CA1859 // Use concrete types when possible for improved performance
-
-        private static readonly ReadOnlyMemory<byte> Empty = ReadOnlyMemory<byte>.Empty;
-
         // ---------------------------------------------------------------
         // Streams - Interleaving
         // ---------------------------------------------------------------
 
-
         [TestMethod]
         public void InterleavedSessionStreams_FramesEmittedInOrder()
         {
-            var session = (ProtocolSession)CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var session = CreateSession();
+            var runtime = session.Runtime;
+            var commands = session.Commands;
 
             // Open two session-scoped streams
-            var stream1 = session.OpenSessionStream(Empty);
-            var stream2 = session.OpenSessionStream(Empty);
+            var stream1 = commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
+            var stream2 = commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
 
             // Interleave data writes
             stream1.SendData(new byte[] { 0x01 });
@@ -67,11 +61,12 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void LocalSessionStreams_MayInterleaveOutboundFrames()
         {
-            var session = (ProtocolSession)CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var session = CreateSession();
+            var runtime = session.Runtime;
+            var commands = session.Commands;
 
-            var s1 = session.OpenSessionStream(Empty);
-            var s2 = session.OpenSessionStream(Empty);
+            var s1 = commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
+            var s2 = commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
 
             s1.SendData(new byte[] { 0x01 });
             s2.SendData(new byte[] { 0x02 });
@@ -83,7 +78,7 @@ public partial class ProtocolSessionTests
 
             var outbound = runtime.DrainOutboundFrames();
 
-            Assert.AreEqual(8, outbound.Count);
+            Assert.HasCount(8, outbound);
 
             // Open frames
             Assert.AreEqual(ProtocolFrameKind.StreamOpen, outbound[0].Kind);

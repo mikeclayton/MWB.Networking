@@ -1,3 +1,6 @@
+using MWB.Networking.Layer2_Protocol.Internal;
+using static MWB.Networking.Layer2_Protocol.UnitTests.Helpers.ProtocolSessionHelpers;
+
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
 public partial class ProtocolSessionTests
@@ -15,12 +18,6 @@ public partial class ProtocolSessionTests
             set;
         }
 
-#pragma warning disable CA1859 // Use concrete types when possible for improved performance
-        private static IProtocolSession CreateSession() => new ProtocolSession();
-#pragma warning restore CA1859 // Use concrete types when possible for improved performance
-
-        private static readonly ReadOnlyMemory<byte> Empty = ReadOnlyMemory<byte>.Empty;
-
         // ---------------------------------------------------------------
         // Streams - Lifecycle
         // ---------------------------------------------------------------
@@ -28,11 +25,12 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void MultipleStreamData_EmittedInOrder()
         {
-            var session = (ProtocolSession)CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var session = CreateSession();
+            var runtime = session.Runtime;
+            var commands = session.Commands;
 
             // Open a session-scoped stream
-            var stream = session.OpenSessionStream(Empty);
+            var stream = commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
 
             // Emit multiple data frames
             stream.SendData(new byte[] { 10 });
@@ -41,7 +39,7 @@ public partial class ProtocolSessionTests
 
             var outbound = runtime.DrainOutboundFrames();
 
-            Assert.AreEqual(4, outbound.Count);
+            Assert.HasCount(4, outbound);
 
             // First frame is StreamOpen
             Assert.AreEqual(ProtocolFrameKind.StreamOpen, outbound[0].Kind);

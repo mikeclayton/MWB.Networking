@@ -1,4 +1,4 @@
-﻿namespace MWB.Networking.Layer1_Framing;
+﻿namespace MWB.Networking.Layer1_Framing.Internal;
 
 [Flags]
 internal enum NetworkFrameFlags : byte

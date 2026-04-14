@@ -24,11 +24,19 @@ message is sent with a length prefix (e.g. 4 bytes) followed by the message payl
 | 4-7    | 4      | Event type | (only for Event frames) |
 | 8-11   | 4      | Request ID | (only for Request and Response frames) |
 | 12-15   | 4      | Stream ID | (only for Stream frames) |
-| 16-19   | 4      | Chunk index | (only for Stream frames) |
-| 20     | 1      | Is final chunk | (only for Stream frames) |
-| 21-     | N      | Payload | (remaining bytes)       |
+| 16-     | N      | Payload | (remaining bytes)       |
 
+Event Type, Request ID and Stream ID are optional. If not specified, those
+byte will not be ommitted from the frame, and the Payload will start at an
+earlier byte offset.
+
+The variable-length header approach is a total frame size micro optimisation for mouse
+and keyboard events with are ultra small and ultra frequent. The performance gain from
+every byte saves multiplies up quickly with thousands / tens of thousands / millions of frames.
 
 The protocol defines the structure and semantics of messages exchanged between clients and servers,
 including framing, message types, session management, and error handling. It ensures reliable
 communication and supports features like request-response patterns, event broadcasting, and streaming data.
+
+Note that flag / kind consistency is enforced higher up the stack - these values are opaque to layer 0
+and layer 1 - they're simply passed along for fast access without needing to decode the payload.

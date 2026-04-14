@@ -1,5 +1,8 @@
 using MWB.Networking.Layer2_Protocol.Internal;
+using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 using System.Diagnostics;
+
+using static MWB.Networking.Layer2_Protocol.UnitTests.Helpers.ProtocolSessionHelpers;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
@@ -20,11 +23,6 @@ public partial class ProtocolSessionTests
             set;
         }
 
-#pragma warning disable CA1859 // Use concrete types when possible for improved performance
-        private static IProtocolSession CreateSession() => new ProtocolSession();
-#pragma warning restore CA1859 // Use concrete types when possible for improved performance
-
-        private static readonly ReadOnlyMemory<byte> Empty = ReadOnlyMemory<byte>.Empty;
         private static readonly byte[] FourBytes = [0x01, 0x02, 0x03, 0x04];
 
         private const int Iterations = 10_000;
@@ -38,7 +36,8 @@ public partial class ProtocolSessionTests
         public void Performance_Events_10000()
         {
             var session = CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var runtime = session.Runtime;
+            var observer = session.Observer;
 
             // Warm up the JIT and dictionary internals before timing.
             for (var i = 0; i < WarmupIterations; i++)
@@ -59,8 +58,8 @@ public partial class ProtocolSessionTests
 
             // Verify no frames were output for events.
             Assert.HasCount(0, outbound);
-            Assert.IsEmpty(session.Snapshot().OpenRequests);
-            Assert.IsEmpty(session.Snapshot().OpenStreams);
+            Assert.IsEmpty(observer.GetSnapshot().OpenRequests);
+            Assert.IsEmpty(observer.GetSnapshot().OpenStreams);
 
             Report("Events", sw, Iterations);
         }
@@ -73,7 +72,8 @@ public partial class ProtocolSessionTests
         public void Performance_Requests_10000()
         {
             var session = CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var runtime = session.Runtime;
+            var observer = session.Observer;
 
             // Reuse a single request ID per iteration: Complete removes it so it
             // can be reused immediately, keeping dictionary size constant at 0-1.
@@ -81,7 +81,7 @@ public partial class ProtocolSessionTests
 
             for (var i = 0; i < WarmupIterations; i++)
             {
-                runtime.ProcessFrame(ProtocolFrames.Request(Id, Empty));
+                runtime.ProcessFrame(ProtocolFrames.Request(Id));
                 runtime.ProcessFrame(ProtocolFrames.Response(Id));
             }
             runtime.DrainOutboundFrames();
@@ -89,7 +89,7 @@ public partial class ProtocolSessionTests
             var sw = Stopwatch.StartNew();
             for (var i = 0; i < Iterations; i++)
             {
-                runtime.ProcessFrame(ProtocolFrames.Request(Id, Empty));
+                runtime.ProcessFrame(ProtocolFrames.Request(Id));
                 runtime.ProcessFrame(ProtocolFrames.Response(Id));
             }
             sw.Stop();
@@ -97,7 +97,7 @@ public partial class ProtocolSessionTests
             runtime.DrainOutboundFrames();
 
             // Session should be fully quiesced: no open requests remain.
-            Assert.IsEmpty(session.Snapshot().OpenRequests);
+            Assert.IsEmpty(observer.GetSnapshot().OpenRequests);
 
             Report("Requests (open + complete)", sw, Iterations);
         }
@@ -109,15 +109,16 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Performance_Streams_OpenSendClose_10000()
         {
-            var session = CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var session = ProtocolSessionHelpers.CreateSession();
+            var runtime = session.Runtime;
+            var observer = session.Observer;
 
             // Reuse stream ID 1: StreamClose removes it so it can be reused.
             const uint Id = 1;
 
             for (var i = 0; i < WarmupIterations; i++)
             {
-                runtime.ProcessFrame(ProtocolFrames.StreamOpen(Id, Empty));
+                runtime.ProcessFrame(ProtocolFrames.StreamOpen(Id));
                 runtime.ProcessFrame(ProtocolFrames.StreamData(Id, FourBytes));
                 runtime.ProcessFrame(ProtocolFrames.StreamClose(Id));
             }
@@ -126,7 +127,7 @@ public partial class ProtocolSessionTests
             var sw = Stopwatch.StartNew();
             for (var i = 0; i < Iterations; i++)
             {
-                runtime.ProcessFrame(ProtocolFrames.StreamOpen(Id, Empty));
+                runtime.ProcessFrame(ProtocolFrames.StreamOpen(Id));
                 runtime.ProcessFrame(ProtocolFrames.StreamData(Id, FourBytes));
                 runtime.ProcessFrame(ProtocolFrames.StreamClose(Id));
             }
@@ -135,7 +136,7 @@ public partial class ProtocolSessionTests
             runtime.DrainOutboundFrames();
 
             // Session should be fully quiesced: no open streams remain.
-            Assert.IsEmpty(session.Snapshot().OpenStreams);
+            Assert.IsEmpty(observer.GetSnapshot().OpenStreams);
 
             Report("Streams (open + 4-byte data + close)", sw, Iterations);
         }

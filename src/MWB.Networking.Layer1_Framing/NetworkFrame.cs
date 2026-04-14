@@ -1,6 +1,4 @@
-﻿using MouseWithoutBorders.Networking.PeerTransport.Layer2_Protocol;
-
-namespace MWB.Networking.Layer1_Framing;
+﻿namespace MWB.Networking.Layer1_Framing;
 
 public sealed class NetworkFrame
 {

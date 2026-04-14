@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 
-namespace MWB.Networking.Layer2_Protocol;
+namespace MWB.Networking.Layer2_Protocol.Session;
 
 public sealed partial class ProtocolSession : IProtocolSessionRuntime
 {
@@ -12,26 +12,26 @@ public sealed partial class ProtocolSession : IProtocolSessionRuntime
         {
             // ----- One-way ----------------------------------------------
             case ProtocolFrameKind.Event:
-                this.ProcessEventFrame(frame);
+                this.EventManager.ProcessEventFrame(frame);
                 break;
 
             // ----- Request lifecycle ------------------------------------
             case ProtocolFrameKind.Request:
                 // Inbound request from the peer
-                this.ProcessInboundRequestFrame(frame);
+                this.RequestManager.ProcessInboundRequestFrame(frame);
                 break;
 
             case ProtocolFrameKind.Response:
             case ProtocolFrameKind.Error:
                 // Terminal response to a request we sent
-                this.ProcessInboundResponseFrame(frame);
+                this.RequestManager.ProcessInboundResponseFrame(frame);
                 break;
 
             // ----- Stream lifecycle -------------------------------------
             case ProtocolFrameKind.StreamOpen:
             case ProtocolFrameKind.StreamData:
             case ProtocolFrameKind.StreamClose:
-                this.ProcessInboundStreamFrame(frame);
+                this.StreamManager.ProcessInboundStreamFrame(frame);
                 break;
 
             default:

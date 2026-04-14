@@ -1,4 +1,7 @@
 using MWB.Networking.Layer2_Protocol.Internal;
+using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
+
+using static MWB.Networking.Layer2_Protocol.UnitTests.Helpers.ProtocolSessionHelpers;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
@@ -17,16 +20,6 @@ public partial class ProtocolSessionTests
             set;
         }
 
-#pragma warning disable CA1859 // Use concrete types when possible for improved performance
-        private static IProtocolSession CreateSession() => new ProtocolSession();
-#pragma warning restore CA1859 // Use concrete types when possible for improved performance
-
-        private static readonly ReadOnlyMemory<byte> Empty = ReadOnlyMemory<byte>.Empty;
-
-        // Internal ProtocolFrame ctor is accessible via InternalsVisibleTo.
-        private static ProtocolFrame MakeError(uint requestId) =>
-            new(ProtocolFrameKind.Error, null, requestId, null, ReadOnlyMemory<byte>.Empty);
-
         // ---------------------------------------------------------------
         // Requests - Invariants
         // ---------------------------------------------------------------
@@ -35,9 +28,9 @@ public partial class ProtocolSessionTests
         public void Request_MissingRequestId_ThrowsProtocolException()
         {
             var session = CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var runtime = session.Runtime;
 
-            var frame = new ProtocolFrame(ProtocolFrameKind.Request, null, null, null, Empty);
+            var frame = new ProtocolFrame(ProtocolFrameKind.Request, null, null, null, ProtocolFrames.EmptyPayload);
 
             Assert.Throws<ProtocolException>(() => runtime.ProcessFrame(frame));
         }
@@ -46,9 +39,9 @@ public partial class ProtocolSessionTests
         public void Response_MissingRequestId_ThrowsProtocolException()
         {
             var session = CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var runtime = session.Runtime;
 
-            var frame = new ProtocolFrame(ProtocolFrameKind.Response, null, null, null, Empty);
+            var frame = new ProtocolFrame(ProtocolFrameKind.Response, null, null, null, ProtocolFrames.EmptyPayload);
 
             Assert.Throws<ProtocolException>(() => runtime.ProcessFrame(frame));
         }
@@ -57,29 +50,29 @@ public partial class ProtocolSessionTests
         public void Request_DuplicateRequestId_ThrowsProtocolException()
         {
             var session = CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var runtime = session.Runtime;
 
-            runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
+            runtime.ProcessFrame(ProtocolFrames.Request(1));
 
             Assert.Throws<ProtocolException>(
-                () => runtime.ProcessFrame(ProtocolFrames.Request(1, Empty)));
+                () => runtime.ProcessFrame(ProtocolFrames.Request(1)));
         }
 
         [TestMethod]
         public void Response_UnknownRequestId_ThrowsProtocolException()
         {
             var session = CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var runtime = session.Runtime;
 
             Assert.Throws<ProtocolException>(
-                () => runtime.ProcessFrame(ProtocolFrames.Response(99, Empty)));
+                () => runtime.ProcessFrame(ProtocolFrames.Response(99)));
         }
 
         [TestMethod]
         public void Complete_UnknownRequestId_ThrowsProtocolException()
         {
             var session = CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var runtime = session.Runtime;
 
             Assert.Throws<ProtocolException>(
                 () => runtime.ProcessFrame(ProtocolFrames.Response(99)));
@@ -89,7 +82,7 @@ public partial class ProtocolSessionTests
         public void Error_UnknownRequestId_ThrowsProtocolException()
         {
             var session = CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var runtime = session.Runtime;
 
             Assert.Throws<ProtocolException>(
                 () => runtime.ProcessFrame(ProtocolFrames.Error(99)));
@@ -100,22 +93,22 @@ public partial class ProtocolSessionTests
         {
             // Complete removes the context; the same RequestId is now unknown.
             var session = CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var runtime = session.Runtime;
 
-            runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
+            runtime.ProcessFrame(ProtocolFrames.Request(1));
             runtime.ProcessFrame(ProtocolFrames.Response(1));
 
             Assert.Throws<ProtocolException>(
-                () => runtime.ProcessFrame(ProtocolFrames.Response(1, Empty)));
+                () => runtime.ProcessFrame(ProtocolFrames.Response(1)));
         }
 
         [TestMethod]
         public void CompleteRequest_Twice_ThrowsProtocolException()
         {
             var session = CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var runtime = session.Runtime;
 
-            runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
+            runtime.ProcessFrame(ProtocolFrames.Request(1));
             runtime.ProcessFrame(ProtocolFrames.Response(1));
 
             Assert.Throws<ProtocolException>(
@@ -125,10 +118,10 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Error_WithOnlyStreamId_ThrowsProtocolException()
         {
-            // Cancel is always routed through request handling; a null RequestId always throws.
             var session = CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var runtime = session.Runtime;
 
+            // Cancel is always routed through request handling; a null RequestId always throws.
             Assert.Throws<ProtocolException>(
                 () => runtime.ProcessFrame(ProtocolFrames.Error(5)));
         }

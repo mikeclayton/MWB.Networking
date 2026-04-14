@@ -3,6 +3,10 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace MWB.Networking.Layer2_Protocol.Streams;
 
+/// <summary>
+/// Internal protocol invariant state for a stream.
+/// Not an API object and not direction-specific.
+/// </summary>
 internal sealed class StreamContext
 {
     private enum StreamState

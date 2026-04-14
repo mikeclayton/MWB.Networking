@@ -1,5 +1,6 @@
 ﻿using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer2_Protocol;
+using MWB.Networking.Layer2_Protocol.Session;
 
 namespace MWB.Networking.Layer3_Runtime;
 
@@ -9,15 +10,14 @@ namespace MWB.Networking.Layer3_Runtime;
 /// The ProtocolDriver owns execution, concurrency, cancellation and lifetime.
 /// It contains no protocol semantics and no transport logic.
 /// </summary>
-internal sealed class ProtocolDriver
+public sealed class ProtocolDriver
 {
     public ProtocolDriver(
         NetworkAdapter adapter,
-        ProtocolSession session)
+        ProtocolSessionHandle session)
     {
         this.Adapter = adapter ?? throw new ArgumentNullException(nameof(adapter));
         this.Session = session ?? throw new ArgumentNullException(nameof(session));
-        this.SessionRuntime = this.Session;
     }
 
     private NetworkAdapter Adapter
@@ -25,12 +25,7 @@ internal sealed class ProtocolDriver
         get;
     }
 
-    private ProtocolSession Session
-    {
-        get;
-    }
-
-    private IProtocolSessionRuntime SessionRuntime
+    private ProtocolSessionHandle Session
     {
         get;
     }
@@ -87,7 +82,7 @@ internal sealed class ProtocolDriver
             await this.SessionGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                this.SessionRuntime.ProcessFrame(protocolFrame);
+                this.Session.Runtime.ProcessFrame(protocolFrame);
             }
             finally
             {
@@ -105,7 +100,7 @@ internal sealed class ProtocolDriver
         while (!ct.IsCancellationRequested)
         {
             // Wait until outbound data exists
-            await this.SessionRuntime
+            await this.Session.Runtime
                 .WaitForOutboundFrameAsync(ct)
                 .ConfigureAwait(false);
 
@@ -115,7 +110,7 @@ internal sealed class ProtocolDriver
             await this.SessionGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                if (!this.SessionRuntime.TryDequeueOutboundFrame(out protocolFrame))
+                if (!this.Session.Runtime.TryDequeueOutboundFrame(out protocolFrame))
                 {
                     // No outbound work available right now
                     protocolFrame = null!;

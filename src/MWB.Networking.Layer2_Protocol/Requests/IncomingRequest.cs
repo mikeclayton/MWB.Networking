@@ -1,4 +1,5 @@
-﻿using MWB.Networking.Layer2_Protocol.Streams;
+﻿using MWB.Networking.Layer2_Protocol.Session;
+using MWB.Networking.Layer2_Protocol.Streams;
 
 namespace MWB.Networking.Layer2_Protocol.Requests;
 
@@ -27,7 +28,7 @@ public sealed class IncomingRequest
     /// </summary>
     public void Respond(ReadOnlyMemory<byte> payload)
     {
-        this.Session.CloseRequestWithResponse(this.Context, payload);
+        this.Session.RequestManager.CloseRequestWithResponse(this.Context, payload);
     }
 
     /// <summary>
@@ -35,19 +36,19 @@ public sealed class IncomingRequest
     /// </summary>
     public void Fail(ReadOnlyMemory<byte> payload)
     {
-        this.Session.CloseRequestWithError(this.Context, payload);
+        this.Session.RequestManager.CloseRequestWithError(this.Context, payload);
     }
 
     /// <summary>
     /// Opens the single Request-scoped Stream for this Request.
     /// </summary>
 
-    public IncomingStream OpenRequestStream()
+    public OutgoingStream OpenRequestStream()
     {
         // validate request is open
         this.Context.OpenStream();
 
         // delegate to ProtocolSession
-        return this.Session.OpenRequestStream(this.Context);
+        return this.Session.StreamManager.OpenRequestStream(this.Context);
     }
 }

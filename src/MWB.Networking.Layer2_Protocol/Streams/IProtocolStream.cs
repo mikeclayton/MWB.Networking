@@ -1,0 +1,12 @@
+﻿namespace MWB.Networking.Layer2_Protocol.Streams;
+
+internal interface IProtocolStream
+{
+    uint StreamId
+    {
+        get;
+    }
+
+    // Internal lifecycle hooks only
+    void Close();
+}

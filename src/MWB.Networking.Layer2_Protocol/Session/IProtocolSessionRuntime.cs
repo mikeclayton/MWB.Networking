@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 
-namespace MWB.Networking.Layer2_Protocol;
+namespace MWB.Networking.Layer2_Protocol.Session;
 
 public interface IProtocolSessionRuntime
 {

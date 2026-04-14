@@ -1,4 +1,4 @@
-﻿namespace MouseWithoutBorders.Networking.PeerTransport.Layer2_Protocol;
+﻿namespace MWB.Networking.Layer1_Framing;
 
 /// <summary>
 /// Keep this in sync with ProtocolFrameKind.
@@ -70,13 +70,13 @@ public enum NetworkFrameKind : byte
     /// Indicates an abnormal or premature termination of a stream due to error,
     /// refusal, or cancellation.
     ///
-    /// A StreamReset immediately ends the stream identified by the StreamId and
+    /// A StreamAbort immediately ends the stream identified by the StreamId and
     /// invalidates any in-flight data for that stream. No further StreamData or
     /// StreamClose frames will be sent for the StreamId.
     ///
-    /// Higher layers may interpret a StreamReset as a failure or partial failure
+    /// Higher layers may interpret a StreamAbort as a failure or partial failure
     /// depending on the role of the stream within a request or operation; other
     /// streams and request lifecycles are otherwise unaffected.
     /// </summary>
-    StreamReset = 0x13,
+    StreamAbort = 0x13,
 }

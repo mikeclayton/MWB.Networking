@@ -1,0 +1,35 @@
+```
+              ┌────────────────────────────┐
+              │ RequestContext             │
+              │  - requestId               │
+              │  - state (Open/Completed)  │
+              │  - invariant checks        │
+              │  - response tracking       │
+              └─────────────▲──────────────┘
+                            │
+              ┌─────────────┴──────────────┐
+              │ RequestManager             │
+              │  - inbound validation      │
+              │  - outbound creation       │
+              │  - lifecycle enforcement   │
+              │  - request lookup          │
+              └──────────▲───────────┬─────┘
+                         │           │
+           inbound frames│           │outbound intent
+                         │           ▼
+      ┌──────────────────┼──────────────────┐
+      │                  │                  │
+┌────────────────┐  ┌─────────────────┐  ┌─────────────────────────┐
+│ IncomingRequest│  │ ProtocolSession │  │ (future) OutgoingRequest│
+│ (observer/API) │  │  _Observer.cs   │  │ (if you ever add one)   │
+└────────────────┘  └─────────────────┘  └─────────────────────────┘
+            │
+            │ exposed to application
+            ▼
+┌────────────────────────────┐
+│ Application code           │
+│  - reads payload           │
+│  - sends response          │
+│  - can fail request        │
+└────────────────────────────┘
+```

@@ -1,9 +1,9 @@
 ﻿using MWB.Networking.Layer2_Protocol.Requests;
 using MWB.Networking.Layer2_Protocol.Streams;
 
-namespace MWB.Networking.Layer2_Protocol;
+namespace MWB.Networking.Layer2_Protocol.Session;
 
-public interface IProtocolSession
+public interface IProtocolSessionObserver
 {
     // === Semantics ===
 
@@ -20,5 +20,5 @@ public interface IProtocolSession
     /// <summary>
     /// Returns a snapshot of protocol state for tests and diagnostics.
     /// </summary>
-    ProtocolSnapshot Snapshot();
+    ProtocolSnapshot GetSnapshot();
 }

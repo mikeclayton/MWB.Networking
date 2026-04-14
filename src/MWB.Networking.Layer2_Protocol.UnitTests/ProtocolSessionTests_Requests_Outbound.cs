@@ -1,6 +1,8 @@
 using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Requests;
 
+using static MWB.Networking.Layer2_Protocol.UnitTests.Helpers.ProtocolSessionHelpers;
+
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
 public partial class ProtocolSessionTests
@@ -18,12 +20,6 @@ public partial class ProtocolSessionTests
             set;
         }
 
-#pragma warning disable CA1859 // Use concrete types when possible for improved performance
-        private static IProtocolSession CreateSession() => new ProtocolSession();
-#pragma warning restore CA1859 // Use concrete types when possible for improved performance
-
-        private static readonly ReadOnlyMemory<byte> Empty = ReadOnlyMemory<byte>.Empty;
-
         // ---------------------------------------------------------------
         // Outbound frame emission
         // ---------------------------------------------------------------
@@ -32,18 +28,20 @@ public partial class ProtocolSessionTests
         public void Request_IsRaisedToApplication_AndNotEmittedOutbound()
         {
             var session = CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var runtime = session.Runtime;
+            var observer = session.Observer;
+            var commands = session.Commands;
 
             IncomingRequest? received = null;
             int callCount = 0;
 
-            session.RequestReceived += (req, payload) =>
+            session.Observer.RequestReceived += (req, payload) =>
             {
                 received = req;
                 callCount++;
             };
 
-            runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
+            runtime.ProcessFrame(ProtocolFrames.Request(1));
 
             Assert.AreEqual(1, callCount);
             Assert.IsNotNull(received);
@@ -54,17 +52,17 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Respond_EmitsResponseToOutbound()
         {
-            var session = (ProtocolSession)CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var session = CreateSession();
+            var runtime = session.Runtime;
 
             IncomingRequest? request = null;
 
-            session.RequestReceived += (req, payload) =>
+            session.Observer.RequestReceived += (req, payload) =>
             {
                 request = req;
             };
 
-            runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
+            runtime.ProcessFrame(ProtocolFrames.Request(1));
             runtime.DrainOutboundFrames();
 
             var payload = new byte[] { 0xAB, 0xCD };
@@ -85,17 +83,17 @@ public partial class ProtocolSessionTests
         public void Request_AllowsOnlyOneResponse_SecondRespondThrows()
         {
             var session = CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var runtime = session.Runtime;
 
             IncomingRequest? request = null;
 
-            session.RequestReceived += (req, payload) =>
+            session.Observer.RequestReceived += (req, payload) =>
             {
                 request = req;
             };
 
             // Peer sends request
-            runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
+            runtime.ProcessFrame(ProtocolFrames.Request(1));
 
             // First response is allowed
             request!.Respond(new byte[] { 0xA1 });
@@ -116,13 +114,13 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void TwoConcurrentRequests_ResponsesEmittedInOrder()
         {
-            var session = (ProtocolSession)CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var session = CreateSession();
+            var runtime = session.Runtime;
 
             IncomingRequest? req1 = null;
             IncomingRequest? req2 = null;
 
-            session.RequestReceived += (req, payload) =>
+            session.Observer.RequestReceived += (req, payload) =>
             {
                 if (req.Context.RequestId == 1)
                 {
@@ -135,8 +133,8 @@ public partial class ProtocolSessionTests
             };
 
             // Open two requests
-            runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
-            runtime.ProcessFrame(ProtocolFrames.Request(2, Empty));
+            runtime.ProcessFrame(ProtocolFrames.Request(1));
+            runtime.ProcessFrame(ProtocolFrames.Request(2));
             runtime.DrainOutboundFrames();
 
             // Respond to both, in order
@@ -156,37 +154,39 @@ public partial class ProtocolSessionTests
         public void Request_IsClosedAfterSingleResponse()
         {
             var session = CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var runtime = session.Runtime;
+            var observer = session.Observer;
 
             IncomingRequest? request = null;
 
-            session.RequestReceived += (req, payload) =>
+            session.Observer.RequestReceived += (req, payload) =>
             {
                 request = req;
             };
 
-            runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
+            runtime.ProcessFrame(ProtocolFrames.Request(1));
 
             Assert.IsNotNull(request);
             request.Respond(new byte[] { 0xAA });
 
-            Assert.DoesNotContain(1u, session.Snapshot().OpenRequests);
+            Assert.DoesNotContain(1u, observer.GetSnapshot().OpenRequests);
         }
 
         [TestMethod]
         public void Request_SecondResponse_IsRejected()
         {
             var session = CreateSession();
-            var runtime = (IProtocolSessionRuntime)session;
+            var runtime = session.Runtime;
+            var observer = session.Observer;
 
             IncomingRequest? request = null;
 
-            session.RequestReceived += (req, payload) =>
+            session.Observer.RequestReceived += (req, payload) =>
             {
                 request = req;
             };
 
-            runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
+            runtime.ProcessFrame(ProtocolFrames.Request(1));
 
             Assert.IsNotNull(request);
             request.Respond(new byte[] { 1 });
@@ -196,7 +196,7 @@ public partial class ProtocolSessionTests
                 request.Respond(new byte[] { 2 });
             });
 
-            Assert.DoesNotContain(1u, session.Snapshot().OpenRequests);
+            Assert.DoesNotContain(1u, observer.GetSnapshot().OpenRequests);
         }
     }
 }

@@ -1,16 +1,41 @@
-﻿namespace MWB.Networking.Layer2_Protocol;
+﻿using MWB.Networking.Layer2_Protocol.Events;
+using MWB.Networking.Layer2_Protocol.Requests;
+using MWB.Networking.Layer2_Protocol.Streams;
 
-public sealed partial class ProtocolSession : IProtocolSession
+namespace MWB.Networking.Layer2_Protocol.Session;
+
+public sealed partial class ProtocolSession
 {
-    internal ProtocolSession()
+    internal ProtocolSession(OddEvenStreamIdProvider outboundStreamIdProvider)
     {
+        this.EventManager = new EventManager(this);
+        this.RequestManager = new RequestManager(this);
+        this.StreamManager = new StreamManager(this, outboundStreamIdProvider);
     }
 
-    internal IProtocolSession AsSession()
+    internal IProtocolSessionCommands AsCommands()
+        => this;
+
+    internal IProtocolSessionObserver AsObserver()
         => this;
 
     internal IProtocolSessionRuntime AsRuntime()
         => this;
+
+    internal EventManager EventManager
+    {
+        get;
+    }
+
+    internal RequestManager RequestManager
+    {
+        get;
+    }
+
+    internal StreamManager StreamManager
+    {
+        get;
+    }
 
     internal SemaphoreSlim OutboundSignal
     {
@@ -25,7 +50,9 @@ public sealed partial class ProtocolSession : IProtocolSession
         get;
     } = [];
 
-
+    // ------------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------------
     public async Task WaitForOutboundFrameAsync(CancellationToken ct)
     {
         await this.OutboundSignal
@@ -33,22 +60,18 @@ public sealed partial class ProtocolSession : IProtocolSession
             .ConfigureAwait(false);
     }
 
-    // ------------------------------------------------------------------
-    // Helpers
-    // ------------------------------------------------------------------
-
     internal void EnqueueOutboundFrame(ProtocolFrame frame)
     {
         // Validate Request-scoped frames
         if (frame.RequestId is not null)
         {
-            if (!this.RequestContexts.TryGetValue(frame.RequestId.Value, out var requestContext))
+            if (!this.RequestManager.TryGetRequestContext(frame.RequestId.Value, out var requestContext))
             {
-                throw ProtocolError(frame, "Unknown or completed RequestId");
+                throw ProtocolException.InvalidFrameSequence(frame, "Unknown or completed RequestId");
             }
 
             // Ensure the Request is still open
-            if (!ProtocolSession.IsTerminalRequestFrame(frame))
+            if (!RequestManager.IsTerminalRequestFrame(frame))
             {
                 requestContext.EnsureOpen();
             }
@@ -57,9 +80,9 @@ public sealed partial class ProtocolSession : IProtocolSession
         // Validate Stream-scoped frames
         if (frame.StreamId is not null)
         {
-            if (!this.StreamEntries.TryGetValue(frame.StreamId.Value, out var streamEntry))
+            if (!this.StreamManager.TryGetStreamEntry(frame.StreamId.Value, out var streamEntry))
             {
-                throw ProtocolError(frame, "Unknown StreamId");
+                throw ProtocolException.InvalidFrameSequence(frame, "Unknown StreamId");
             }
 
             if (streamEntry.Context.IsRequestScoped)
@@ -76,14 +99,5 @@ public sealed partial class ProtocolSession : IProtocolSession
         // If all validation succeeds, the frame is legal to send
         this.OutboundFrames.Enqueue(frame);
         this.OutboundSignal.Release();
-    }
-
-    private static ProtocolException ProtocolError(
-          ProtocolFrame frame,
-          string message)
-    {
-        return new ProtocolException(
-            ProtocolErrorKind.InvalidFrameSequence,
-            $"{message} (FrameKind={frame.Kind}, RequestId={frame.RequestId}, StreamId={frame.StreamId})");
     }
 }

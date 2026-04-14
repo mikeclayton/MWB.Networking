@@ -1,4 +1,5 @@
 ﻿using MWB.Networking.Layer0_Transport;
+using MWB.Networking.Layer1_Framing.Internal;
 using System.Buffers;
 using System.Buffers.Binary;
 

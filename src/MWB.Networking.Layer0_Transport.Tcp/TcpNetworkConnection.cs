@@ -83,7 +83,7 @@ public sealed class TcpNetworkConnection : INetworkConnection, IHasLogger, IHasI
     }
 
     [LogMethod]
-    public async Task WaitUntilConnectedAsync(CancellationToken ct)
+    public async Task WaitUntilConnectedAsync(CancellationToken ct = default)
     {
         using var linked =
             CancellationTokenSource.CreateLinkedTokenSource(ct, this.ShutdownToken);
