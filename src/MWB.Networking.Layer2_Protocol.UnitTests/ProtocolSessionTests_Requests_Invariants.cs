@@ -9,7 +9,7 @@ public partial class ProtocolSessionTests
     /// Covers snapshot state, outbound frame emission, and protocol violation guards.
     /// </summary>
     [TestClass]
-    public sealed partial class Invariants
+    public sealed partial class Requests_Invariants
     {
         public TestContext TestContext
         {
@@ -28,7 +28,7 @@ public partial class ProtocolSessionTests
             new(ProtocolFrameKind.Error, null, requestId, null, ReadOnlyMemory<byte>.Empty);
 
         // ---------------------------------------------------------------
-        // Protocol violations
+        // Requests - Invariants
         // ---------------------------------------------------------------
 
         [TestMethod]

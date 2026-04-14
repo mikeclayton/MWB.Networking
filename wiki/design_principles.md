@@ -1,11 +1,19 @@
 ## Design Principles
 
-Some simple principles that guide design decisions:
+Some simple principles that drive design decisions:
 
 * **Simplicity** beats generalisation
 * **Reliability** beats performance
-* **Enterprise deployability** beats bleeding edge
+* **Compatibility** beats novelty
 * **Maintainability** beats cleverness
+* **Consistency** beats convention
+
+*but*, they're not set in stone - where there's a compelling reason to
+override them, do so *responsibly*.
+
+> "They're more like guidelines, really."
+>
+> -- Captain Barbossa
 
 ---
 
@@ -24,13 +32,13 @@ Some simple principles that guide design decisions:
 
 ---
 
-### Enterprise deployability beats bleeding edge
+### Compatibility beats novelty
 
-* explains TCP + custom crypto
-* explains cautious stance on QUIC
-* defends conservative choices
-* signals awareness of real production environments
-* "beats" vs "rejects" - leaves space for optional or experimental paths later.
+* Explains the choice of TCP with custom crypto over newer protocols
+* Explains a cautious stance on QUIC and similar technologies
+* Defends conservative choices where interoperability and predictability matter
+* Reflects awareness of real, heterogeneous production environments
+* "Beats" does not mean "rejects" — optional or experimental paths remain open
 
 ---
 
@@ -40,3 +48,12 @@ Some simple principles that guide design decisions:
 * fewer implicit rules
 * explicit lifecycles
 * avoiding "one mechanism does everything"
+
+---
+
+### Consistency beats convention
+
+* one way to do a thing across the codebase
+* predictable structure over optimised variations
+* fewer patterns to learn
+* optimised for long‑term readers, not first impressions

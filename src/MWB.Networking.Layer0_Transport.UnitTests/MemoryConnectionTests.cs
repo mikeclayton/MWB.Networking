@@ -19,7 +19,7 @@ public class MemoryConnectionTests
         [TestMethod]
         public async Task MemoryPerfTest()
         {
-            const int FrameCount = 100_000;
+            const int FrameCount = 1_000_000;
 
             // create one-way in-memory transport
             var clientConnection = new MemoryNetworkConnection(1024 * 1024 * 50);

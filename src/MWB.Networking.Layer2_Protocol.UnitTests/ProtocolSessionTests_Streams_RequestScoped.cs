@@ -24,6 +24,42 @@ public partial class ProtocolSessionTests
 
         private static readonly ReadOnlyMemory<byte> Empty = ReadOnlyMemory<byte>.Empty;
 
+        // ---------------------------------------------------------------
+        // Streams - Request scoped
+        // ---------------------------------------------------------------
+
+        [TestMethod]
+        public void FullRequestScopedStreamLifecycle_AllFramesEmittedInOrder()
+        {
+            var session = (ProtocolSession)CreateSession();
+            var runtime = (IProtocolSessionRuntime)session;
+
+            IncomingRequest? request = null;
+
+            session.RequestReceived += (req, _) => request = req;
+
+            // Inbound request
+            runtime.ProcessFrame(ProtocolFrames.Request(1, Empty));
+            runtime.DrainOutboundFrames();
+
+            Assert.IsNotNull(request);
+
+            // Open request-scoped stream
+            var stream = request.OpenRequestStream();
+
+            stream.SendData(new byte[] { 0xA1 });
+            stream.SendData(new byte[] { 0xA2 });
+            stream.Close();
+
+            var outbound = runtime.DrainOutboundFrames();
+
+            Assert.HasCount(4, outbound);
+            Assert.AreEqual(ProtocolFrameKind.StreamOpen, outbound[0].Kind);
+            Assert.AreEqual(ProtocolFrameKind.StreamData, outbound[1].Kind);
+            Assert.AreEqual(ProtocolFrameKind.StreamData, outbound[2].Kind);
+            Assert.AreEqual(ProtocolFrameKind.StreamClose, outbound[3].Kind);
+        }
+
         [TestMethod]
         public void CannotOpenRequestScopedStream_AfterResponse()
         {

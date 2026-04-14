@@ -64,12 +64,14 @@ public class PipeConnectionTests
         }
 
         [TestMethod]
-        public async Task PipePerfTest()
+        public async Task PipePerfTestBlockingWriteBlockingRead()
         {
             const int FrameCount = 100_000;
 
             // create duplex in-memory transport (pipes cross-wired)
-            var clientToServer = new Pipe();
+            var clientToServer =new Pipe(new PipeOptions(
+                pauseWriterThreshold: 1024 * 1024 * 50,
+                resumeWriterThreshold: 1024 * 1024 * 50));
             var serverToClient = new Pipe();
 
             var clientConnection = new PipeNetworkConnection(
@@ -111,10 +113,98 @@ public class PipeConnectionTests
                     await clientAdapter.WriteFrameAsync(frame, TestContext.CancellationToken);
                 }
                 writerStopwatch.Stop();
+                await clientToServer.Writer.CompleteAsync();
+            }, TestContext.CancellationToken);
+            await writer;
+
+            // Reader task
+            var readerStopwatch = new Stopwatch();
+            var reader = Task.Run(async () =>
+            {
+                readerStopwatch.Start();
+                for (int i = 0; i < FrameCount; i++)
+                {
+                    var frame = await serverAdapter.ReadFrameAsync(TestContext.CancellationToken);
+                    // Optional correctness checks (cheap and safe)
+                    Assert.AreEqual(NetworkFrameKind.Request, frame.Kind);
+                    Assert.AreEqual((uint)(i + 1), frame.RequestId);
+                    Assert.AreEqual(payload.Length, frame.Payload.Length);
+                }
+                readerStopwatch.Stop();
+                globalStopwatch.Stop();
+            }, TestContext.CancellationToken);
+            await reader;
+
+            await Task.WhenAll(writer, reader);
+
+            TestContext.WriteLine(
+                $"Wrote {FrameCount} frames in {writerStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
+                $"({FrameCount / writerStopwatch.Elapsed.TotalSeconds:F0} frames/sec)");
+
+            TestContext.WriteLine(
+                $"Read {FrameCount} frames in {readerStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
+                $"({FrameCount / readerStopwatch.Elapsed.TotalSeconds:F0} frames/sec)");
+
+            TestContext.WriteLine(
+                $"Processed {FrameCount} frames in {globalStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
+                $"({FrameCount / globalStopwatch.Elapsed.TotalSeconds:F0} frames/sec)");
+        }
+
+        [TestMethod]
+        public async Task PipePerfTestNonBlocking()
+        {
+            const int FrameCount = 100_000;
+
+            // create duplex in-memory transport (pipes cross-wired)
+            var clientToServer = new Pipe(new PipeOptions(
+                pauseWriterThreshold: 1024 * 1024 * 50,
+                resumeWriterThreshold: 1024 * 1024 * 50));
+            var serverToClient = new Pipe();
+
+            var clientConnection = new PipeNetworkConnection(
+                reader: serverToClient.Reader,
+                writer: clientToServer.Writer);
+
+            var serverConnection = new PipeNetworkConnection(
+                reader: clientToServer.Reader,
+                writer: serverToClient.Writer);
+
+            var clientAdapter = new NetworkAdapter(
+                clientConnection,
+                new NetworkFrameWriter(),
+                new NetworkFrameReader());
+
+            var serverAdapter = new NetworkAdapter(
+                serverConnection,
+                new NetworkFrameWriter(),
+                new NetworkFrameReader());
+
+            var payload = new ReadOnlyMemory<byte>([0x01, 0x02, 0x03]);
+
+            var globalStopwatch = new Stopwatch();
+
+            // Writer task
+            var writerStopwatch = new Stopwatch();
+            var writer = Task.Run(async () =>
+            {
+                globalStopwatch.Start();
+                writerStopwatch.Start();
+                for (int i = 0; i < FrameCount; i++)
+                {
+                    var frame = new NetworkFrame(
+                        kind: NetworkFrameKind.Request,
+                        eventType: null,
+                        requestId: (uint)(i + 1),
+                        streamId: null,
+                        payload: payload);
+                    await clientAdapter.WriteFrameAsync(frame, TestContext.CancellationToken);
+                }
+                writerStopwatch.Stop();
+                await clientToServer.Writer.CompleteAsync();
             }, TestContext.CancellationToken);
 
+            // Reader task
             var readerStopwatch = new Stopwatch();
-            // Reader task (we time this)
             var reader = Task.Run(async () =>
             {
                 readerStopwatch.Start();
@@ -133,7 +223,15 @@ public class PipeConnectionTests
             await Task.WhenAll(writer, reader);
 
             TestContext.WriteLine(
-                $"Read {FrameCount} frames in {globalStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
+                $"Wrote {FrameCount} frames in {writerStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
+                $"({FrameCount / writerStopwatch.Elapsed.TotalSeconds:F0} frames/sec)");
+
+            TestContext.WriteLine(
+                $"Read {FrameCount} frames in {readerStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
+                $"({FrameCount / readerStopwatch.Elapsed.TotalSeconds:F0} frames/sec)");
+
+            TestContext.WriteLine(
+                $"Processed {FrameCount} frames in {globalStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
                 $"({FrameCount / globalStopwatch.Elapsed.TotalSeconds:F0} frames/sec)");
         }
     }

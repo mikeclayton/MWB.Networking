@@ -38,11 +38,13 @@ Here's some links to other documentation in this repo.
 
 This documentation is also a work in progress. The pages below are not intended to
 be a fixed or authoritative source of truth - they capture current intent and reasoning,
-and may lag behind the implementation. There are no absolute rules here - decisions
+and may lag behind the implementation so there are no absolute rules  - decisions
 may evolve, assumptions may be revised, and if an action is sound and improves the
 system, it is allowed.
 
-In short, nothing is true, everything is permitted.
+> "Nothing is true, everything is permitted."
+>
+>  -- Altaïr Ibn‑La’Ahad
 
 | Name | Link |
 | ---- | ---- |

@@ -1,9 +1,7 @@
 ﻿using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer2_Protocol;
-using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Requests;
-using MWB.Networking.Layer3_Runtime;
 using System.IO.Pipelines;
 
 namespace MWB.Networking.Layer3_Runtime.UnitTests;
@@ -15,7 +13,7 @@ public sealed class ProtocolDriverEndToEndTests
     {
         get;
         set;
-}
+    }
 
     [TestMethod]
     public async Task ProtocolDriver_Transmits_ProtocolFrames_EndToEnd()
