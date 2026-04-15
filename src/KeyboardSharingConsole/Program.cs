@@ -1,6 +1,5 @@
-﻿
-using KeyboardSharingConsole.CommandLine;
-using Microsoft.Extensions.Logging.Abstractions;
+﻿using KeyboardSharingConsole.CommandLine;
+using KeyboardSharingConsole.Helpers;
 using MWB.Networking.Layer0_Transport.Tcp;
 using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer2_Protocol.Session;
@@ -10,10 +9,27 @@ using System.Net;
 Console.WriteLine("Hello, World!");
 
 var options = CommandLineParser.Parse(args);
-Console.Title = $"Peer @ {options.ListenPort}";
+Console.Title = $"Producer/Consumer :: listen {options.ListenPort} -> peer {options.ConnectPort}";
 
-var logger = NullLogger.Instance;
+// ------------------------------------------------------------
+// Logging
+// ------------------------------------------------------------
+
+var logger = LoggingHelper.CreateLogger();
+
 var cts = new CancellationTokenSource();
+
+// ------------------------------------------------------------
+// Determine role for this PoC
+// ------------------------------------------------------------
+// Producer establishes the outbound connection and sends.
+// Consumer listens only and receives.
+
+bool isProducer = options.ListenPort > options.ConnectPort;
+
+Console.WriteLine(isProducer
+    ? "[ROLE] Producer"
+    : "[ROLE] Consumer");
 
 // ------------------------------------------------------------
 // Layer 2: Protocol session
@@ -21,7 +37,7 @@ var cts = new CancellationTokenSource();
 
 Console.WriteLine("creating session");
 
-var session = ProtocolSessions.CreateEvenSession();
+var session = ProtocolSessions.CreateEvenSession(logger);
 
 Console.WriteLine("registering event handler");
 
@@ -44,8 +60,7 @@ var listenerConnection = new TcpNetworkConnection(
     listenEndpoint,
     cts.Token);
 
-// IMPORTANT:
-// Start in background – do NOT await
+// Start reconnect/accept loop in background
 _ = listenerConnection.StartAsync();
 
 var listenerAdapter = new NetworkAdapter(
@@ -54,17 +69,17 @@ var listenerAdapter = new NetworkAdapter(
     new NetworkFrameReader());
 
 var listenerDriver =
-    new ProtocolDriver(listenerAdapter, session);
+    new ProtocolDriver(logger, listenerAdapter, session);
 
 // ------------------------------------------------------------
-// Layer 0: Outbound connection (ONLY ONE SIDE CONNECTS)
+// Layer 0: Outbound connection (Producer only)
 // ------------------------------------------------------------
 
 ProtocolDriver? outboundDriver = null;
 
-if (options.ListenPort > options.ConnectPort)
+if (isProducer)
 {
-    Console.WriteLine($"connecting to peer at {options.ConnectPort}");
+    Console.WriteLine($"[PRODUCER] connecting to peer at {options.ConnectPort}");
 
     var peerEndpoint = new IPEndPoint(IPAddress.Loopback, options.ConnectPort);
 
@@ -82,36 +97,43 @@ if (options.ListenPort > options.ConnectPort)
         new NetworkFrameReader());
 
     outboundDriver =
-        new ProtocolDriver(outboundAdapter, session);
+        new ProtocolDriver(logger, outboundAdapter, session);
 }
 else
 {
-    Console.WriteLine($"not connecting outbound (peer will connect)");
+    Console.WriteLine("[CONSUMER] no outbound connection (receive only)");
 }
 
 // ------------------------------------------------------------
 // Layer 3: Start protocol drivers
 // ------------------------------------------------------------
 
-Console.WriteLine("running drivers");
+Console.WriteLine("running protocol drivers");
 
 var runListener = listenerDriver.RunAsync(cts.Token);
 var runOutbound = outboundDriver is not null
     ? outboundDriver.RunAsync(cts.Token)
     : Task.CompletedTask;
 
-// Give network time to settle
+// Give listener time to bind and producer time to connect (PoC only)
 await Task.Delay(500);
 
 // ------------------------------------------------------------
-// Send ONE hard‑coded event
+// Send ONE hard-coded event (Producer only)
 // ------------------------------------------------------------
 
-Console.WriteLine("[LOCAL] Sending hard‑coded event");
+if (isProducer)
+{
+    Console.WriteLine("[PRODUCER] sending hard-coded event");
 
-session.Commands.SendEvent(
-    eventType: 1,
-    payload: new byte[] { (byte)options.ListenPort });
+    session.Commands.SendEvent(
+        eventType: 1,
+        payload: new byte[] { (byte)options.ListenPort });
+}
+else
+{
+    Console.WriteLine("[CONSUMER] waiting for inbound events");
+}
 
 // ------------------------------------------------------------
 // Keep process alive
@@ -121,4 +143,12 @@ Console.WriteLine("Press Enter to exit...");
 Console.ReadLine();
 
 cts.Cancel();
-await Task.WhenAll(runListener, runOutbound);
+
+try
+{
+    await Task.WhenAll(runListener, runOutbound);
+}
+catch (OperationCanceledException)
+{
+    // Expected on shutdown
+}

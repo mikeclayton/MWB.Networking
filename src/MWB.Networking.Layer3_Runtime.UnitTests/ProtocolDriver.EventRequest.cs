@@ -1,4 +1,5 @@
-﻿using MWB.Networking.Layer0_Transport.Pipes;
+﻿using Microsoft.Extensions.Logging.Abstractions;
+using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
 using MWB.Networking.Layer2_Protocol.Session;
@@ -18,6 +19,8 @@ public sealed class ProtocolDriverEndToEndTests
     [TestMethod]
     public async Task ProtocolDriver_Transmits_ProtocolFrames_EndToEnd()
     {
+        var logger = NullLogger.Instance;
+
         // ------------------------------------------------------------
         // Arrange: connected in-memory duplex network
         // ------------------------------------------------------------
@@ -46,8 +49,8 @@ public sealed class ProtocolDriverEndToEndTests
         var clientSession = ProtocolSessions.CreateEvenSession();
 
         // Protocol drivers (Layer 3)
-        var serverDriver = new ProtocolDriver(serverAdapter, serverSession);
-        var clientDriver = new ProtocolDriver(clientAdapter, clientSession);
+        var serverDriver = new ProtocolDriver(logger, serverAdapter, serverSession);
+        var clientDriver = new ProtocolDriver(logger, clientAdapter, clientSession);
 
         // ------------------------------------------------------------
         // Start both drivers

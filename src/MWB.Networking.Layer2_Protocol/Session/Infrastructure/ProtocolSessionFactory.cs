@@ -1,4 +1,5 @@
-﻿using MWB.Networking.Layer2_Protocol.Session.Api;
+﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer2_Protocol.Session.Api;
 using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
 
 namespace MWB.Networking.Layer2_Protocol.Session.Infrastructure;
@@ -25,8 +26,9 @@ internal static class ProtocolSessionFactory
     /// connection or peer factory APIs rather than invoking this method
     /// directly.
     /// </remarks>
-    public static ProtocolSessionHandle CreateSession(OddEvenStreamIdProvider outboundStreamIdProvider)
+    public static ProtocolSessionHandle CreateSession(ILogger logger, OddEvenStreamIdProvider outboundStreamIdProvider)
     {
-        return new(new ProtocolSession(outboundStreamIdProvider));
+        return new ProtocolSessionHandle(
+            new ProtocolSession(logger, outboundStreamIdProvider));
     }
 }

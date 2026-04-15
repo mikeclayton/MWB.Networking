@@ -5,7 +5,7 @@ using System.Reflection;
 namespace MWB.Networking.Logging;
 
 
-[AttributeUsage(AttributeTargets.Method | AttributeTargets.Class)]
+[AttributeUsage(AttributeTargets.Method | AttributeTargets.Class | AttributeTargets.Module | AttributeTargets.Assembly)]
 public sealed class LogMethodAttribute : Attribute, IMethodDecorator
 {
     public void Init(

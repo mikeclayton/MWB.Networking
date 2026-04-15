@@ -27,7 +27,7 @@ public sealed class PeerConnection : IDisposable
             true => ProtocolSessions.CreateOddSession(),
             false => ProtocolSessions.CreateEvenSession()
         };
-        this.Driver = new ProtocolDriver(this.Adapter, this.Session);
+        this.Driver = new ProtocolDriver(this.Logger, this.Adapter, this.Session);
         this.WireProtocolEvents();
     }
 

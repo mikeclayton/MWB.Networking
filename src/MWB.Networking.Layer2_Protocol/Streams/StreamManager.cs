@@ -1,16 +1,24 @@
-﻿using MWB.Networking.Layer2_Protocol.Session;
+﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
 using MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
+using MWB.Networking.Logging;
 using System.Diagnostics.CodeAnalysis;
 
 namespace MWB.Networking.Layer2_Protocol.Streams;
 
-public sealed partial class StreamManager
+public sealed partial class StreamManager : IHasLogger
 {
-    internal StreamManager(ProtocolSession session, OddEvenStreamIdProvider streamIdProvider)
+    internal StreamManager(ILogger logger, ProtocolSession session, OddEvenStreamIdProvider streamIdProvider)
     {
+        this.Logger = logger ?? throw new ArgumentOutOfRangeException(nameof(logger));
         this.Session = session ?? throw new ArgumentNullException(nameof(session));
         this.StreamIdProvider = streamIdProvider ?? throw new ArgumentNullException(nameof(streamIdProvider));
+    }
+
+    public ILogger Logger
+    {
+        get;
     }
 
     private ProtocolSession Session

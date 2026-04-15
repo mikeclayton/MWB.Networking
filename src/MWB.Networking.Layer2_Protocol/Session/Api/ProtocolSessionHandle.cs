@@ -1,6 +1,4 @@
-﻿using MWB.Networking.Layer2_Protocol.Session.Api;
-
-namespace MWB.Networking.Layer2_Protocol.Session.Api;
+﻿namespace MWB.Networking.Layer2_Protocol.Session.Api;
 
 public sealed class ProtocolSessionHandle
 {

@@ -1,15 +1,22 @@
-﻿using MWB.Networking.Layer2_Protocol.Frames;
+﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Session;
+using MWB.Networking.Logging;
 
 namespace MWB.Networking.Layer2_Protocol.Events;
 
-internal sealed partial class EventManager
+internal sealed partial class EventManager : IHasLogger
 {
-    internal EventManager(ProtocolSession session)
+    internal EventManager(ILogger logger, ProtocolSession session)
     {
+        this.Logger = logger ?? throw new ArgumentOutOfRangeException(nameof(logger));
         this.Session = session ?? throw new ArgumentNullException(nameof(session));
     }
 
+    public ILogger Logger
+    {
+        get;
+    }
     private ProtocolSession Session
     {
         get;

@@ -39,8 +39,7 @@ public sealed class MethodConsoleFormatter : ConsoleFormatter
         {
             LogLevel.Information => "INFO",
             LogLevel.Debug => "DBUG",
-            _ =>
-                throw new InvalidOperationException()
+            _ => "????"
         };
         displayName = displayName ?? shortId;
 

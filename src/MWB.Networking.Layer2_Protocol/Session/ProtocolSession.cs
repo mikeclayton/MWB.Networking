@@ -1,9 +1,11 @@
-﻿using MWB.Networking.Layer2_Protocol.Events;
+﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer2_Protocol.Events;
 using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Requests;
 using MWB.Networking.Layer2_Protocol.Session.Api;
 using MWB.Networking.Layer2_Protocol.Streams;
 using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
+using MWB.Networking.Logging;
 
 namespace MWB.Networking.Layer2_Protocol.Session;
 
@@ -17,13 +19,19 @@ namespace MWB.Networking.Layer2_Protocol.Session;
 /// - requests and streams are coordinated
 /// - application intent is translated into protocol actions
 /// </summary>
-internal sealed partial class ProtocolSession
+internal sealed partial class ProtocolSession : IHasLogger
 {
-    internal ProtocolSession(OddEvenStreamIdProvider outboundStreamIdProvider)
+    internal ProtocolSession(ILogger logger, OddEvenStreamIdProvider outboundStreamIdProvider)
     {
-        this.EventManager = new EventManager(this);
-        this.RequestManager = new RequestManager(this);
-        this.StreamManager = new StreamManager(this, outboundStreamIdProvider);
+        this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        this.EventManager = new EventManager(logger, this);
+        this.RequestManager = new RequestManager(logger, this);
+        this.StreamManager = new StreamManager(logger, this, outboundStreamIdProvider);
+    }
+
+    public ILogger Logger
+    {
+        get;
     }
 
     internal IProtocolSessionCommands AsCommands()
@@ -76,6 +84,7 @@ internal sealed partial class ProtocolSession
             .ConfigureAwait(false);
     }
 
+    [LogMethod]
     internal void EnqueueOutboundFrame(ProtocolFrame frame)
     {
         // Validate Request-scoped frames

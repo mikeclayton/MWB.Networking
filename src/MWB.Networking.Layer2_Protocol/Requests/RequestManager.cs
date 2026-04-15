@@ -1,15 +1,23 @@
-﻿using MWB.Networking.Layer2_Protocol.Frames;
+﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 using MWB.Networking.Layer2_Protocol.Session;
+using MWB.Networking.Logging;
 using System.Diagnostics.CodeAnalysis;
 
 namespace MWB.Networking.Layer2_Protocol.Requests;
 
-internal sealed partial class RequestManager
+internal sealed partial class RequestManager : IHasLogger
 {
-    internal RequestManager(ProtocolSession session)
+    internal RequestManager(ILogger logger, ProtocolSession session)
     {
+        this.Logger = logger ?? throw new ArgumentOutOfRangeException(nameof(logger));
         this.Session = session ?? throw new ArgumentNullException(nameof(session));
+    }
+
+    public ILogger Logger
+    {
+        get;
     }
 
     private ProtocolSession Session

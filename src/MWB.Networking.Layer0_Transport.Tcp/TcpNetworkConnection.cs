@@ -105,6 +105,9 @@ public sealed class TcpNetworkConnection : INetworkConnection, IHasLogger, IHasI
         ReadOnlyMemory<byte>[] segments,
         CancellationToken ct)
     {
+        // Wait until a connection is established (or cancellation requested)
+        await this.WaitUntilConnectedAsync(ct).ConfigureAwait(false);
+
         try
         {
             var s = _stream ?? throw new IOException("Not connected.");
@@ -112,6 +115,7 @@ public sealed class TcpNetworkConnection : INetworkConnection, IHasLogger, IHasI
         }
         catch (Exception ex) when (ex is IOException or ObjectDisposedException)
         {
+            // Connection dropped mid-write – trigger reconnect
             this.HandleDisconnect();
             throw new IOException("Write failed.", ex);
         }
@@ -120,6 +124,9 @@ public sealed class TcpNetworkConnection : INetworkConnection, IHasLogger, IHasI
     [LogMethod]
     public async Task<byte[]> ReadBlockAsync(CancellationToken ct)
     {
+        // Wait until a connection is established (or cancellation requested)
+        await this.WaitUntilConnectedAsync(ct).ConfigureAwait(false);
+
         // capture the current stream so it can't change during this method
         var s = _stream ?? throw new IOException("Not connected.");
         try
