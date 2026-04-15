@@ -41,4 +41,8 @@ public sealed class MemoryNetworkConnection : INetworkConnection
     // Not used for this benchmark
     public Task<byte[]> ReadBlockAsync(CancellationToken ct)
         => throw new NotSupportedException();
+
+    public void Dispose()
+    {
+    }
 }

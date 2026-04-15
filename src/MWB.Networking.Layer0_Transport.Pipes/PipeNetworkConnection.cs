@@ -103,4 +103,7 @@ public sealed class PipeNetworkConnection : INetworkConnection
         return result;
     }
 
+    public void Dispose()
+    {
+    }
 }

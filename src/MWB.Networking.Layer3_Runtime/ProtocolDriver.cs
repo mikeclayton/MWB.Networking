@@ -44,12 +44,22 @@ public sealed class ProtocolDriver : IHasLogger
         get;
     } = new(1, 1);
 
+    private TaskCompletionSource ReadySource
+    {
+        get;
+    } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public Task Ready => this.ReadySource.Task;
+
     /// <summary>
     /// Runs the protocol driver until cancelled or a fatal error occurs.
     /// </summary>
     [LogMethod]
     public async Task RunAsync(CancellationToken ct)
     {
+        using var logScope = this.Logger.BeginMethodScope(this);
+        this.Logger.LogDebug("Entering method");
+
         // We deliberately run two loops:
         //  - Read loop drives inbound frames into the protocol
         //  - Write loop drains outbound frames from the protocol
@@ -59,8 +69,12 @@ public sealed class ProtocolDriver : IHasLogger
         var readTask = this.RunReadLoopAsync(ct);
         var writeTask = this.RunWriteLoopAsync(ct);
 
+        this.ReadySource.TrySetResult();
+
         // If either loop faults or completes, we stop the driver.
         await Task.WhenAny(readTask, writeTask).ConfigureAwait(false);
+
+        this.Logger.LogDebug("Leaving method");
     }
 
     /// <summary>

@@ -38,8 +38,6 @@ public sealed class NetworkAdapter
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(frame);
-        // ensure the transport is connected
-        await this.NetworkConnection.WaitUntilConnectedAsync(ct);
         // write a single frame to the connection
         await this.FrameWriter.WriteFrameAsync(this.NetworkConnection, frame, ct);
     }
@@ -51,8 +49,6 @@ public sealed class NetworkAdapter
     public async Task<NetworkFrame> ReadFrameAsync(
         CancellationToken ct = default)
     {
-        // ensure the transport is connected
-        await this.NetworkConnection.WaitUntilConnectedAsync(ct);
         // read a single frame from the connection
         var frame = await this.FrameReader.ReadFrameAsync(this.NetworkConnection, ct);
         return frame;

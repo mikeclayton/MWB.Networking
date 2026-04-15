@@ -1,5 +1,6 @@
 ﻿using KeyboardSharingConsole.CommandLine;
 using KeyboardSharingConsole.Helpers;
+using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer0_Transport.Tcp;
 using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer2_Protocol.Session;
@@ -9,21 +10,22 @@ using System.Net;
 Console.WriteLine("Hello, World!");
 
 var options = CommandLineParser.Parse(args);
-Console.Title = $"Producer/Consumer :: listen {options.ListenPort} -> peer {options.ConnectPort}";
+Console.Title =
+    $"Producer/Consumer :: listen {options.ListenPort} -> peer {options.ConnectPort}";
+
 
 // ------------------------------------------------------------
 // Logging
 // ------------------------------------------------------------
 
 var logger = LoggingHelper.CreateLogger();
-
 var cts = new CancellationTokenSource();
+
+logger.LogDebug(Console.Title);
 
 // ------------------------------------------------------------
 // Determine role for this PoC
 // ------------------------------------------------------------
-// Producer establishes the outbound connection and sends.
-// Consumer listens only and receives.
 
 bool isProducer = options.ListenPort > options.ConnectPort;
 
@@ -31,15 +33,14 @@ Console.WriteLine(isProducer
     ? "[ROLE] Producer"
     : "[ROLE] Consumer");
 
+
 // ------------------------------------------------------------
 // Layer 2: Protocol session
 // ------------------------------------------------------------
 
-Console.WriteLine("creating session");
+Console.WriteLine("creating protocol session");
 
 var session = ProtocolSessions.CreateEvenSession(logger);
-
-Console.WriteLine("registering event handler");
 
 session.Observer.EventReceived += (eventType, payload) =>
 {
@@ -47,80 +48,71 @@ session.Observer.EventReceived += (eventType, payload) =>
         $"[INBOUND] Event {eventType}: {BitConverter.ToString(payload.ToArray())}");
 };
 
+
 // ------------------------------------------------------------
-// Layer 0: Listener connection (always)
+// Layer 0: Network connection provider
 // ------------------------------------------------------------
 
-Console.WriteLine($"starting listener on {options.ListenPort}");
+Console.WriteLine("creating TCP network connection provider");
 
-var listenEndpoint = new IPEndPoint(IPAddress.Loopback, options.ListenPort);
+var listenEndpoint = isProducer
+    ? null
+    : new IPEndPoint(IPAddress.Loopback, options.ListenPort);
 
-var listenerConnection = new TcpNetworkConnection(
-    logger,
-    listenEndpoint,
-    cts.Token);
+var connectEndpoint = isProducer
+    ? new IPEndPoint(IPAddress.Loopback, options.ConnectPort)
+    : null;
 
-// Start reconnect/accept loop in background
-_ = listenerConnection.StartAsync();
+var providerConfig = new TcpNetworkConnectionConfig(
+    localEndpoint: listenEndpoint,
+    remoteEndpoint: connectEndpoint,
+    noDelay: true);
 
-var listenerAdapter = new NetworkAdapter(
-    listenerConnection,
+using var provider =
+    new TcpNetworkConnectionProvider(logger, providerConfig);
+
+// Open logical connection (starts listener/connect loops internally)
+Console.WriteLine("opening logical connection");
+
+var handle =
+    await provider.OpenConnectionAsync(cts.Token);
+
+
+// ------------------------------------------------------------
+// Layer 1: Framing
+// ------------------------------------------------------------
+
+var adapter = new NetworkAdapter(
+    handle.Connection,
     new NetworkFrameWriter(),
     new NetworkFrameReader());
 
-var listenerDriver =
-    new ProtocolDriver(logger, listenerAdapter, session);
 
 // ------------------------------------------------------------
-// Layer 0: Outbound connection (Producer only)
+// Layer 3: Protocol driver
 // ------------------------------------------------------------
 
-ProtocolDriver? outboundDriver = null;
+Console.WriteLine("starting protocol driver");
 
-if (isProducer)
-{
-    Console.WriteLine($"[PRODUCER] connecting to peer at {options.ConnectPort}");
+var driver =
+    new ProtocolDriver(logger, adapter, session);
 
-    var peerEndpoint = new IPEndPoint(IPAddress.Loopback, options.ConnectPort);
+var runTask =
+    driver.RunAsync(cts.Token);
 
-    var outboundConnection = new TcpNetworkConnection(
-        logger,
-        peerEndpoint,
-        cts.Token);
-
-    // Start reconnect loop in background
-    _ = outboundConnection.StartAsync();
-
-    var outboundAdapter = new NetworkAdapter(
-        outboundConnection,
-        new NetworkFrameWriter(),
-        new NetworkFrameReader());
-
-    outboundDriver =
-        new ProtocolDriver(logger, outboundAdapter, session);
-}
-else
-{
-    Console.WriteLine("[CONSUMER] no outbound connection (receive only)");
-}
 
 // ------------------------------------------------------------
-// Layer 3: Start protocol drivers
+// Give transport time to settle (PoC only)
 // ------------------------------------------------------------
 
-Console.WriteLine("running protocol drivers");
-
-var runListener = listenerDriver.RunAsync(cts.Token);
-var runOutbound = outboundDriver is not null
-    ? outboundDriver.RunAsync(cts.Token)
-    : Task.CompletedTask;
-
-// Give listener time to bind and producer time to connect (PoC only)
 await Task.Delay(500);
+
 
 // ------------------------------------------------------------
 // Send ONE hard-coded event (Producer only)
 // ------------------------------------------------------------
+
+await driver.Ready;
 
 if (isProducer)
 {
@@ -135,6 +127,7 @@ else
     Console.WriteLine("[CONSUMER] waiting for inbound events");
 }
 
+
 // ------------------------------------------------------------
 // Keep process alive
 // ------------------------------------------------------------
@@ -146,7 +139,7 @@ cts.Cancel();
 
 try
 {
-    await Task.WhenAll(runListener, runOutbound);
+    await runTask;
 }
 catch (OperationCanceledException)
 {

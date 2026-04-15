@@ -9,22 +9,8 @@
 /// does not provide message framing, buffering, retries, or protocol semantics;
 /// higher layers are responsible for those concerns.
 /// </summary>
-public interface INetworkConnection
+public interface INetworkConnection : IDisposable
 {
-    /// <summary>
-    /// Asynchronously waits until the underlying connection is established and
-    /// ready for I/O.
-    ///
-    /// This method completes successfully once the connection is usable. It may
-    /// block across transient disconnects and reconnect attempts.
-    ///
-    /// The method throws or cancels if the provided cancellation token is triggered.
-    /// </summary>
-    /// <param name="ct">
-    /// A cancellation token used to abort waiting for connectivity, typically during shutdown.
-    /// </param>
-    Task WaitUntilConnectedAsync(CancellationToken ct);
-
     /// <summary>
     /// Writes exactly one data block to the connection, prefixing it with a length header.
     /// </summary>
