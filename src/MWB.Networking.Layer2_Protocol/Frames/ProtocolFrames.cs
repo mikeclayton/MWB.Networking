@@ -1,4 +1,4 @@
-﻿namespace MWB.Networking.Layer2_Protocol.Internal;
+﻿namespace MWB.Networking.Layer2_Protocol.Frames;
 
 internal static class ProtocolFrames
 {

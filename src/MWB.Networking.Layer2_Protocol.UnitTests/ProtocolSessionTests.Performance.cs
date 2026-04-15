@@ -1,8 +1,7 @@
-using MWB.Networking.Layer2_Protocol.Internal;
+using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 using System.Diagnostics;
-
-using static MWB.Networking.Layer2_Protocol.UnitTests.Helpers.ProtocolSessionHelpers;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
@@ -35,9 +34,8 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Performance_Events_10000()
         {
-            var session = CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var observer = session.Observer;
 
             // Warm up the JIT and dictionary internals before timing.
             for (var i = 0; i < WarmupIterations; i++)
@@ -58,8 +56,8 @@ public partial class ProtocolSessionTests
 
             // Verify no frames were output for events.
             Assert.HasCount(0, outbound);
-            Assert.IsEmpty(observer.GetSnapshot().OpenRequests);
-            Assert.IsEmpty(observer.GetSnapshot().OpenStreams);
+            Assert.IsEmpty(session.Diagnostics.GetSnapshot().OpenRequests);
+            Assert.IsEmpty(session.Diagnostics.GetSnapshot().OpenStreams);
 
             Report("Events", sw, Iterations);
         }
@@ -71,9 +69,8 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Performance_Requests_10000()
         {
-            var session = CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var observer = session.Observer;
 
             // Reuse a single request ID per iteration: Complete removes it so it
             // can be reused immediately, keeping dictionary size constant at 0-1.
@@ -97,7 +94,7 @@ public partial class ProtocolSessionTests
             runtime.DrainOutboundFrames();
 
             // Session should be fully quiesced: no open requests remain.
-            Assert.IsEmpty(observer.GetSnapshot().OpenRequests);
+            Assert.IsEmpty(session.Diagnostics.GetSnapshot().OpenRequests);
 
             Report("Requests (open + complete)", sw, Iterations);
         }
@@ -109,9 +106,8 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Performance_Streams_OpenSendClose_10000()
         {
-            var session = ProtocolSessionHelpers.CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var observer = session.Observer;
 
             // Reuse stream ID 1: StreamClose removes it so it can be reused.
             const uint Id = 1;
@@ -136,7 +132,7 @@ public partial class ProtocolSessionTests
             runtime.DrainOutboundFrames();
 
             // Session should be fully quiesced: no open streams remain.
-            Assert.IsEmpty(observer.GetSnapshot().OpenStreams);
+            Assert.IsEmpty(session.Diagnostics.GetSnapshot().OpenStreams);
 
             Report("Streams (open + 4-byte data + close)", sw, Iterations);
         }

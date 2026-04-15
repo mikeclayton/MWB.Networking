@@ -1,7 +1,9 @@
-﻿using MWB.Networking.Layer2_Protocol.Session;
-using MWB.Networking.Layer2_Protocol.Streams;
+﻿using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
+using MWB.Networking.Layer2_Protocol.Session;
+using MWB.Networking.Layer2_Protocol.Streams.Api;
 
-namespace MWB.Networking.Layer2_Protocol.Requests;
+namespace MWB.Networking.Layer2_Protocol.Requests.Api;
 
 /// <summary>
 /// Represents a request initiated by the local peer.

@@ -1,5 +1,5 @@
-using MWB.Networking.Layer2_Protocol.Internal;
-using static MWB.Networking.Layer2_Protocol.UnitTests.Helpers.ProtocolSessionHelpers;
+using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Session;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
@@ -25,12 +25,11 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void MultipleStreamData_EmittedInOrder()
         {
-            var session = CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var commands = session.Commands;
 
             // Open a session-scoped stream
-            var stream = commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
+            var stream = session.Commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
 
             // Emit multiple data frames
             stream.SendData(new byte[] { 10 });

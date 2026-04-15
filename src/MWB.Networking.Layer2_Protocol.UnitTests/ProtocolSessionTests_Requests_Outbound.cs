@@ -1,7 +1,6 @@
-using MWB.Networking.Layer2_Protocol.Internal;
-using MWB.Networking.Layer2_Protocol.Requests;
-
-using static MWB.Networking.Layer2_Protocol.UnitTests.Helpers.ProtocolSessionHelpers;
+using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Requests.Api;
+using MWB.Networking.Layer2_Protocol.Session;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
@@ -27,10 +26,8 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Request_IsRaisedToApplication_AndNotEmittedOutbound()
         {
-            var session = CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var observer = session.Observer;
-            var commands = session.Commands;
 
             IncomingRequest? received = null;
             int callCount = 0;
@@ -52,7 +49,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Respond_EmitsResponseToOutbound()
         {
-            var session = CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
 
             IncomingRequest? request = null;
@@ -82,7 +79,7 @@ public partial class ProtocolSessionTests
 
         public void Request_AllowsOnlyOneResponse_SecondRespondThrows()
         {
-            var session = CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
 
             IncomingRequest? request = null;
@@ -114,7 +111,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void TwoConcurrentRequests_ResponsesEmittedInOrder()
         {
-            var session = CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
 
             IncomingRequest? req1 = null;
@@ -153,9 +150,8 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Request_IsClosedAfterSingleResponse()
         {
-            var session = CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var observer = session.Observer;
 
             IncomingRequest? request = null;
 
@@ -169,15 +165,14 @@ public partial class ProtocolSessionTests
             Assert.IsNotNull(request);
             request.Respond(new byte[] { 0xAA });
 
-            Assert.DoesNotContain(1u, observer.GetSnapshot().OpenRequests);
+            Assert.DoesNotContain(1u, session.Diagnostics.GetSnapshot().OpenRequests);
         }
 
         [TestMethod]
         public void Request_SecondResponse_IsRejected()
         {
-            var session = CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var observer = session.Observer;
 
             IncomingRequest? request = null;
 
@@ -196,7 +191,7 @@ public partial class ProtocolSessionTests
                 request.Respond(new byte[] { 2 });
             });
 
-            Assert.DoesNotContain(1u, observer.GetSnapshot().OpenRequests);
+            Assert.DoesNotContain(1u, session.Diagnostics.GetSnapshot().OpenRequests);
         }
     }
 }

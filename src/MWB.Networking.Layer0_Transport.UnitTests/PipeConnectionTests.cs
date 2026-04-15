@@ -138,15 +138,15 @@ public class PipeConnectionTests
 
             TestContext.WriteLine(
                 $"Wrote {FrameCount} frames in {writerStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
-                $"({FrameCount / writerStopwatch.Elapsed.TotalSeconds:F0} frames/sec)");
+                $"({FrameCount / writerStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
 
             TestContext.WriteLine(
                 $"Read {FrameCount} frames in {readerStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
-                $"({FrameCount / readerStopwatch.Elapsed.TotalSeconds:F0} frames/sec)");
+                $"({FrameCount / readerStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
 
             TestContext.WriteLine(
                 $"Processed {FrameCount} frames in {globalStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
-                $"({FrameCount / globalStopwatch.Elapsed.TotalSeconds:F0} frames/sec)");
+                $"({FrameCount / globalStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
         }
 
         [TestMethod]
@@ -223,15 +223,15 @@ public class PipeConnectionTests
 
             TestContext.WriteLine(
                 $"Wrote {FrameCount} frames in {writerStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
-                $"({FrameCount / writerStopwatch.Elapsed.TotalSeconds:F0} frames/sec)");
+                $"({FrameCount / writerStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
 
             TestContext.WriteLine(
                 $"Read {FrameCount} frames in {readerStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
-                $"({FrameCount / readerStopwatch.Elapsed.TotalSeconds:F0} frames/sec)");
+                $"({FrameCount / readerStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
 
             TestContext.WriteLine(
                 $"Processed {FrameCount} frames in {globalStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
-                $"({FrameCount / globalStopwatch.Elapsed.TotalSeconds:F0} frames/sec)");
+                $"({FrameCount / globalStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
         }
     }
 }

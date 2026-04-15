@@ -1,6 +1,6 @@
-﻿using MWB.Networking.Layer2_Protocol.Internal;
+﻿using MWB.Networking.Layer2_Protocol.Frames;
 
-namespace MWB.Networking.Layer2_Protocol.Requests;
+namespace MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 
 internal sealed class RequestContext
 {

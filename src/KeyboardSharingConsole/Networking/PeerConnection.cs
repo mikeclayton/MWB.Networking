@@ -1,9 +1,10 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer0_Transport.Tcp;
 using MWB.Networking.Layer1_Framing;
-using MWB.Networking.Layer2_Protocol.Requests;
+using MWB.Networking.Layer2_Protocol.Requests.Api;
 using MWB.Networking.Layer2_Protocol.Session;
-using MWB.Networking.Layer2_Protocol.Streams;
+using MWB.Networking.Layer2_Protocol.Session.Api;
+using MWB.Networking.Layer2_Protocol.Streams.Api;
 using MWB.Networking.Layer3_Runtime;
 
 namespace KeyboardSharingConsole.Networking;
@@ -13,7 +14,7 @@ public sealed class PeerConnection : IDisposable
     public PeerConnection(
         ILogger logger,
         TcpNetworkConnection transport,
-        OddEvenStreamIdProvider outboundStreamIdProvider)
+        bool oddParity)
     {
         this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         this.Transport = transport ?? throw new ArgumentNullException(nameof(transport));
@@ -21,9 +22,11 @@ public sealed class PeerConnection : IDisposable
             this.Transport,
             new NetworkFrameWriter(),
             new NetworkFrameReader());
-#pragma warning disable CS0618 // Type or member is obsolete
-        this.Session = ProtocolSessionFactory.CreateSession(outboundStreamIdProvider);
-#pragma warning restore CS0618 // Type or member is obsolete
+        this.Session = oddParity switch
+        {
+            true => ProtocolSessions.CreateOddSession(),
+            false => ProtocolSessions.CreateEvenSession()
+        };
         this.Driver = new ProtocolDriver(this.Adapter, this.Session);
         this.WireProtocolEvents();
     }

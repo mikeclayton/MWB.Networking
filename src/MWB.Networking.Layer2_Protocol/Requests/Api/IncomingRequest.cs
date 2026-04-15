@@ -1,7 +1,8 @@
-﻿using MWB.Networking.Layer2_Protocol.Session;
-using MWB.Networking.Layer2_Protocol.Streams;
+﻿using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
+using MWB.Networking.Layer2_Protocol.Session;
+using MWB.Networking.Layer2_Protocol.Streams.Api;
 
-namespace MWB.Networking.Layer2_Protocol.Requests;
+namespace MWB.Networking.Layer2_Protocol.Requests.Api;
 
 public sealed class IncomingRequest
 {
@@ -34,7 +35,7 @@ public sealed class IncomingRequest
     /// <summary>
     /// Sends an error Response for this Request and closes the Request.
     /// </summary>
-    public void Fail(ReadOnlyMemory<byte> payload)
+    public void Error(ReadOnlyMemory<byte> payload)
     {
         this.Session.RequestManager.CloseRequestWithError(this.Context, payload);
     }

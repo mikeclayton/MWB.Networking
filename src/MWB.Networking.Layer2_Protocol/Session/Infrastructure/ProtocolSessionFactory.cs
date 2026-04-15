@@ -1,7 +1,7 @@
-﻿using MWB.Networking.Layer2_Protocol.Streams;
-using System.ComponentModel;
+﻿using MWB.Networking.Layer2_Protocol.Session.Api;
+using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
 
-namespace MWB.Networking.Layer2_Protocol.Session;
+namespace MWB.Networking.Layer2_Protocol.Session.Infrastructure;
 
 /// <summary>
 /// Infrastructure-only factory for creating protocol session instances.
@@ -11,8 +11,7 @@ namespace MWB.Networking.Layer2_Protocol.Session;
 /// Application code should not create protocol sessions directly and
 /// should instead use the public connection-level APIs.
 /// </remarks>
-[EditorBrowsable(EditorBrowsableState.Never)]
-public static class ProtocolSessionFactory
+internal static class ProtocolSessionFactory
 {
     /// <summary>
     /// Creates a new <see cref="IProtocolSessionObserver"/> instance.
@@ -26,7 +25,6 @@ public static class ProtocolSessionFactory
     /// connection or peer factory APIs rather than invoking this method
     /// directly.
     /// </remarks>
-    [Obsolete("Infrastructure-only API. Applications should create connections via PeerConnectionFactory.", error: false)]
     public static ProtocolSessionHandle CreateSession(OddEvenStreamIdProvider outboundStreamIdProvider)
     {
         return new(new ProtocolSession(outboundStreamIdProvider));

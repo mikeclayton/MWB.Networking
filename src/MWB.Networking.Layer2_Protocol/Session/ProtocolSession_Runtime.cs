@@ -1,8 +1,10 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Session.Api;
+using System.Diagnostics.CodeAnalysis;
 
 namespace MWB.Networking.Layer2_Protocol.Session;
 
-public sealed partial class ProtocolSession : IProtocolSessionRuntime
+internal sealed partial class ProtocolSession : IProtocolSessionRuntime
 {
     void IProtocolSessionRuntime.ProcessFrame(ProtocolFrame frame)
     {

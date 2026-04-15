@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Tcp;
 using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer2_Protocol.Session;
-using MWB.Networking.Layer2_Protocol.Streams;
 using MWB.Networking.Layer3_Runtime;
 using System.Net;
 
@@ -22,11 +21,7 @@ var cts = new CancellationTokenSource();
 
 Console.WriteLine("creating session");
 
-#pragma warning disable CS0618
-var session =
-    ProtocolSessionFactory.CreateSession(
-        new(OddEvenStreamIdParity.Even)); // parity irrelevant for events
-#pragma warning restore CS0618
+var session = ProtocolSessions.CreateEvenSession();
 
 Console.WriteLine("registering event handler");
 

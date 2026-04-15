@@ -1,6 +1,6 @@
-﻿namespace MWB.Networking.Layer2_Protocol.Streams;
+﻿namespace MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
-internal enum IncomingStreamState
+internal enum OutgoingStreamState
 {
     /// <summary>
     /// Open
@@ -8,7 +8,7 @@ internal enum IncomingStreamState
     Open,
 
     /// <summary>
-    /// Closed cleanly by *remote* peer
+    /// Closed cleanly by *local* peer
     /// </summary>
     Closed,
 

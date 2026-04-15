@@ -1,7 +1,7 @@
-﻿using MWB.Networking.Layer2_Protocol.Requests;
-using MWB.Networking.Layer2_Protocol.Streams;
+﻿using MWB.Networking.Layer2_Protocol.Requests.Api;
+using MWB.Networking.Layer2_Protocol.Streams.Api;
 
-namespace MWB.Networking.Layer2_Protocol.Session;
+namespace MWB.Networking.Layer2_Protocol.Session.Api;
 
 public interface IProtocolSessionObserver
 {
@@ -14,11 +14,4 @@ public interface IProtocolSessionObserver
     event Action<IncomingStream, StreamMetadata>? StreamOpened;
     event Action<IncomingStream, ReadOnlyMemory<byte> /* Payload */>? StreamDataReceived;
     event Action<IncomingStream>? StreamClosed;
-
-    //// === Introspection===
-
-    /// <summary>
-    /// Returns a snapshot of protocol state for tests and diagnostics.
-    /// </summary>
-    ProtocolSnapshot GetSnapshot();
 }

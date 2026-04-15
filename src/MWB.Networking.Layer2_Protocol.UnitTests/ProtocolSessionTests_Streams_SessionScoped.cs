@@ -1,7 +1,6 @@
-using MWB.Networking.Layer2_Protocol.Internal;
-using MWB.Networking.Layer2_Protocol.Requests;
-
-using static MWB.Networking.Layer2_Protocol.UnitTests.Helpers.ProtocolSessionHelpers;
+using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Requests.Api;
+using MWB.Networking.Layer2_Protocol.Session;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
@@ -27,9 +26,8 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void StreamsMayBeOpenedIndependentlyOfRequests()
         {
-            var session = CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var observer = session.Observer;
 
             IncomingRequest? request = null;
 
@@ -48,7 +46,7 @@ public partial class ProtocolSessionTests
             // Open an independent stream (inbound)
             runtime.ProcessFrame(ProtocolFrames.StreamOpen(10));
 
-            var snapshot = observer.GetSnapshot();
+            var snapshot = session.Diagnostics.GetSnapshot();
 
             // Request is closed
             Assert.DoesNotContain(1u, snapshot.OpenRequests);
@@ -60,14 +58,13 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void StreamOpen_IsEmittedToOutbound()
         {
-            var session = CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var commands = session.Commands;
 
             var metadata = new byte[] { 0x01, 0x02 };
 
             // Open a session-scoped stream via intent-level API
-            var stream = commands.OpenSessionStream(metadata);
+            var stream = session.Commands.OpenSessionStream(metadata);
 
             var outbound = runtime.DrainOutboundFrames();
 
@@ -80,14 +77,13 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void StreamData_IsEmittedToOutbound()
         {
-            var session = CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var commands = session.Commands;
 
             var data = new byte[] { 0xDE, 0xAD };
 
             // Open a session-scoped stream
-            var stream = commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
+            var stream = session.Commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
 
             // Discard StreamOpen
             runtime.DrainOutboundFrames();
@@ -106,12 +102,11 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void StreamClose_IsEmittedToOutbound()
         {
-            var session = CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var commands = session.Commands;
 
             // Open a session-scoped stream
-            var stream = commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
+            var stream = session.Commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
 
             // Discard the StreamOpen frame
             runtime.DrainOutboundFrames();

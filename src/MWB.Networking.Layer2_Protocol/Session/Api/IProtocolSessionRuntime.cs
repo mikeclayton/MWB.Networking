@@ -1,6 +1,7 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using MWB.Networking.Layer2_Protocol.Frames;
+using System.Diagnostics.CodeAnalysis;
 
-namespace MWB.Networking.Layer2_Protocol.Session;
+namespace MWB.Networking.Layer2_Protocol.Session.Api;
 
 public interface IProtocolSessionRuntime
 {

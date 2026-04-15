@@ -1,7 +1,8 @@
-﻿using MWB.Networking.Layer2_Protocol.Requests;
+﻿using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 using System.Diagnostics.CodeAnalysis;
 
-namespace MWB.Networking.Layer2_Protocol.Streams;
+namespace MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
 /// <summary>
 /// Internal protocol invariant state for a stream.

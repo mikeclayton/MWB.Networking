@@ -1,4 +1,6 @@
-﻿using MWB.Networking.Layer2_Protocol.Session;
+﻿using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
+using MWB.Networking.Layer2_Protocol.Session;
 using System.Diagnostics.CodeAnalysis;
 
 namespace MWB.Networking.Layer2_Protocol.Requests;

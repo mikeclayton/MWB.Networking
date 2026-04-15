@@ -1,8 +1,6 @@
-using MWB.Networking.Layer2_Protocol.Internal;
-using MWB.Networking.Layer2_Protocol.Requests;
-using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
-
-using static MWB.Networking.Layer2_Protocol.UnitTests.Helpers.ProtocolSessionHelpers;
+using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Requests.Api;
+using MWB.Networking.Layer2_Protocol.Session;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
@@ -28,7 +26,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void DrainOutbound_IsEmptyAtStart()
         {
-            var session = ProtocolSessionHelpers.CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
 
             var outbound = runtime.DrainOutboundFrames();
@@ -39,14 +37,13 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void DrainOutbound_ClearsQueueAfterFirstCall()
         {
-            var session = ProtocolSessionHelpers.CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var observer = session.Observer;
 
             IncomingRequest? r1 = null;
             IncomingRequest? r2 = null;
 
-            observer.RequestReceived += (req, payload) =>
+            session.Observer.RequestReceived += (req, payload) =>
             {
                 if (req.Context.RequestId == 1) r1 = req;
                 if (req.Context.RequestId == 2) r2 = req;
@@ -77,14 +74,13 @@ public partial class ProtocolSessionTests
 
         public void DrainOutbound_AccumulatesAcrossMultipleOutboundEmits()
         {
-            var session = ProtocolSessionHelpers.CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var observer = session.Observer;
 
             IncomingRequest? request1 = null;
             IncomingRequest? request2 = null;
 
-            observer.RequestReceived += (req, payload) =>
+            session.Observer.RequestReceived += (req, payload) =>
             {
                 if (req.Context.RequestId == 1)
                 {
@@ -114,15 +110,14 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void DrainOutbound_AfterPartialDrain_ContainsOnlyNewOutboundFrames()
         {
-            var session = ProtocolSessionHelpers.CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var observer = session.Observer;
 
             IncomingRequest? r1 = null;
             IncomingRequest? r2 = null;
             IncomingRequest? r3 = null;
 
-            observer.RequestReceived += (req, payload) =>
+            session.Observer.RequestReceived += (req, payload) =>
             {
                 if (req.Context.RequestId == 1) r1 = req;
                 if (req.Context.RequestId == 2) r2 = req;
@@ -156,11 +151,9 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Snapshot_InitiallyEmpty()
         {
-            var session = ProtocolSessionHelpers.CreateSession();
-            var runtime = session.Runtime;
-            var observer = session.Observer;
+            var session = ProtocolSessions.CreateEvenSession();
 
-            var snap = observer.GetSnapshot();
+            var snap = session.Diagnostics.GetSnapshot();
 
             Assert.IsEmpty(snap.OpenRequests);
             Assert.IsEmpty(snap.OpenStreams);
@@ -169,15 +162,14 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Snapshot_IsNonDestructive()
         {
-            var session = ProtocolSessionHelpers.CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var observer = session.Observer;
-
+            
             runtime.ProcessFrame(ProtocolFrames.Request(1));
             runtime.ProcessFrame(ProtocolFrames.StreamOpen(10));
 
-            var snap1 = observer.GetSnapshot();
-            var snap2 = observer.GetSnapshot();
+            var snap1 = session.Diagnostics.GetSnapshot();
+            var snap2 = session.Diagnostics.GetSnapshot();
 
             Assert.HasCount(snap1.OpenRequests.Count, snap2.OpenRequests);
             Assert.HasCount(snap1.OpenStreams.Count, snap2.OpenStreams);
@@ -186,16 +178,15 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Snapshot_AllClosed_ShowsEmpty()
         {
-            var session = ProtocolSessionHelpers.CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var observer = session.Observer;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1));
             runtime.ProcessFrame(ProtocolFrames.StreamOpen(10));
             runtime.ProcessFrame(ProtocolFrames.Response(1));
             runtime.ProcessFrame(ProtocolFrames.StreamClose(10));
 
-            var snap = observer.GetSnapshot();
+            var snap = session.Diagnostics.GetSnapshot();
 
             Assert.IsEmpty(snap.OpenRequests);
             Assert.IsEmpty(snap.OpenStreams);
@@ -204,15 +195,14 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Snapshot_RequestsAndStreams_AreIndependentIdNamespaces()
         {
-            // The same numeric ID may be in use simultaneously as both a request and a stream.
-            var session = ProtocolSessionHelpers.CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var observer = session.Observer;
 
+            // The same numeric ID may be in use simultaneously as both a request and a stream.
             runtime.ProcessFrame(ProtocolFrames.Request(42));
             runtime.ProcessFrame(ProtocolFrames.StreamOpen(42));
 
-            var snap = observer.GetSnapshot();
+            var snap = session.Diagnostics.GetSnapshot();
 
             Assert.Contains(42u, snap.OpenRequests);
             Assert.Contains(42u, snap.OpenStreams);
@@ -221,14 +211,13 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Snapshot_DoesNotContainStreamIdsInRequestsOrViceVersa()
         {
-            var session = ProtocolSessionHelpers.CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var observer = session.Observer;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1));
             runtime.ProcessFrame(ProtocolFrames.StreamOpen(2));
 
-            var snap = observer.GetSnapshot();
+            var snap = session.Diagnostics.GetSnapshot();
 
             Assert.DoesNotContain(2u, snap.OpenRequests);
             Assert.DoesNotContain(1u, snap.OpenStreams);
@@ -241,7 +230,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void OnInbound_NullFrame_ThrowsArgumentNullException()
         {
-            var session = ProtocolSessionHelpers.CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
 
             Assert.Throws<ArgumentNullException>(() => runtime.ProcessFrame(null!));
@@ -250,7 +239,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void OnInbound_UnknownFrameKind_ThrowsProtocolException_WithUnknownFrameKindError()
         {
-            var session = ProtocolSessionHelpers.CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
 
             var frame = new ProtocolFrame((ProtocolFrameKind)0xFF, null, null, null, ProtocolFrames.EmptyPayload);
@@ -267,16 +256,15 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void MixedRequestsAndStreams_TrackedIndependently()
         {
-            var session = ProtocolSessionHelpers.CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var observer = session.Observer;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1));
             runtime.ProcessFrame(ProtocolFrames.Request(2));
             runtime.ProcessFrame(ProtocolFrames.StreamOpen(10));
             runtime.ProcessFrame(ProtocolFrames.StreamOpen(20));
 
-            var snap = observer.GetSnapshot();
+            var snap = session.Diagnostics.GetSnapshot();
 
             Assert.HasCount(2, snap.OpenRequests);
             Assert.HasCount(2, snap.OpenStreams);
@@ -285,15 +273,14 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void ClosingRequest_DoesNotAffectOpenStreams()
         {
-            var session = ProtocolSessionHelpers.CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var observer = session.Observer;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1));
             runtime.ProcessFrame(ProtocolFrames.StreamOpen(10));
             runtime.ProcessFrame(ProtocolFrames.Response(1));
 
-            var snap = observer.GetSnapshot();
+            var snap = session.Diagnostics.GetSnapshot();
 
             Assert.IsEmpty(snap.OpenRequests);
             Assert.HasCount(1, snap.OpenStreams);
@@ -303,15 +290,14 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void ClosingStream_DoesNotAffectOpenRequests()
         {
-            var session = ProtocolSessionHelpers.CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var observer = session.Observer;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1));
             runtime.ProcessFrame(ProtocolFrames.StreamOpen(10));
             runtime.ProcessFrame(ProtocolFrames.StreamClose(10));
 
-            var snap = observer.GetSnapshot();
+            var snap = session.Diagnostics.GetSnapshot();
 
             Assert.HasCount(1, snap.OpenRequests);
             Assert.Contains(1u, snap.OpenRequests);
@@ -321,7 +307,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Inbound_ResponseFrame_IsAccepted()
         {
-            var session = ProtocolSessionHelpers.CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -338,29 +324,28 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void FullMixedLifecycle_SnapshotAccurateAtEachStep()
         {
-            var session = ProtocolSessionHelpers.CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var observer = session.Observer;
 
             // Open two requests and two streams.
             runtime.ProcessFrame(ProtocolFrames.Request(1));
             runtime.ProcessFrame(ProtocolFrames.Request(2));
             runtime.ProcessFrame(ProtocolFrames.StreamOpen(10));
             runtime.ProcessFrame(ProtocolFrames.StreamOpen(20));
-            Assert.HasCount(2, observer.GetSnapshot().OpenRequests);
-            Assert.HasCount(2, observer.GetSnapshot().OpenStreams);
+            Assert.HasCount(2, session.Diagnostics.GetSnapshot().OpenRequests);
+            Assert.HasCount(2, session.Diagnostics.GetSnapshot().OpenStreams);
 
             // Close one request and one stream.
             runtime.ProcessFrame(ProtocolFrames.Response(1));
             runtime.ProcessFrame(ProtocolFrames.StreamClose(10));
-            Assert.HasCount(1, observer.GetSnapshot().OpenRequests);
-            Assert.HasCount(1, observer.GetSnapshot().OpenStreams);
+            Assert.HasCount(1, session.Diagnostics.GetSnapshot().OpenRequests);
+            Assert.HasCount(1, session.Diagnostics.GetSnapshot().OpenStreams);
 
             // Close the remaining ones.
             runtime.ProcessFrame(ProtocolFrames.Error(2));
             runtime.ProcessFrame(ProtocolFrames.StreamClose(20));
-            Assert.IsEmpty(observer.GetSnapshot().OpenRequests);
-            Assert.IsEmpty(observer.GetSnapshot().OpenStreams);
+            Assert.IsEmpty(session.Diagnostics.GetSnapshot().OpenRequests);
+            Assert.IsEmpty(session.Diagnostics.GetSnapshot().OpenStreams);
         }
     }
 }

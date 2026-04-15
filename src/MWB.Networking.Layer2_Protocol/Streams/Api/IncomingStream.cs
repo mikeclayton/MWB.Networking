@@ -1,6 +1,7 @@
 ﻿using MWB.Networking.Layer2_Protocol.Session;
+using MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
-namespace MWB.Networking.Layer2_Protocol.Streams;
+namespace MWB.Networking.Layer2_Protocol.Streams.Api;
 
 public sealed class IncomingStream : IProtocolStream
 {

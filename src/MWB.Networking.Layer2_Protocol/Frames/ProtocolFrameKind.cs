@@ -1,4 +1,4 @@
-﻿namespace MWB.Networking.Layer2_Protocol;
+﻿namespace MWB.Networking.Layer2_Protocol.Frames;
 
 public enum ProtocolFrameKind : byte
 {
@@ -14,7 +14,7 @@ public enum ProtocolFrameKind : byte
                              → Error
                              → Cancel
 
-     */
+    */
 
     /// <summary>
     /// A fire-and-forget frame that carries a discrete payload with no correlation

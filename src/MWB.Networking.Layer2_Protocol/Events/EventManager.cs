@@ -1,4 +1,4 @@
-﻿using MWB.Networking.Layer2_Protocol.Internal;
+﻿using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Session;
 
 namespace MWB.Networking.Layer2_Protocol.Events;

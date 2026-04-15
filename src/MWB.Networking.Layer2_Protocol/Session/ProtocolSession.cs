@@ -1,10 +1,23 @@
 ﻿using MWB.Networking.Layer2_Protocol.Events;
+using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Requests;
+using MWB.Networking.Layer2_Protocol.Session.Api;
 using MWB.Networking.Layer2_Protocol.Streams;
+using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
 
 namespace MWB.Networking.Layer2_Protocol.Session;
 
-public sealed partial class ProtocolSession
+
+/// <summary>
+/// The central authority for a protocol connection.
+/// 
+/// ProtocolSession is the single choke point where:
+/// - inbound frames are validated
+/// - protocol invariants are enforced
+/// - requests and streams are coordinated
+/// - application intent is translated into protocol actions
+/// </summary>
+internal sealed partial class ProtocolSession
 {
     internal ProtocolSession(OddEvenStreamIdProvider outboundStreamIdProvider)
     {
@@ -14,6 +27,9 @@ public sealed partial class ProtocolSession
     }
 
     internal IProtocolSessionCommands AsCommands()
+        => this;
+
+    internal IProtocolSessionDiagnostics AsDiagnostics()
         => this;
 
     internal IProtocolSessionObserver AsObserver()

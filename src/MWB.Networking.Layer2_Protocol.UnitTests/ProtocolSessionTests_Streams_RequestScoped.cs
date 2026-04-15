@@ -1,7 +1,6 @@
-using MWB.Networking.Layer2_Protocol.Internal;
-using MWB.Networking.Layer2_Protocol.Requests;
-
-using static MWB.Networking.Layer2_Protocol.UnitTests.Helpers.ProtocolSessionHelpers;
+using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Requests.Api;
+using MWB.Networking.Layer2_Protocol.Session;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
@@ -27,7 +26,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void FullRequestScopedStreamLifecycle_AllFramesEmittedInOrder()
         {
-            var session = CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
 
             IncomingRequest? request = null;
@@ -59,7 +58,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void CannotOpenRequestScopedStream_AfterResponse()
         {
-            var session = CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
 
             IncomingRequest? request = null;

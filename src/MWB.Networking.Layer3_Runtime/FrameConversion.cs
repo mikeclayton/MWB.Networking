@@ -1,5 +1,5 @@
 ﻿using MWB.Networking.Layer1_Framing;
-using MWB.Networking.Layer2_Protocol;
+using MWB.Networking.Layer2_Protocol.Frames;
 
 namespace MWB.Networking.Layer3_Runtime;
 

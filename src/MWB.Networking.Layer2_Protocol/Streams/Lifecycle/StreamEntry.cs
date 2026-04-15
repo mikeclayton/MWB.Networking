@@ -1,4 +1,6 @@
-﻿namespace MWB.Networking.Layer2_Protocol.Streams;
+﻿using MWB.Networking.Layer2_Protocol.Streams.Api;
+
+namespace MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
 internal sealed class StreamEntry
 {

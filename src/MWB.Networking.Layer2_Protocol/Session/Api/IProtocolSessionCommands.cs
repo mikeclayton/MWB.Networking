@@ -1,7 +1,7 @@
-﻿using MWB.Networking.Layer2_Protocol.Requests;
-using MWB.Networking.Layer2_Protocol.Streams;
+﻿using MWB.Networking.Layer2_Protocol.Requests.Api;
+using MWB.Networking.Layer2_Protocol.Streams.Api;
 
-namespace MWB.Networking.Layer2_Protocol.Session;
+namespace MWB.Networking.Layer2_Protocol.Session.Api;
 
 public interface IProtocolSessionCommands
 {

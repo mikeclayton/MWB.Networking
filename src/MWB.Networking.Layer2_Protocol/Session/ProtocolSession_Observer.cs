@@ -1,9 +1,10 @@
-﻿using MWB.Networking.Layer2_Protocol.Requests;
-using MWB.Networking.Layer2_Protocol.Streams;
+﻿using MWB.Networking.Layer2_Protocol.Requests.Api;
+using MWB.Networking.Layer2_Protocol.Session.Api;
+using MWB.Networking.Layer2_Protocol.Streams.Api;
 
 namespace MWB.Networking.Layer2_Protocol.Session;
 
-public sealed partial class ProtocolSession : IProtocolSessionObserver
+internal sealed partial class ProtocolSession : IProtocolSessionObserver
 {
     // ------------------------------------------------------------------
     // Event handling
@@ -50,16 +51,5 @@ public sealed partial class ProtocolSession : IProtocolSessionObserver
     public OutgoingStream OpenSessionStream(ReadOnlyMemory<byte> metadata)
     {
         return this.StreamManager.OpenSessionStream(metadata);
-    }
-
-    // ------------------------------------------------------------------
-    // Snapshots
-    // ------------------------------------------------------------------
-
-    ProtocolSnapshot IProtocolSessionObserver.GetSnapshot()
-    {
-        return new ProtocolSnapshot(
-            OpenRequests: this.RequestManager.GetRequestIds().ToArray(),
-            OpenStreams: this.StreamManager.GetStreamIds().ToArray());
     }
 }

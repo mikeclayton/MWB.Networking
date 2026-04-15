@@ -1,4 +1,4 @@
-﻿namespace MWB.Networking.Layer2_Protocol.Streams;
+﻿namespace MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
 internal interface IProtocolStream
 {

@@ -1,4 +1,4 @@
-﻿namespace MWB.Networking.Layer2_Protocol;
+﻿namespace MWB.Networking.Layer2_Protocol.Frames;
 
 /// <summary>
 /// Represents a single protocol message exchanged between peers.

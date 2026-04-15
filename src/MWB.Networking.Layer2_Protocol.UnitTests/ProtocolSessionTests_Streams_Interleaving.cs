@@ -1,5 +1,5 @@
-using MWB.Networking.Layer2_Protocol.Internal;
-using static MWB.Networking.Layer2_Protocol.UnitTests.Helpers.ProtocolSessionHelpers;
+using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Session;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
@@ -25,13 +25,12 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void InterleavedSessionStreams_FramesEmittedInOrder()
         {
-            var session = CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var commands = session.Commands;
 
             // Open two session-scoped streams
-            var stream1 = commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
-            var stream2 = commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
+            var stream1 = session.Commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
+            var stream2 = session.Commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
 
             // Interleave data writes
             stream1.SendData(new byte[] { 0x01 });
@@ -61,12 +60,11 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void LocalSessionStreams_MayInterleaveOutboundFrames()
         {
-            var session = CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var commands = session.Commands;
 
-            var s1 = commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
-            var s2 = commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
+            var s1 = session.Commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
+            var s2 = session.Commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
 
             s1.SendData(new byte[] { 0x01 });
             s2.SendData(new byte[] { 0x02 });

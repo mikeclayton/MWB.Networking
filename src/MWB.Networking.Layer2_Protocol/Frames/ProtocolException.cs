@@ -1,4 +1,4 @@
-﻿namespace MWB.Networking.Layer2_Protocol;
+﻿namespace MWB.Networking.Layer2_Protocol.Frames;
 
 public sealed class ProtocolException : Exception
 {

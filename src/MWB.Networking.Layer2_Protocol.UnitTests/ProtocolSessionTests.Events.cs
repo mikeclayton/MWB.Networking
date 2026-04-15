@@ -1,7 +1,6 @@
-using MWB.Networking.Layer2_Protocol.Internal;
+using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
-
-using static MWB.Networking.Layer2_Protocol.UnitTests.Helpers.ProtocolSessionHelpers;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
@@ -23,15 +22,14 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void SingleEvent_IsRaisedToApplication_AndNotEmittedOutbound()
         {
-            var session = CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var observer = session.Observer;
-
+            
             uint? receivedType = null;
             ReadOnlyMemory<byte> receivedPayload = default;
             var callCount = 0;
 
-            observer.EventReceived += (eventType, payload) =>
+            session.Observer.EventReceived += (eventType, payload) =>
             {
                 receivedType = eventType;
                 receivedPayload = payload;
@@ -52,13 +50,12 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void MultipleEvents_AreRaisedInOrder()
         {
-            var session = CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var observer = session.Observer;
 
             var received = new List<byte>();
 
-            observer.EventReceived += (_, payload) =>
+            session.Observer.EventReceived += (_, payload) =>
             {
                 received.Add(payload.Span[0]);
             };
@@ -75,14 +72,13 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Event_WithEmptyPayload_IsRaisedCorrectly()
         {
-            var session = CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var observer = session.Observer;
 
             var callCount = 0;
             var payloadLength = -1;
 
-            observer.EventReceived += (_, payload) =>
+            session.Observer.EventReceived += (_, payload) =>
             {
                 callCount++;
                 payloadLength = payload.Length;
@@ -99,15 +95,14 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Event_DoesNotAffectSnapshot()
         {
-            var session = CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var observer = session.Observer;
 
-            observer.EventReceived += (_, _) => { };
+            session.Observer.EventReceived += (_, _) => { };
 
             runtime.ProcessFrame(ProtocolFrames.Event(1, new([0xFF])));
 
-            var snap = observer.GetSnapshot();
+            var snap = session.Diagnostics.GetSnapshot();
 
             Assert.IsEmpty(snap.OpenRequests);
             Assert.IsEmpty(snap.OpenStreams);
@@ -116,11 +111,10 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Event_DoesNotProduceOutboundFrames()
         {
-            var session = ProtocolSessionHelpers.CreateSession();
+            var session = ProtocolSessions.CreateEvenSession();
             var runtime = session.Runtime;
-            var observer = session.Observer;
 
-            observer.EventReceived += (_, _) => { };
+            session.Observer.EventReceived += (_, _) => { };
 
             runtime.ProcessFrame(ProtocolFrames.Event(1, new([0x2A])));
 
