@@ -1,10 +1,11 @@
 ﻿using KeyboardSharingConsole.CommandLine;
-using KeyboardSharingConsole.Helpers;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Tcp;
 using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer3_Runtime;
+using System.Diagnostics;
 using System.Net;
 
 Console.WriteLine("Hello, World!");
@@ -18,7 +19,8 @@ Console.Title =
 // Logging
 // ------------------------------------------------------------
 
-var logger = LoggingHelper.CreateLogger();
+//var logger = LoggingHelper.CreateLogger();
+var logger = NullLogger.Instance;
 var cts = new CancellationTokenSource();
 
 logger.LogDebug(Console.Title);
@@ -42,10 +44,12 @@ Console.WriteLine("creating protocol session");
 
 var session = ProtocolSessions.CreateEvenSession(logger);
 
+var eventCount = 0;
 session.Observer.EventReceived += (eventType, payload) =>
 {
+    eventCount++;
     Console.WriteLine(
-        $"[INBOUND] Event {eventType}: {BitConverter.ToString(payload.ToArray())}");
+        $"[INBOUND] ({eventCount}) Event {eventType}: {BitConverter.ToString(payload.ToArray())}");
 };
 
 
@@ -118,13 +122,26 @@ if (isProducer)
 {
     Console.WriteLine("[PRODUCER] sending hard-coded event");
 
-    session.Commands.SendEvent(
-        eventType: 1,
-        payload: new byte[] { (byte)options.ListenPort });
+    var stopwatch = Stopwatch.StartNew();
+    for (var i = 0; i < 1000; i++)
+    {
+        session.Commands.SendEvent(
+            eventType: 1,
+            payload: BitConverter.GetBytes(options.ListenPort));
+    }
+    stopwatch.Stop();
+
+    Console.WriteLine($"[PRODUCER] done queuing outbound in {stopwatch.ElapsedMilliseconds} ms");
+    Console.WriteLine($"[PRODUCER] done queuing outbound in {stopwatch.ElapsedTicks} ticks");
+
+    // wait for all events to be transmitted, then read outbound buffer for "enqueued" and "transmitted" timestamps
 }
 else
 {
     Console.WriteLine("[CONSUMER] waiting for inbound events");
+
+    // wait for all events to be received, then read inbound buffer for "received" timestamps
+
 }
 
 

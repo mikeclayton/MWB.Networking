@@ -6,6 +6,7 @@ using MWB.Networking.Layer2_Protocol.Session.Api;
 using MWB.Networking.Layer2_Protocol.Streams;
 using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
 using MWB.Networking.Logging;
+using System.Diagnostics;
 
 namespace MWB.Networking.Layer2_Protocol.Session;
 
@@ -122,6 +123,9 @@ internal sealed partial class ProtocolSession : IHasLogger
         }
 
         // If all validation succeeds, the frame is legal to send
+#if ENABLE_PROTOCOL_FRAME_DIAGNOSTICS
+        frame.Diagnostics.EnqueuedTimestamp = Stopwatch.GetTimestamp();
+#endif
         this.OutboundFrames.Enqueue(frame);
         this.OutboundSignal.Release();
     }

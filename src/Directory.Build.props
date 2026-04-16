@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DefineConstants>$(DefineConstants);ENABLE_PROTOCOL_FRAME_DIAGNOSTICS</DefineConstants>
+  </PropertyGroup>
+</Project>

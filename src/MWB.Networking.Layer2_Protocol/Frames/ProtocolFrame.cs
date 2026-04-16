@@ -23,6 +23,22 @@ public sealed class ProtocolFrame
         this.Payload = payload;
     }
 
+#if ENABLE_PROTOCOL_FRAME_DIAGNOSTICS
+
+    private FrameDiagnostics _diagnostics;
+
+    /// <summary>
+    /// Optional frame-level diagnostics overlay.
+    /// </summary>
+    /// <remarks>
+    /// Returned by <c>ref</c> so callers can mutate the underlying struct
+    /// in-place without copying or allocating. This pattern is intentional
+    /// and avoids per-frame overhead in hot paths.
+    /// </remarks>
+    public ref FrameDiagnostics Diagnostics => ref _diagnostics;
+
+#endif
+
     /// <summary>
     /// The high-level kind of protocol message being transmitted.
     /// </summary>

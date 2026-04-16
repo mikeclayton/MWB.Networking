@@ -3,6 +3,7 @@ using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Session.Api;
 using MWB.Networking.Logging;
+using System.Diagnostics;
 
 namespace MWB.Networking.Layer3_Runtime;
 
@@ -23,6 +24,20 @@ public sealed class ProtocolDriver : IHasLogger
         this.Adapter = adapter ?? throw new ArgumentNullException(nameof(adapter));
         this.Session = session ?? throw new ArgumentNullException(nameof(session));
     }
+
+#if ENABLE_PROTOCOL_FRAME_DIAGNOSTICS
+
+    private RingBuffer<ProtocolFrame> RecentInboundFrames
+    {
+        get;
+    } = new(capacity: 100_000);
+
+    private RingBuffer<ProtocolFrame> RecentOutboundFrames
+    {
+        get;
+    } = new(capacity: 100_000);
+
+#endif
 
     public ILogger Logger
     {
@@ -131,6 +146,15 @@ public sealed class ProtocolDriver : IHasLogger
 
             // Serialize all access to ProtocolSession
             var protocolFrame = FrameConverter.ToProtocolFrame(networkFrame);
+
+#if ENABLE_PROTOCOL_FRAME_DIAGNOSTICS
+
+            // Observational capture only — frame is immutable (apart from diagnostics)
+            protocolFrame.Diagnostics.ReceivedTimestamp = Stopwatch.GetTimestamp();
+            this.RecentInboundFrames.Write(protocolFrame);
+
+#endif
+
             await this.SessionGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -181,6 +205,13 @@ public sealed class ProtocolDriver : IHasLogger
                 await Task.Yield();
                 continue;
             }
+
+#if ENABLE_PROTOCOL_FRAME_DIAGNOSTICS
+
+            // Observational capture only — frame is immutable (apart from diagnostics)
+            this.RecentOutboundFrames.Write(protocolFrame);
+
+#endif
 
             var networkFrame = FrameConverter.ToNetworkFrame(protocolFrame);
             try

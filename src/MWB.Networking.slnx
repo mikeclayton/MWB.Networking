@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/.build/">
+    <File Path="Directory.Build.props" />
+  </Folder>
   <Folder Name="/.wiki/">
     <File Path="../readme.md" />
     <Project Path="../wiki/wiki.csproj" />
