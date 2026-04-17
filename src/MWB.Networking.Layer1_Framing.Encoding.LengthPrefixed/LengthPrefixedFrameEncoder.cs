@@ -1,4 +1,5 @@
-﻿using MWB.Networking.Layer0_Transport.Encoding;
+﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer0_Transport.Encoding;
 using MWB.Networking.Layer1_Framing.Encoding.Abstractions;
 using System.Buffers.Binary;
 
@@ -6,6 +7,16 @@ namespace MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
 
 public sealed class LengthPrefixedFrameEncoder : IFrameEncoder
 {
+    public LengthPrefixedFrameEncoder(ILogger logger)
+    {
+        this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    public ILogger Logger
+    {
+        get;
+    }
+
     // should *not* be async
     public ValueTask EncodeFrameAsync(
         ByteSegments input,

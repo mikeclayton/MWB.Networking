@@ -21,18 +21,29 @@ public sealed class ProtocolDriver : IHasLogger
 {
     public ProtocolDriver(
         ILogger logger,
-        INetworkConnection connection,
-        IFrameDecoder decoder,
-        NetworkFrameReader frameReader,
-        NetworkAdapter adapter,
-        IProtocolSessionRuntime sessionRuntime)
+        IProtocolSessionRuntime sessionRuntime,
+        ProtocolDriverOptions options)
     {
         this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        this.Connection = connection ?? throw new ArgumentNullException(nameof(connection));
-        this.Decoder = decoder ?? throw new ArgumentNullException(nameof(decoder));
-        this.FrameReader = frameReader ?? throw new ArgumentNullException(nameof(frameReader));
-        this.Adapter = adapter ?? throw new ArgumentNullException(nameof(adapter));
         this.SessionRuntime = sessionRuntime ?? throw new ArgumentNullException(nameof(sessionRuntime));
+        // copy options alocally
+        ArgumentNullException.ThrowIfNull(options);
+        this.Connection = options.Connection
+            ?? throw new ArgumentException(
+                $"{nameof(options)}.{nameof(options.Connection)} is required and cannot be null.",
+                nameof(options));
+        this.Decoder = options.Decoder
+            ?? throw new ArgumentException(
+                $"{nameof(options)}.{nameof(options.Decoder)} is required and cannot be null.",
+                nameof(options));
+        this.FrameReader = options.FrameReader
+            ?? throw new ArgumentException(
+                $"{nameof(options)}.{nameof(options.FrameReader)} is required and cannot be null.",
+                nameof(options));
+        this.Adapter = options.Adapter
+            ?? throw new ArgumentException(
+                $"{nameof(options)}.{nameof(options.Adapter)} is required and cannot be null.",
+                nameof(options));
     }
 
 #if ENABLE_PROTOCOL_FRAME_DIAGNOSTICS
@@ -48,7 +59,7 @@ public sealed class ProtocolDriver : IHasLogger
 #endif
 
     public ILogger Logger
-    { 
+    {
         get;
     }
 
@@ -63,7 +74,7 @@ public sealed class ProtocolDriver : IHasLogger
     }
 
     private NetworkFrameReader FrameReader
-    { 
+    {
         get;
     }
     
@@ -100,10 +111,16 @@ public sealed class ProtocolDriver : IHasLogger
 
         var readTask = this.RunReadLoopAsync(ct);
         var writeTask = this.RunWriteLoopAsync(ct);
+        var consumeTask = this.ConsumeFramesAsync(ct);
 
         this.ReadySource.TrySetResult();
 
-        await Task.WhenAny(readTask, writeTask).ConfigureAwait(false);
+        await Task
+            .WhenAny(
+                readTask,
+                writeTask,
+                consumeTask)
+            .ConfigureAwait(false);
     }
 
     /// <summary>
@@ -128,6 +145,9 @@ public sealed class ProtocolDriver : IHasLogger
                     bytesRead = await Connection
                         .ReadAsync(buffer, ct)
                         .ConfigureAwait(false);
+                    this.Logger.LogDebug(
+                        "[DRIVER READ LOOP] ReadAsync returned {BytesRead}",
+                        bytesRead);
                 }
                 catch (OperationCanceledException)
                 {
@@ -144,9 +164,11 @@ public sealed class ProtocolDriver : IHasLogger
                 var sequence = new ReadOnlySequence<byte>(
                     buffer.AsMemory(0, bytesRead));
 
+                this.Logger.LogDebug("[DRIVER READ LOOP] calling DecodeFrameAsync");
                 await this.Decoder
                     .DecodeFrameAsync(sequence, this.FrameReader, ct)
                     .ConfigureAwait(false);
+                this.Logger.LogDebug("[DRIVER READ LOOP] returned from DecodeFrameAsync");
             }
         }
         finally
@@ -222,7 +244,7 @@ public sealed class ProtocolDriver : IHasLogger
 
         while (!ct.IsCancellationRequested)
         {
-            NetworkFrame networkFrame =
+            var networkFrame =
                 await this.Adapter.ReadFrameAsync(ct).ConfigureAwait(false);
 
             var protocolFrame = FrameConverter.ToProtocolFrame(networkFrame);
@@ -244,4 +266,3 @@ public sealed class ProtocolDriver : IHasLogger
         }
     }
 }
-

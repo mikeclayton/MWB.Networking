@@ -93,9 +93,8 @@ public sealed class NetworkPipelineBuilder
 
     /// <summary>
     /// Materializes the pipeline.
-    /// Internal: only hosting/session builders should call this.
     /// </summary>
-    public BuiltNetworkPipeline Build()
+    public NetworkPipeline Build()
     {
         // ----------------------------------------------------------
         // Validation
@@ -151,7 +150,7 @@ public sealed class NetworkPipelineBuilder
         // Return materialized pipeline
         // ----------------------------------------------------------
 
-        var pipeline = new BuiltNetworkPipeline(
+        var pipeline = new NetworkPipeline(
             connection,
             frameWriter,
             frameReader,

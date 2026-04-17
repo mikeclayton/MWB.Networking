@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.NullConnection;
 using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer1_Framing.Encoding;
@@ -16,34 +17,32 @@ internal static class ProtocolSessionHelper
     public static ProtocolSessionHandle CreateNullSession(
         ILogger? logger = null)
     {
-        logger ??= NullLogger.Instance;
-
-        return ProtocolSessions.CreateSession(
-            logger,
-            OddEvenStreamIdParity.Even,
-            runtime =>
-            {
+        var session =
+            new ProtocolSessionBuilder()
                 // ----------------------------
-                // Null / inert network pipeline
+                // Logging
                 // ----------------------------
+                .WithLogger(logger ??= NullLogger.Instance)
+                // ----------------------------
+                // Protocol semantics
+                // ----------------------------
+                .UseEvenStreamIds()
+                // ----------------------------
+                // Transport + framing
+                // ----------------------------
+                .ConfigurePipeline(pipeline =>
+                {
+                    pipeline
+                        .AppendFrameCodec(
+                            new NullFrameEncoder(),
+                            new NullFrameDecoder())
+                        .UseConnection(() => new NullNetworkConnection());
+                })
+                // ----------------------------
+                // Build
+                // ----------------------------
+                .Build();
 
-                var connection = new NullNetworkConnection();
-                var frameReader = new NetworkFrameReader();
-
-                var frameWriter =
-                    new NetworkFrameWriter(
-                        new FrameEncoderBridge(connection));
-
-                var adapter =
-                    new NetworkAdapter(frameWriter, frameReader);
-
-                return new ProtocolDriver(
-                    logger,
-                    connection,
-                    new NullFrameDecoder(),
-                    frameReader,
-                    adapter,
-                    runtime);
-            });
+        return session;
     }
 }

@@ -1,10 +1,8 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
+﻿using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer2_Protocol.Driver;
 using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.Session.Api;
-using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
 
 namespace MWB.Networking.Hosting;
 
@@ -14,38 +12,9 @@ namespace MWB.Networking.Hosting;
 /// This type owns network pipeline wiring and delegates
 /// final session creation to the protocol layer.
 /// </summary>
-public sealed class ProtocolSessionBuilder
+public sealed partial class ProtocolSessionBuilder
 {
-    private ILogger? _logger;
-    private Action<NetworkPipelineBuilder>? _pipelineConfig;
-    private OddEvenStreamIdParity? _streamIdParity;
     private bool _built;
-
-    /// <summary>
-    /// Sets the logger used by the protocol runtime.
-    /// </summary>
-    public ProtocolSessionBuilder WithLogger(ILogger logger)
-    {
-        ArgumentNullException.ThrowIfNull(logger);
-        this.EnsureNotBuilt();
-
-        _logger = logger;
-        return this;
-    }
-
-    public ProtocolSessionBuilder UseOddEvenStreamIdParity(
-        OddEvenStreamIdParity parity)
-    {
-        _streamIdParity = parity;
-        return this;
-    }
-
-    // Optional convenience
-    public ProtocolSessionBuilder UseOddStreamIds()
-        => UseOddEvenStreamIdParity(OddEvenStreamIdParity.Odd);
-
-    public ProtocolSessionBuilder UseEvenStreamIds()
-        => UseOddEvenStreamIdParity(OddEvenStreamIdParity.Even);
 
     private void EnsureNotBuilt()
     {
@@ -53,19 +22,6 @@ public sealed class ProtocolSessionBuilder
         {
             throw new InvalidOperationException("Builder already used.");
         }
-    }
-
-    /// <summary>
-    /// Configures the network pipeline (encoders, transport).
-    /// </summary>
-    public ProtocolSessionBuilder ConfigurePipeline(
-        Action<NetworkPipelineBuilder> configure)
-    {
-        ArgumentNullException.ThrowIfNull(configure);
-        this.EnsureNotBuilt();
-
-        _pipelineConfig = configure;
-        return this;
     }
 
     /// <summary>
@@ -114,13 +70,12 @@ public sealed class ProtocolSessionBuilder
         var session = ProtocolSessions.CreateSession(
             logger,
             _streamIdParity.Value,
-            runtime => new ProtocolDriver(
-                logger,
+            new ProtocolDriverOptions(
                 pipeline.Connection,
                 pipeline.RootDecoder,
                 pipeline.FrameReader,
-                adapter,
-                runtime));
+                adapter)
+        );
 
         return session;
     }

@@ -1,4 +1,5 @@
-﻿using MWB.Networking.Layer0_Transport.Encoding;
+﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer0_Transport.Encoding;
 using MWB.Networking.Layer1_Framing.Encoding.Abstractions;
 using MWB.Networking.Layer1_Framing.Encoding.Helpers;
 using System.Buffers;
@@ -13,12 +14,18 @@ public sealed class LengthPrefixedFrameDecoder : IFrameDecoder, IDisposable
 
     private int? _expectedPayloadLength;
 
-    public LengthPrefixedFrameDecoder(int maxFrameSize = 16 * 1024 * 1024)
+    public LengthPrefixedFrameDecoder(ILogger logger, int maxFrameSize = 16 * 1024 * 1024)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFrameSize);
 
+        this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _buffer = new DecoderBuffer();
         _maxFrameSize = maxFrameSize;
+    }
+
+    public ILogger Logger
+    {
+        get;
     }
 
     // should *not* be async
@@ -33,6 +40,12 @@ public sealed class LengthPrefixedFrameDecoder : IFrameDecoder, IDisposable
             _buffer.Append(segment.Span);
         }
 
+        this.Logger.LogDebug(
+            "[DECODER] {DecoderType} Appended {ByteCount} bytes, buffer now has {BufferedBytes}",
+            nameof(LengthPrefixedFrameDecoder),
+            input.Length,
+            _buffer.Count);
+
         // Attempt to decode as many complete frames as possible
         while (true)
         {
@@ -43,6 +56,11 @@ public sealed class LengthPrefixedFrameDecoder : IFrameDecoder, IDisposable
             {
                 if (_buffer.Count < 4)
                 {
+                    this.Logger.LogDebug(
+                        "[DECODER] {DecoderType} Waiting for length prefix (buffer has {BufferedBytes})\",",
+                        nameof(LengthPrefixedFrameDecoder),
+                        _buffer.Count);
+
                     // need more data
                     return ValueTask.CompletedTask;
                 }
@@ -64,14 +82,19 @@ public sealed class LengthPrefixedFrameDecoder : IFrameDecoder, IDisposable
             // Step 2: wait for full payload
             if (_buffer.Count < _expectedPayloadLength.Value)
             {
+                this.Logger.LogDebug(
+                    "[DECODER] {DecoderType} Waiting for payload: need {Expected}, have {Buffered}",
+                    nameof(LengthPrefixedFrameDecoder),
+                    _expectedPayloadLength.Value,
+                    _buffer.Count);
+
                 // need more data
                 return ValueTask.CompletedTask;
             }
 
-
             // Step 3: emit payload as a single decoded frame
-            var payloadSpan =
-                _buffer.Span.Slice(0, _expectedPayloadLength.Value);
+            var payloadLength = _expectedPayloadLength.Value;
+            var payloadSpan = _buffer.Span.Slice(0, payloadLength);
 
             // Copy out payload before mutating buffer
             var payload = new ByteSegments(payloadSpan.ToArray());
@@ -82,7 +105,15 @@ public sealed class LengthPrefixedFrameDecoder : IFrameDecoder, IDisposable
 
             // Emit decoded frame
             // IMPORTANT: do NOT return — loop may decode more frames
+            this.Logger.LogDebug(
+                "[DECODER] {DecoderType} Emitting decoded frame with payload size {PayloadSize}",
+                nameof(LengthPrefixedFrameDecoder),
+                payloadLength);
             var task = output.OnFrameDecodedAsync(payload, ct);
+            this.Logger.LogDebug(
+                "[DECODER] {DecoderType} Sink returned IsCompletedSuccessfully = {Completed}",
+                nameof(LengthPrefixedFrameDecoder),
+                task.IsCompletedSuccessfully);
 
             // If the sink goes async, stop decoding for now
             if (!task.IsCompletedSuccessfully)

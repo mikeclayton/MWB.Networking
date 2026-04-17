@@ -12,25 +12,20 @@ public static class ProtocolSessions
     public static ProtocolSessionHandle CreateSession(
         ILogger logger,
         OddEvenStreamIdParity streamIdParity,
-        Func<IProtocolSessionRuntime, ProtocolDriver> driverFactory)
+        ProtocolDriverOptions driverOptions)
     {
         ArgumentNullException.ThrowIfNull(logger);
-        ArgumentNullException.ThrowIfNull(driverFactory);
+        ArgumentNullException.ThrowIfNull(driverOptions);
 
         var streamIdProvider =
             new OddEvenStreamIdProvider(streamIdParity);
 
         var session = new ProtocolSession(
             logger,
-            streamIdProvider);
+            streamIdProvider,
+            driverOptions);
 
         var sessionHandle = new ProtocolSessionHandle(session);
-
-        var driver = driverFactory(session)
-            ?? throw new InvalidOperationException(
-                "driverFactory returned null");
-
-        session.AttachDriver(driver);
 
         return sessionHandle;
     }

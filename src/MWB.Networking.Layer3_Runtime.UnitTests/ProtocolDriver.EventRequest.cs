@@ -1,12 +1,10 @@
-﻿using Microsoft.Extensions.Logging.Abstractions;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Pipes;
-using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
-using MWB.Networking.Layer2_Protocol.Driver;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
-using MWB.Networking.Layer2_Protocol.Session;
-using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
+using MWB.Networking.Layer3_Runtime.UnitTests.Helpers;
 using System.IO.Pipelines;
 
 namespace MWB.Networking.Layer3_Runtime.UnitTests;
@@ -21,9 +19,22 @@ public sealed class ProtocolDriverEndToEndTests
     }
 
     [TestMethod]
-    public async Task ProtocolDriver_Transmits_ProtocolFrames_EndToEnd()
+    public async Task ProtocolDriver_Transmits_Requests_EndToEnd()
     {
-        var logger = NullLogger.Instance;
+        // ------------------------------------------------------------
+        // Initialize logging
+        // ------------------------------------------------------------
+
+        using var loggerFactory =
+            LoggerFactory.Create(builder =>
+            {
+                builder
+                    .SetMinimumLevel(LogLevel.Trace)
+                    .AddProvider(new TestContextLoggerProvider(TestContext));
+            });
+
+        var logger =
+            loggerFactory.CreateLogger("ProtocolDriver");
 
         // ------------------------------------------------------------
         // Arrange: in-memory duplex transport
@@ -31,130 +42,116 @@ public sealed class ProtocolDriverEndToEndTests
         var serverPipe = new Pipe();
         var clientPipe = new Pipe();
 
-        var serverConnection =
-            new PipeNetworkConnection(serverPipe.Reader, clientPipe.Writer);
-        var clientConnection =
-            new PipeNetworkConnection(clientPipe.Reader, serverPipe.Writer);
+        using var serverConnection =
+            new PipeNetworkConnection(
+                reader: serverPipe.Reader,
+                writer: clientPipe.Writer);
+
+        using var clientConnection =
+            new PipeNetworkConnection(
+                reader: clientPipe.Reader,
+                writer: serverPipe.Writer);
 
         // ------------------------------------------------------------
         // Build server session
         // ------------------------------------------------------------
-        var serverSession = ProtocolSessions.CreateSession(
-            logger,
-            OddEvenStreamIdParity.Odd,
-            runtime =>
-            {
-                var pipeline = new NetworkPipelineBuilder()
-                    .AppendFrameCodec(
-                        new LengthPrefixedFrameEncoder(),
-                        new LengthPrefixedFrameDecoder())
-                    .UseConnection(() => serverConnection)
-                    .Build();
-
-                var adapter = new NetworkAdapter(
-                    pipeline.FrameWriter,
-                    pipeline.FrameReader);
-
-                return new ProtocolDriver(
-                    logger,
-                    pipeline.Connection,
-                    pipeline.RootDecoder,
-                    pipeline.FrameReader,
-                    adapter,
-                    runtime);
-            });
-
+        var serverSession =
+            new ProtocolSessionBuilder()
+                // ----------------------------
+                // Logging
+                // ----------------------------
+                .WithLogger(logger)
+                // ----------------------------
+                // Protocol semantics
+                // ----------------------------
+                .UseOddStreamIds()
+                // ----------------------------
+                // Transport + framing
+                // ----------------------------
+                .ConfigurePipeline(pipeline =>
+                {
+                    pipeline
+                        .AppendFrameCodec(
+                            new LengthPrefixedFrameEncoder(logger),
+                            new LengthPrefixedFrameDecoder(logger))
+                        .UseConnection(() => serverConnection);
+                })
+                // ----------------------------
+                // Build
+                // ----------------------------
+                .Build();
 
         // ------------------------------------------------------------
         // Build client session
         // ------------------------------------------------------------
-        var clientSession = ProtocolSessions.CreateSession(
-            logger,
-            OddEvenStreamIdParity.Even,
-            runtime =>
-            {
-                var pipeline = new NetworkPipelineBuilder()
-                    .AppendFrameCodec(
-                        new LengthPrefixedFrameEncoder(),
-                        new LengthPrefixedFrameDecoder())
-                    .UseConnection(() => clientConnection)
-                    .Build();
 
-                var adapter = new NetworkAdapter(
-                    pipeline.FrameWriter,
-                    pipeline.FrameReader);
-
-                return new ProtocolDriver(
-                    logger,
-                    pipeline.Connection,
-                    pipeline.RootDecoder,
-                    pipeline.FrameReader,
-                    adapter,
-                    runtime);
-            });
+        var clientSession =
+            new ProtocolSessionBuilder()
+                // ----------------------------
+                // Logging
+                // ----------------------------
+                .WithLogger(logger)
+                // ----------------------------
+                // Protocol semantics
+                // ----------------------------
+                .UseEvenStreamIds()
+                // ----------------------------
+                // Transport + framing
+                // ----------------------------
+                .ConfigurePipeline(pipeline =>
+                {
+                    pipeline
+                        .AppendFrameCodec(
+                            new LengthPrefixedFrameEncoder(logger),
+                            new LengthPrefixedFrameDecoder(logger))
+                        .UseConnection(() => clientConnection);
+                })
+                // ----------------------------
+                // Build
+                // ----------------------------
+                .Build();
 
         // ------------------------------------------------------------
-        // Capture inbound delivery via observers
+        // Capture inbound request delivery on server
         // ------------------------------------------------------------
-        var eventTcs =
-            new TaskCompletionSource<(uint EventType, ReadOnlyMemory<byte> Payload)>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-
         var requestTcs =
-            new TaskCompletionSource<IncomingRequest>(
+            new TaskCompletionSource<(IncomingRequest Request, ReadOnlyMemory<byte> Payload)> (
                 TaskCreationOptions.RunContinuationsAsynchronously);
 
-        serverSession.Observer.EventReceived += (evt, payload) =>
-            eventTcs.TrySetResult((evt, payload));
-
-        serverSession.Observer.RequestReceived += (req, payload) =>
-            requestTcs.TrySetResult(req);
+        serverSession.Observer.RequestReceived += (request, payload) =>
+        {
+            requestTcs.TrySetResult((request, payload));
+        };
 
         // ------------------------------------------------------------
-        // Act: start sessions (NOT drivers)
+        // Act: start sessions
         // ------------------------------------------------------------
         using var cts = new CancellationTokenSource();
 
         var serverRun = serverSession.Lifecycle.StartAsync(cts.Token);
         var clientRun = clientSession.Lifecycle.StartAsync(cts.Token);
 
-        await Task.WhenAll(serverSession.Lifecycle.Ready, clientSession.Lifecycle.Ready);
+        await Task.WhenAll(
+            serverSession.Lifecycle.Ready,
+            clientSession.Lifecycle.Ready);
 
         // ------------------------------------------------------------
-        // Act: send protocol data
+        // Act: send request from client to server
         // ------------------------------------------------------------
-        var eventPayload = new byte[] { 0xDE, 0xAD };
         var requestPayload = new byte[] { 0xBE, 0xEF };
 
-        clientSession.Commands.SendEvent(1u, eventPayload);
         _ = clientSession.Commands.SendRequest(requestPayload);
 
         // ------------------------------------------------------------
-        // Assert: inbound delivery observed
+        // Assert: server observes the request (with timeout)
         // ------------------------------------------------------------
-        Assert.AreSame(
-            eventTcs.Task,
-            await Task.WhenAny(
-                eventTcs.Task,
-                Task.Delay(TimeSpan.FromSeconds(5), TestContext.CancellationToken)));
-
-        var receivedEvent = await eventTcs.Task;
-
-        Assert.AreSame(
-            requestTcs.Task,
-            await Task.WhenAny(
-                requestTcs.Task,
-                Task.Delay(TimeSpan.FromSeconds(5), TestContext.CancellationToken)));
-
-        var receivedRequest = await requestTcs.Task;
-
-        Assert.AreEqual(1u, receivedEvent.EventType);
-        CollectionAssert.AreEqual(
-            eventPayload,
-            receivedEvent.Payload.ToArray());
+        var (receivedRequest, receivedPayload) =
+            await requestTcs.Task
+                .WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
 
         Assert.IsNotNull(receivedRequest);
         Assert.AreEqual(1u, receivedRequest.Context.RequestId);
+        CollectionAssert.AreEqual(requestPayload, receivedPayload.ToArray());
 
         // ------------------------------------------------------------
         // Cleanup

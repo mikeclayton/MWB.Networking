@@ -3,6 +3,7 @@ using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
+using MWB.Networking.Layer2_Protocol.Requests.Api;
 using System.Diagnostics;
 using System.IO.Pipelines;
 
@@ -20,7 +21,7 @@ public class PipeConnectionTests
         }
 
         [TestMethod]
-        public async Task BasicFrameRoundtrip()
+        public async Task BasicRequestPayloadRoundtrip()
         {
             var logger = NullLogger.Instance;
 
@@ -28,65 +29,101 @@ public class PipeConnectionTests
             var serverPipe = new Pipe();
             var clientPipe = new Pipe();
 
-
-            // open the server connection
-            var serverConnection = new PipeNetworkConnection(
+            // ------------------------------------------------------------
+            // Build server session
+            // ------------------------------------------------------------
+            using var serverConnection = new PipeNetworkConnection(
                 reader: serverPipe.Reader,
                 writer: clientPipe.Writer);
 
-            var serverPipeline = new NetworkPipelineBuilder()
-                .AppendFrameCodec(
-                    encoder: new LengthPrefixedFrameEncoder(),
-                    decoder: new LengthPrefixedFrameDecoder())
-                .UseConnection(() => serverConnection)
-                .Build();
+            var serverSession =
+                new ProtocolSessionBuilder()
+                    .WithLogger(NullLogger.Instance)
+                    .UseOddStreamIds()
+                    .ConfigurePipeline(p =>
+                    {
+                        p.AppendFrameCodec(
+                             new LengthPrefixedFrameEncoder(logger),
+                             new LengthPrefixedFrameDecoder(logger))
+                         .UseConnection(() => serverConnection);
+                    })
+                    .Build();
 
-            var serverAdapter = new NetworkAdapter(
-                serverPipeline.FrameWriter,
-                serverPipeline.FrameReader);
-
-            // open the client connection
+            // ------------------------------------------------------------
+            // Build client session
+            // ------------------------------------------------------------
             var clientConnection = new PipeNetworkConnection(
                 reader: clientPipe.Reader,
                 writer: serverPipe.Writer);
 
-            var clientPipeline = new NetworkPipelineBuilder()
-                .AppendFrameCodec(
-                    encoder: new LengthPrefixedFrameEncoder(),
-                    decoder: new LengthPrefixedFrameDecoder())
-                .UseConnection(() => clientConnection)
-                .Build();
+            var clientSession =
+                new ProtocolSessionBuilder()
+                    .WithLogger(NullLogger.Instance)
+                    .UseEvenStreamIds()
+                    .ConfigurePipeline(p =>
+                    {
+                        p.AppendFrameCodec(
+                             new LengthPrefixedFrameEncoder(logger),
+                             new LengthPrefixedFrameDecoder(logger))
+                         .UseConnection(() => clientConnection);
+                    })
+                    .Build();
 
-            var clientAdapter = new NetworkAdapter(
-                clientPipeline.FrameWriter,
-                clientPipeline.FrameReader);
+            // ------------------------------------------------------------
+            // Observe inbound request on server
+            // ------------------------------------------------------------
+            var requestTcs =
+                new TaskCompletionSource<(IncomingRequest Request, ReadOnlyMemory<byte> Payload)>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
 
-            // write a frame to the server
-            var writeFrame = new NetworkFrame(
-                kind: NetworkFrameKind.Request,
-                eventType: null,
-                requestId: 1,
-                streamId: null,
-                payload: new([0x01, 0x02, 0x03]));
-            await clientAdapter.WriteFrameAsync(
-                writeFrame,
-                TestContext.CancellationToken);
+            serverSession.Observer.RequestReceived += (request, payload) =>
+            {
+                requestTcs.TrySetResult((request, payload));
+            };
 
-            // read a frame from the server stream
-            var readFrame = await serverAdapter.ReadFrameAsync(
-                TestContext.CancellationToken);
+            // ------------------------------------------------------------
+            // Act: start sessions
+            // ------------------------------------------------------------
+            using var cts = new CancellationTokenSource();
+
+            var serverRun = serverSession.Lifecycle.StartAsync(cts.Token);
+            var clientRun = clientSession.Lifecycle.StartAsync(cts.Token);
+
+            await Task.WhenAll(
+                serverSession.Lifecycle.Ready,
+                clientSession.Lifecycle.Ready);
+
+            // ------------------------------------------------------------
+            // Act: send a frame from client to server
+            // ------------------------------------------------------------
+            var payload = new byte[] { 0x01, 0x02, 0x03 };
+
+            clientSession.Commands.SendRequest(
+                payload);
+
+            // ------------------------------------------------------------
+            // Assert: server receives the request
+            // ------------------------------------------------------------
+            var (receivedRequest, receivedPayload) =
+                await requestTcs.Task.WaitAsync(TestContext.CancellationToken);
 
             // verify the message
-            Assert.AreEqual(writeFrame.Kind, readFrame.Kind);
-            Assert.AreEqual(writeFrame.RequestId, readFrame.RequestId);
-            Assert.AreEqual(writeFrame.StreamId, readFrame.StreamId);
-            CollectionAssert.AreEqual(writeFrame.Payload.ToArray(), readFrame.Payload.ToArray());
+            CollectionAssert.AreEqual(payload, receivedPayload.ToArray());
+
+            // ------------------------------------------------------------
+            // Cleanup
+            // ------------------------------------------------------------
+            cts.Cancel();
+            await Task.WhenAll(serverRun, clientRun);
+
         }
 
         [TestMethod]
         public async Task PipePerfTestBlockingWriteBlockingRead()
         {
             const int FrameCount = 100_000;
+
+            var logger = NullLogger.Instance;
 
             // create duplex in-memory transport (pipes cross-wired)
             var clientToServer =new Pipe(new PipeOptions(
@@ -107,10 +144,11 @@ public class PipeConnectionTests
             // ----------------------------
             var clientPipeline = new NetworkPipelineBuilder()
                 .AppendFrameCodec(
-                    encoder: new LengthPrefixedFrameEncoder(),
-                    decoder: new LengthPrefixedFrameDecoder())
+                    encoder: new LengthPrefixedFrameEncoder(logger),
+                    decoder: new LengthPrefixedFrameDecoder(logger))
                 .UseConnection(() => clientConnection)
                 .Build();
+
             var clientAdapter = new NetworkAdapter(
                 clientPipeline.FrameWriter,
                 clientPipeline.FrameReader);
@@ -120,10 +158,11 @@ public class PipeConnectionTests
             // ----------------------------
             var serverPipeline = new NetworkPipelineBuilder()
                 .AppendFrameCodec(
-                    encoder: new LengthPrefixedFrameEncoder(),
-                    decoder: new LengthPrefixedFrameDecoder())
+                    encoder: new LengthPrefixedFrameEncoder(logger),
+                    decoder: new LengthPrefixedFrameDecoder(logger))
                 .UseConnection(() => serverConnection)
                 .Build();
+
             var serverAdapter = new NetworkAdapter(
                 serverPipeline.FrameWriter,
                 serverPipeline.FrameReader);
@@ -191,6 +230,8 @@ public class PipeConnectionTests
         {
             const int FrameCount = 100_000;
 
+            var logger = NullLogger.Instance;
+
             // create duplex in-memory transport (pipes cross-wired)
             var clientToServer = new Pipe(new PipeOptions(
                 pauseWriterThreshold: 1024 * 1024 * 50,
@@ -210,8 +251,8 @@ public class PipeConnectionTests
             // ----------------------------
             var clientPipeline = new NetworkPipelineBuilder()
                 .AppendFrameCodec(
-                    encoder: new LengthPrefixedFrameEncoder(),
-                    decoder: new LengthPrefixedFrameDecoder())
+                    encoder: new LengthPrefixedFrameEncoder(logger),
+                    decoder: new LengthPrefixedFrameDecoder(logger))
                 .UseConnection(() => clientConnection)
                 .Build();
             var clientAdapter = new NetworkAdapter(
@@ -223,8 +264,8 @@ public class PipeConnectionTests
             // ----------------------------
             var serverPipeline = new NetworkPipelineBuilder()
                 .AppendFrameCodec(
-                    encoder: new LengthPrefixedFrameEncoder(),
-                    decoder: new LengthPrefixedFrameDecoder())
+                    encoder: new LengthPrefixedFrameEncoder(logger),
+                    decoder: new LengthPrefixedFrameDecoder(logger))
                 .UseConnection(() => serverConnection)
                 .Build();
             var serverAdapter = new NetworkAdapter(

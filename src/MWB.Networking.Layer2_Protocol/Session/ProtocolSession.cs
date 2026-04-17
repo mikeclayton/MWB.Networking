@@ -22,12 +22,16 @@ namespace MWB.Networking.Layer2_Protocol.Session;
 /// </summary>
 internal sealed partial class ProtocolSession : IHasLogger
 {
-    internal ProtocolSession(ILogger logger, OddEvenStreamIdProvider outboundStreamIdProvider)
+    internal ProtocolSession(
+        ILogger logger,
+        OddEvenStreamIdProvider outboundStreamIdProvider,
+        ProtocolDriverOptions driverOptions)
     {
         this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         this.EventManager = new EventManager(logger, this);
         this.RequestManager = new RequestManager(logger, this);
         this.StreamManager = new StreamManager(logger, this, outboundStreamIdProvider);
+        this.ProtocolDriver = new ProtocolDriver(logger, this, driverOptions);
     }
 
     public ILogger Logger
@@ -58,7 +62,7 @@ internal sealed partial class ProtocolSession : IHasLogger
     internal SemaphoreSlim OutboundFrameAvailableSignal
     {
         get;
-    } = new(0);
+    } = new(initialCount: 0);
 
     /// <summary>
     /// Deliberately not threadsafe - coordinate access in higher layers.
@@ -68,26 +72,20 @@ internal sealed partial class ProtocolSession : IHasLogger
         get;
     } = [];
 
-    private ProtocolDriver? Driver
+    private Lock OutboundFramesLock
     {
         get;
-        set;
-    }
+    } = new();
 
-    internal void AttachDriver(ProtocolDriver driver)
+    private ProtocolDriver ProtocolDriver
     {
-        if (this.Driver is not null)
-        {
-            throw new InvalidOperationException(
-                "ProtocolDriver is already attached.");
-        }
-
-        this.Driver = driver ?? throw new ArgumentNullException(nameof(driver));
+        get;
     }
 
     // ------------------------------------------------------------------
-    // Helpers
+    // Outbound queue coordination
     // ------------------------------------------------------------------
+
     public async Task WaitForOutboundFrameAsync(CancellationToken ct)
     {
         await this.OutboundFrameAvailableSignal
@@ -95,15 +93,37 @@ internal sealed partial class ProtocolSession : IHasLogger
             .ConfigureAwait(false);
     }
 
+    internal bool TryDequeueOutboundFrame(out ProtocolFrame frame)
+    {
+        using var lockScope = this.OutboundFramesLock.EnterScope();
+
+        if (this.OutboundFrames.Count == 0)
+        {
+            frame = default!;
+            return false;
+        }
+
+        frame = this.OutboundFrames.Dequeue();
+        return true;
+    }
+
     [LogMethod]
     internal void EnqueueOutboundFrame(ProtocolFrame frame)
     {
+        ArgumentNullException.ThrowIfNull(frame);
+
+        // --------------------------------------------------------------
         // Validate Request-scoped frames
+        // --------------------------------------------------------------
         if (frame.RequestId is not null)
         {
-            if (!this.RequestManager.TryGetRequestContext(frame.RequestId.Value, out var requestContext))
+            if (!this.RequestManager.TryGetRequestContext(
+                    frame.RequestId.Value,
+                    out var requestContext))
             {
-                throw ProtocolException.InvalidFrameSequence(frame, "Unknown or completed RequestId");
+                throw ProtocolException.InvalidFrameSequence(
+                    frame,
+                    "Unknown or completed RequestId");
             }
 
             // Ensure the Request is still open
@@ -113,30 +133,41 @@ internal sealed partial class ProtocolSession : IHasLogger
             }
         }
 
+        // --------------------------------------------------------------
         // Validate Stream-scoped frames
+        // --------------------------------------------------------------
         if (frame.StreamId is not null)
         {
-            if (!this.StreamManager.TryGetStreamEntry(frame.StreamId.Value, out var streamEntry))
+            if (!this.StreamManager.TryGetStreamEntry(
+                    frame.StreamId.Value,
+                    out var streamEntry))
             {
-                throw ProtocolException.InvalidFrameSequence(frame, "Unknown StreamId");
+                throw ProtocolException.InvalidFrameSequence(
+                    frame,
+                    "Unknown StreamId");
             }
 
             if (streamEntry.Context.IsRequestScoped)
             {
-                var requestContext = streamEntry.Context.OwningRequest;
-
-                // Request-scoped Streams must obey Request lifecycle rules
-                requestContext.EnsureOpen();
+                streamEntry.Context
+                    .OwningRequest
+                    .EnsureOpen();
             }
-
-            // Session-scoped Streams require no Request validation
         }
 
-        // If all validation succeeds, the frame is legal to send
+        // --------------------------------------------------------------
+        // Enqueue outbound frame
+        // --------------------------------------------------------------
 #if ENABLE_PROTOCOL_FRAME_DIAGNOSTICS
-        frame.Diagnostics.EnqueuedTimestamp = Stopwatch.GetTimestamp();
+        frame.Diagnostics.EnqueuedTimestamp =
+            Stopwatch.GetTimestamp();
 #endif
-        this.OutboundFrames.Enqueue(frame);
+
+        using (var lockScope = this.OutboundFramesLock.EnterScope())
+        {
+            this.OutboundFrames.Enqueue(frame);
+        }
+
         this.OutboundFrameAvailableSignal.Release();
     }
 }

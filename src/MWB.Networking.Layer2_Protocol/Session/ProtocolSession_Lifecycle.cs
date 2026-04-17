@@ -8,20 +8,20 @@ internal sealed partial class ProtocolSession : IProtocolSessionLifecycle
     {
         get
         {
-            if (this.Driver is null)
+            if (this.ProtocolDriver is null)
                 throw new InvalidOperationException("ProtocolDriver not attached.");
 
-            return this.Driver.Ready;
+            return this.ProtocolDriver.Ready;
         }
     }
 
     public Task StartAsync(CancellationToken ct)
     {
-        if (this.Driver is null)
+        if (this.ProtocolDriver is null)
         {
             throw new InvalidOperationException("Protocol driver not attached.");
         }
 
-        return this.Driver.RunAsync(ct);
+        return this.ProtocolDriver.RunAsync(ct);
     }
 }

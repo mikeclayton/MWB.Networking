@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Tcp;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
+using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
 using System.Diagnostics;
 using System.Net;
 
@@ -14,17 +15,17 @@ Console.Title =
     $"Producer/Consumer :: listen {options.ListenPort} -> peer {options.ConnectPort}";
 
 // ------------------------------------------------------------
-// Logging
+// Logging & lifetime
 // ------------------------------------------------------------
 var logger = NullLogger.Instance;
-var cts = new CancellationTokenSource();
+using var cts = new CancellationTokenSource();
 
 logger.LogDebug(Console.Title);
 
 // ------------------------------------------------------------
 // Determine role
 // ------------------------------------------------------------
-bool isProducer = options.ListenPort > options.ConnectPort;
+var isProducer = options.ListenPort > options.ConnectPort;
 
 Console.WriteLine(isProducer
     ? "[ROLE] Producer"
@@ -35,21 +36,18 @@ Console.WriteLine(isProducer
 // ------------------------------------------------------------
 Console.WriteLine("creating TCP network connection provider");
 
-var listenEndpoint = isProducer
-    ? null
-    : new IPEndPoint(IPAddress.Loopback, options.ListenPort);
-
-var connectEndpoint = isProducer
-    ? new IPEndPoint(IPAddress.Loopback, options.ConnectPort)
-    : null;
-
-var providerConfig = new TcpNetworkConnectionConfig(
-    localEndpoint: listenEndpoint,
-    remoteEndpoint: connectEndpoint,
-    noDelay: true);
-
 using var provider =
-    new TcpNetworkConnectionProvider(logger, providerConfig);
+    new TcpNetworkConnectionProvider(
+        logger,
+        new TcpNetworkConnectionConfig(
+            localEndpoint: isProducer
+                ? null
+                : new IPEndPoint(IPAddress.Loopback, options.ListenPort),
+            remoteEndpoint: isProducer
+                ? new IPEndPoint(IPAddress.Loopback, options.ConnectPort)
+                : null,
+            noDelay: true)
+    );
 
 Console.WriteLine("opening logical connection");
 
@@ -61,20 +59,21 @@ var handle =
 // ------------------------------------------------------------
 Console.WriteLine("creating protocol session");
 
-var sessionBuilder = new ProtocolSessionBuilder()
-    .WithLogger(logger)
-    .ConfigurePipeline(p =>
-        p.AppendFrameCodec(
-             new LengthPrefixedFrameEncoder(),
-             new LengthPrefixedFrameDecoder())
-         .UseConnection(() => handle.Connection));
-
-sessionBuilder =
-    isProducer
-        ? sessionBuilder.UseEvenStreamIds()
-        : sessionBuilder.UseOddStreamIds();
-
-var session = sessionBuilder.Build();
+var session =
+    new ProtocolSessionBuilder()
+        .WithLogger(logger)
+        .UseStreamIdParity(
+            isProducer
+                ? OddEvenStreamIdParity.Even
+                : OddEvenStreamIdParity.Odd)
+        .ConfigurePipeline(p =>
+        {
+            p.AppendFrameCodec(
+                 new LengthPrefixedFrameEncoder(logger),
+                 new LengthPrefixedFrameDecoder(logger))
+             .UseConnection(() => handle.Connection);
+        })
+        .Build();
 
 // ------------------------------------------------------------
 // Observe inbound protocol events
@@ -88,7 +87,7 @@ session.Observer.EventReceived += (eventType, payload) =>
 };
 
 // ------------------------------------------------------------
-// Start session runtime
+// Start protocol runtime
 // ------------------------------------------------------------
 Console.WriteLine("starting protocol session");
 
@@ -101,7 +100,7 @@ var runTask =
 await Task.Delay(500);
 
 // ------------------------------------------------------------
-// Send events (Producer only)
+// Send events (producer only)
 // ------------------------------------------------------------
 if (isProducer)
 {
@@ -120,7 +119,8 @@ if (isProducer)
 
     stopwatch.Stop();
 
-    Console.WriteLine($"[PRODUCER] queued outbound in {stopwatch.ElapsedMilliseconds} ms");
+    Console.WriteLine(
+        $"[PRODUCER] queued outbound in {stopwatch.ElapsedMilliseconds} ms");
 }
 else
 {

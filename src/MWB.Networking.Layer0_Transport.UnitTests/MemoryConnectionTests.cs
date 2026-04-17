@@ -1,4 +1,5 @@
-﻿using MWB.Networking.Hosting;
+﻿using Microsoft.Extensions.Logging.Abstractions;
+using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Memory;
 using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
@@ -27,46 +28,59 @@ public class MemoryConnectionTests
         /// it demonstrates that Layer 0 and framing is not a bottleneck.
         /// </summary>
         [TestMethod]
-        public async Task MemoryPerfTest()
+        public async Task NetworkFramePerfTest()
         {
             const int FrameCount = 1_000_000;
 
-            // create one-way in-memory transport
+            var logger = NullLogger.Instance;
 
-            var pipeline = new NetworkPipelineBuilder()
-                .AppendFrameCodec(
-                    encoder: new LengthPrefixedFrameEncoder(),
-                    decoder: new LengthPrefixedFrameDecoder())
-                .UseConnection(() => new MemoryNetworkConnection(1024 * 1024 * 50))
-                .Build();
+            // ------------------------------------------------------------
+            // Arrange: memory transport + framing
+            // ------------------------------------------------------------
+            using var connection =
+             new MemoryNetworkConnection(1024 * 1024 * 50);
 
-            var adapter = new NetworkAdapter(
-                pipeline.FrameWriter,
-                pipeline.FrameReader);
+            var pipeline =
+                new NetworkPipelineBuilder()
+                    .AppendFrameCodec(
+                        new LengthPrefixedFrameEncoder(logger),
+                        new LengthPrefixedFrameDecoder(logger))
+                    .UseConnection(() => connection)
+                    .Build();
 
-            var payload = new ReadOnlyMemory<byte>([0x01, 0x02, 0x03]);
+            var adapter =
+             new NetworkAdapter(
+                 pipeline.FrameWriter,
+                 pipeline.FrameReader);
 
-            // Writer task
-            var writerStopwatch = new Stopwatch();
-            await Task.Run(async () =>
+            var payload = new ReadOnlyMemory<byte>(
+                new byte[] { 0x01, 0x02, 0x03 });
+
+            // ------------------------------------------------------------
+            // Act: write frames
+            // ------------------------------------------------------------
+            var stopwatch = Stopwatch.StartNew();
+            for (int i = 0; i < FrameCount; i++)
             {
-                writerStopwatch.Start();
-                for (int i = 0; i < FrameCount; i++)
-                {
-                    var frame = new NetworkFrame(
-                        kind: NetworkFrameKind.Request,
-                        eventType: null,
-                        requestId: (uint)(i + 1),
-                        streamId: null,
-                        payload: payload);
-                    await adapter.WriteFrameAsync(frame, TestContext.CancellationToken);
-                }
-                writerStopwatch.Stop();
-            }, TestContext.CancellationToken);
+                var frame = new NetworkFrame(
+                    kind: NetworkFrameKind.Request,
+                    eventType: null,
+                    requestId: (uint)(i + 1),
+                    streamId: null,
+                    payload: payload);
 
+                await adapter.WriteFrameAsync(
+                    frame,
+                    TestContext.CancellationToken);
+            }
+            stopwatch.Stop();
+
+            // ------------------------------------------------------------
+            // Report
+            // ------------------------------------------------------------
             TestContext.WriteLine(
-                $"Wrote {FrameCount} frames in {writerStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
-                $"({FrameCount / writerStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
+                $"[Framing] Wrote {FrameCount} frames in {stopwatch.Elapsed.TotalMilliseconds:F2} ms " +
+                $"({FrameCount / stopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
         }
     }
 }
