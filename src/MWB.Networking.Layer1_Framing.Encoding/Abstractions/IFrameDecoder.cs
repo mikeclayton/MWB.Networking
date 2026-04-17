@@ -25,6 +25,6 @@ namespace MWB.Networking.Layer1_Framing.Encoding.Abstractions
         ValueTask DecodeFrameAsync(
             ReadOnlySequence<byte> input,
             IFrameDecoderSink output,
-            CancellationToken ct);
+            CancellationToken ct = default);
     }
 }

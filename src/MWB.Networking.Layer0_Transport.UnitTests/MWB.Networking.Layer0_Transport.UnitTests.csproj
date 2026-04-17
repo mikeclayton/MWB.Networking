@@ -14,6 +14,7 @@
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport\MWB.Networking.Layer0_Transport.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing\MWB.Networking.Layer1_Framing.csproj" />
+    <ProjectReference Include="..\MWB.Networking.UnitTest.Helpers\MWB.Networking.UnitTest.Helpers.csproj" />
   </ItemGroup>
 
   <ItemGroup>

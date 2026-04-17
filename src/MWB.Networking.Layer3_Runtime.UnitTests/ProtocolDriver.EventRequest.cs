@@ -1,10 +1,8 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using MWB.Networking.Hosting;
+﻿using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
-using MWB.Networking.Layer3_Runtime.UnitTests.Helpers;
+using MWB.Networking.UnitTest.Helpers.Logging;
 using System.IO.Pipelines;
 
 namespace MWB.Networking.Layer3_Runtime.UnitTests;
@@ -25,16 +23,7 @@ public sealed class ProtocolDriverEndToEndTests
         // Initialize logging
         // ------------------------------------------------------------
 
-        using var loggerFactory =
-            LoggerFactory.Create(builder =>
-            {
-                builder
-                    .SetMinimumLevel(LogLevel.Trace)
-                    .AddProvider(new TestContextLoggerProvider(TestContext));
-            });
-
-        var logger =
-            loggerFactory.CreateLogger("ProtocolDriver");
+        var logger = LoggingHelper.CreateTestContextLogger(this.TestContext);
 
         // ------------------------------------------------------------
         // Arrange: in-memory duplex transport

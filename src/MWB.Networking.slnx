@@ -33,7 +33,6 @@
   <Folder Name="/Layer2_Protocol/">
     <Project Path="MWB.Networking.Layer2_Protocol/MWB.Networking.Layer2_Protocol.csproj" Id="defc43f7-f557-4f09-83df-cc2eade268e3" />
   </Folder>
-  <Folder Name="/Layer3_Runtime/" />
   <Folder Name="/Samples/">
     <Project Path="KeyboardSharingConsole/KeyboardSharingConsole.csproj" Id="643612fb-44e4-4339-8f89-2c204ec2e1fa" />
   </Folder>
@@ -41,5 +40,6 @@
     <Project Path="MWB.Networking.Layer0_Transport.UnitTests/MWB.Networking.Layer0_Transport.UnitTests.csproj" />
     <Project Path="MWB.Networking.Layer2_Protocol.UnitTests/MWB.Networking.Layer2_Protocol.UnitTests.csproj" Id="4474b7c6-afc3-4ed1-bc36-e40945c2c5cf" />
     <Project Path="MWB.Networking.Layer3_Runtime.UnitTests/MWB.Networking.Layer3_Runtime.UnitTests.csproj" Id="f037b49f-ac96-4ca2-b4ee-cfd1ca488a52" />
+    <Project Path="MWB.Networking.UnitTest.Helpers/MWB.Networking.UnitTest.Helpers.csproj" Id="c874b0f0-6bea-4960-a6af-d104b30692f8" />
   </Folder>
 </Solution>

@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 
-namespace MWB.Networking.Layer3_Runtime.UnitTests.Helpers;
+namespace MWB.Networking.UnitTest.Helpers.Logging;
 
 internal sealed class TestContextLoggerProvider : ILoggerProvider
 {
@@ -14,5 +14,7 @@ internal sealed class TestContextLoggerProvider : ILoggerProvider
     public ILogger CreateLogger(string categoryName)
         => new TestContextLogger(_testContext, categoryName);
 
-    public void Dispose() { }
+    public void Dispose()
+    {
+    }
 }

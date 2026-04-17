@@ -28,7 +28,7 @@ public sealed class PipeNetworkConnection : INetworkConnection, IDisposable
     /// </summary>
     public async ValueTask<int> ReadAsync(
         Memory<byte> buffer,
-        CancellationToken ct)
+        CancellationToken ct = default)
     {
         while (true)
         {

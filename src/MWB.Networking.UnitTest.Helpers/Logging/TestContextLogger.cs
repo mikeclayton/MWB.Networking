@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 
-namespace MWB.Networking.Layer3_Runtime.UnitTests.Helpers;
+namespace MWB.Networking.UnitTest.Helpers.Logging;
 
 internal sealed class TestContextLogger : ILogger
 {

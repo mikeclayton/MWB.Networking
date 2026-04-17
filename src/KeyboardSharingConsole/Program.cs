@@ -51,7 +51,7 @@ using var provider =
 
 Console.WriteLine("opening logical connection");
 
-var handle =
+var connectionHandle =
     await provider.OpenConnectionAsync(cts.Token);
 
 // ------------------------------------------------------------
@@ -66,13 +66,15 @@ var session =
             isProducer
                 ? OddEvenStreamIdParity.Even
                 : OddEvenStreamIdParity.Odd)
-        .ConfigurePipeline(p =>
-        {
-            p.AppendFrameCodec(
-                 new LengthPrefixedFrameEncoder(logger),
-                 new LengthPrefixedFrameDecoder(logger))
-             .UseConnection(() => handle.Connection);
-        })
+        .ConfigurePipeline(
+            pipeline =>
+            {
+                pipeline
+                    .AppendFrameCodec(
+                        new LengthPrefixedFrameEncoder(logger),
+                        new LengthPrefixedFrameDecoder(logger))
+                     .UseConnection(() => connectionHandle.Connection);
+            })
         .Build();
 
 // ------------------------------------------------------------

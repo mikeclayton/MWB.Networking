@@ -2,7 +2,6 @@
 
 namespace MWB.Networking.Layer1_Framing.Encoding.Abstractions;
 
-
 /// <summary>
 /// Encodes serialized NetworkFrame bytes for outbound transmission
 /// (e.g. framing, compression, encryption).
