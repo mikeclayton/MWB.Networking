@@ -1,9 +1,13 @@
 ﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer0_Transport.Encoding;
 using MWB.Networking.Logging;
 
 namespace MWB.Networking.Layer0_Transport;
 
-public sealed class LogicalConnection : ILogicalConnection, ILogicalConnectionControl
+public sealed class LogicalConnection :
+    ILogicalConnection,
+    ILogicalConnectionControl,
+    IDisposable
 {
     public LogicalConnection(ILogger logger)
     {
@@ -17,72 +21,68 @@ public sealed class LogicalConnection : ILogicalConnection, ILogicalConnectionCo
 
     private volatile INetworkConnection? _activeConnection;
 
-    private INetworkConnection ActiveConnection
-    {
-        get => _activeConnection ?? throw new InvalidOperationException(
+    private INetworkConnection ActiveConnection =>
+        _activeConnection
+        ?? throw new InvalidOperationException(
             "Logical connection has no active backing connection.");
-    }
 
-    private INetworkConnection? SetActiveConnection(INetworkConnection? value)
-        => Interlocked.Exchange(ref _activeConnection, value);
+    private INetworkConnection? SwapActiveConnection(INetworkConnection? value) =>
+        Interlocked.Exchange(ref _activeConnection, value);
 
     private volatile TaskCompletionSource _ready =
-           new(TaskCreationOptions.RunContinuationsAsynchronously);
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    private TaskCompletionSource Ready
-        => _ready;
+    private TaskCompletionSource Ready => _ready;
 
-    private TaskCompletionSource SetReady(TaskCompletionSource value)
+    private TaskCompletionSource SwapReady(TaskCompletionSource value)
         => Interlocked.Exchange(ref _ready, value);
 
     void ILogicalConnectionControl.Attach(INetworkConnection connection)
     {
-        using var logScope = this.Logger.BeginMethodScope(this);
-        this.Logger.LogDebug("Entering method");
+        ArgumentNullException.ThrowIfNull(connection);
 
-        this.AttachInternal(connection);
+        using var scope = this.Logger.BeginMethodScope(this);
 
-        this.Logger.LogDebug("Leaving method");
-    }
-
-    private void AttachInternal(INetworkConnection connection)
-    {
-        using var logScope = this.Logger.BeginMethodScope(this);
-        this.Logger.LogDebug("Entering method");
-
-        // Swap active physical connection
-        var old = this.SetActiveConnection(connection);
+        var old = this.SwapActiveConnection(connection);
         old?.Dispose();
 
-        // Signal readiness
         this.Ready.TrySetResult();
-
-        this.Logger.LogDebug("Leaving method");
     }
 
-    public Task WhenReadyAsync(CancellationToken ct)
-        => this.Ready.Task.WaitAsync(ct);
+    public Task WhenReadyAsync(CancellationToken ct) =>
+        this.Ready.Task.WaitAsync(ct);
 
-    public async Task<byte[]> ReadBlockAsync(CancellationToken ct)
+    /// <summary>
+    /// Reads raw bytes from the active network connection.
+    /// Returns 0 on EOF.
+    /// </summary>
+    public async ValueTask<int> ReadAsync(
+        Memory<byte> buffer,
+        CancellationToken ct)
     {
-        await this.WhenReadyAsync(ct);
-        var conn = this.ActiveConnection;
-        return await conn.ReadBlockAsync(ct);
+        await this.WhenReadyAsync(ct).ConfigureAwait(false);
+        return await this.ActiveConnection.ReadAsync(buffer, ct)
+            .ConfigureAwait(false);
     }
 
-    public async Task WriteBlockAsync(ReadOnlyMemory<byte>[] segments, CancellationToken ct)
+    /// <summary>
+    /// Writes raw byte segments to the active network connection.
+    /// </summary>
+    public async ValueTask WriteAsync(
+        ByteSegments segments,
+        CancellationToken ct)
     {
-        await this.WhenReadyAsync(ct);
-        var conn = this.ActiveConnection;
-        await conn.WriteBlockAsync(segments, ct);
+        await this.WhenReadyAsync(ct).ConfigureAwait(false);
+        await this.ActiveConnection.WriteAsync(segments, ct)
+            .ConfigureAwait(false);
     }
 
     public void Dispose()
     {
-        var old = this.SetActiveConnection(null);
+        var old = this.SwapActiveConnection(null);
         old?.Dispose();
 
-        this.SetReady(new TaskCompletionSource(
+        this.SwapReady(new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously))
             .TrySetCanceled();
     }

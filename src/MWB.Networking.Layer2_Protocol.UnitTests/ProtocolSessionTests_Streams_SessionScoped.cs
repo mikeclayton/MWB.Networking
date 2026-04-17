@@ -1,6 +1,7 @@
 using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
 using MWB.Networking.Layer2_Protocol.Session;
+using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
@@ -26,7 +27,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void StreamsMayBeOpenedIndependentlyOfRequests()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             IncomingRequest? request = null;
@@ -58,7 +59,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void StreamOpen_IsEmittedToOutbound()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             var metadata = new byte[] { 0x01, 0x02 };
@@ -77,7 +78,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void StreamData_IsEmittedToOutbound()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             var data = new byte[] { 0xDE, 0xAD };
@@ -102,7 +103,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void StreamClose_IsEmittedToOutbound()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             // Open a session-scoped stream

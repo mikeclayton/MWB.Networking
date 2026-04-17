@@ -1,4 +1,5 @@
-﻿using System.Net.Sockets;
+﻿using MWB.Networking.Layer0_Transport.Encoding;
+using System.Net.Sockets;
 
 namespace MWB.Networking.Layer0_Transport.Tcp;
 
@@ -18,22 +19,36 @@ internal sealed class TcpNetworkConnection : INetworkConnection
         _stream = client.GetStream();
     }
 
-    public async Task<byte[]> ReadBlockAsync(CancellationToken ct)
-    {
-        return await LengthPrefixedBlockHelpers.ReadBlockAsync(
-            _stream,
-            maxFrameSize: 16 * 1024 * 1024,
-            ct);
-    }
 
-    public async Task WriteBlockAsync(
-        ReadOnlyMemory<byte>[] segments,
+    /// <summary>
+    /// Reads raw bytes from the network stream.
+    /// Returns 0 on EOF.
+    /// </summary>
+    public ValueTask<int> ReadAsync(
+        Memory<byte> buffer,
         CancellationToken ct)
     {
-        await LengthPrefixedBlockHelpers.WriteBlockAsync(
-            _stream,
-            segments,
-            ct);
+        return _stream.ReadAsync(buffer, ct);
+    }
+
+    /// <summary>
+    /// Writes raw byte segments to the network stream.
+    /// </summary>
+    public async ValueTask WriteAsync(
+        ByteSegments segments,
+        CancellationToken ct)
+    {
+        foreach (var segment in segments.Segments)
+        {
+            if (!segment.IsEmpty)
+            {
+                await _stream
+                    .WriteAsync(segment, ct)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        await _stream.FlushAsync(ct).ConfigureAwait(false);
     }
 
     public void Dispose()

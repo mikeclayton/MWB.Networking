@@ -6,6 +6,9 @@ namespace MWB.Networking.Layer2_Protocol.Session;
 
 internal sealed partial class ProtocolSession : IProtocolSessionRuntime
 {
+    private IProtocolSessionRuntime AsRuntime()
+        => this;
+
     void IProtocolSessionRuntime.ProcessFrame(ProtocolFrame frame)
     {
         ArgumentNullException.ThrowIfNull(frame);

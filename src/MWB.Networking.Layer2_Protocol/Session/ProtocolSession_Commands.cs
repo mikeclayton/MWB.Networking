@@ -7,6 +7,9 @@ namespace MWB.Networking.Layer2_Protocol.Session;
 
 internal sealed partial class ProtocolSession : IProtocolSessionCommands
 {
+    private IProtocolSessionCommands AsCommands()
+        => this;
+
     // ------------------------------------------------------------
     // Events
     // ------------------------------------------------------------

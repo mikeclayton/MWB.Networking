@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer2_Protocol.Driver;
 using MWB.Networking.Layer2_Protocol.Events;
 using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Requests;
@@ -9,7 +10,6 @@ using MWB.Networking.Logging;
 using System.Diagnostics;
 
 namespace MWB.Networking.Layer2_Protocol.Session;
-
 
 /// <summary>
 /// The central authority for a protocol connection.
@@ -35,17 +35,10 @@ internal sealed partial class ProtocolSession : IHasLogger
         get;
     }
 
-    internal IProtocolSessionCommands AsCommands()
-        => this;
-
-    internal IProtocolSessionDiagnostics AsDiagnostics()
-        => this;
-
-    internal IProtocolSessionObserver AsObserver()
-        => this;
-
-    internal IProtocolSessionRuntime AsRuntime()
-        => this;
+    internal ProtocolSessionHandle AsHandle()
+    {
+        return new ProtocolSessionHandle(this);
+    }
 
     internal EventManager EventManager
     {
@@ -62,7 +55,7 @@ internal sealed partial class ProtocolSession : IHasLogger
         get;
     }
 
-    internal SemaphoreSlim OutboundSignal
+    internal SemaphoreSlim OutboundFrameAvailableSignal
     {
         get;
     } = new(0);
@@ -75,12 +68,29 @@ internal sealed partial class ProtocolSession : IHasLogger
         get;
     } = [];
 
+    private ProtocolDriver? Driver
+    {
+        get;
+        set;
+    }
+
+    internal void AttachDriver(ProtocolDriver driver)
+    {
+        if (this.Driver is not null)
+        {
+            throw new InvalidOperationException(
+                "ProtocolDriver is already attached.");
+        }
+
+        this.Driver = driver ?? throw new ArgumentNullException(nameof(driver));
+    }
+
     // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
     public async Task WaitForOutboundFrameAsync(CancellationToken ct)
     {
-        await this.OutboundSignal
+        await this.OutboundFrameAvailableSignal
             .WaitAsync(ct)
             .ConfigureAwait(false);
     }
@@ -127,6 +137,6 @@ internal sealed partial class ProtocolSession : IHasLogger
         frame.Diagnostics.EnqueuedTimestamp = Stopwatch.GetTimestamp();
 #endif
         this.OutboundFrames.Enqueue(frame);
-        this.OutboundSignal.Release();
+        this.OutboundFrameAvailableSignal.Release();
     }
 }

@@ -34,7 +34,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Performance_Events_10000()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             // Warm up the JIT and dictionary internals before timing.
@@ -69,7 +69,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Performance_Requests_10000()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             // Reuse a single request ID per iteration: Complete removes it so it
@@ -106,7 +106,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Performance_Streams_OpenSendClose_10000()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             // Reuse stream ID 1: StreamClose removes it so it can be reused.

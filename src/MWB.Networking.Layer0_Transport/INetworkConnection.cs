@@ -1,4 +1,6 @@
-﻿namespace MWB.Networking.Layer0_Transport;
+﻿using MWB.Networking.Layer0_Transport.Encoding;
+
+namespace MWB.Networking.Layer0_Transport;
 
 /// <summary>
 /// Represents a low-level, transport-oriented network connection capable of
@@ -12,25 +14,42 @@
 public interface INetworkConnection : IDisposable
 {
     /// <summary>
-    /// Writes exactly one data block to the connection, prefixing it with a length header.
+    /// Writes raw byte segments to the underlying transport.
     /// </summary>
+    /// <param name="segments">
+    /// A collection of byte segments representing a contiguous logical write.
+    /// Segment boundaries are preserved where supported by the transport.
+    /// </param>
+    /// <param name="ct">
+    /// A cancellation token used to cancel the write operation.
+    /// </param>
+    /// <returns>
+    /// A task that completes when all segments have been written.
+    /// </returns>
     /// <remarks>
-    /// The caller provides the complete block payload.
-    /// The transport is responsible for transmitting the block atomically
-    /// with respect to block boundaries.
-    /// Calls must be serialized by the caller.
+    /// This method treats the provided segments as an opaque sequence of bytes.
+    /// It does not interpret frame boundaries, encoding, compression, or
+    /// encryption semantics. Such concerns are handled by higher layers.
     /// </remarks>
-    Task WriteBlockAsync(
-        ReadOnlyMemory<byte>[] segments,
-        CancellationToken ct);
+    ValueTask WriteAsync(ByteSegments segments, CancellationToken ct);
 
     /// <summary>
-    /// Receives exactly one length-prefixed data block from the connection.
+    /// Reads raw bytes from the underlying transport into the provided buffer.
     /// </summary>
+    /// <param name="buffer">
+    /// The destination buffer to fill with bytes read from the transport.
+    /// </param>
+    /// <param name="ct">
+    /// A cancellation token used to cancel the read operation.
+    /// </param>
+    /// <returns>
+    /// The number of bytes read into <paramref name="buffer"/>.
+    /// Returns zero to indicate end-of-stream.
+    /// </returns>
     /// <remarks>
-    /// This method blocks until a complete block is available.
-    /// It never returns partial data, and preserves block boundaries.
-    /// Calls must be serialized by the caller.
+    /// This method operates on raw bytes only and has no knowledge of framing,
+    /// encoding, or protocol semantics. Higher layers are responsible for
+    /// interpreting the received data.
     /// </remarks>
-    Task<byte[]> ReadBlockAsync(CancellationToken ct);
+    ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct);
 }

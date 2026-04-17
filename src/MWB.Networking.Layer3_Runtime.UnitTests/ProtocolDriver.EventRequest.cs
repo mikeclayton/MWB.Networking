@@ -1,8 +1,12 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
+using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer1_Framing;
+using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
+using MWB.Networking.Layer2_Protocol.Driver;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
 using MWB.Networking.Layer2_Protocol.Session;
+using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
 using System.IO.Pipelines;
 
 namespace MWB.Networking.Layer3_Runtime.UnitTests;
@@ -22,50 +26,76 @@ public sealed class ProtocolDriverEndToEndTests
         var logger = NullLogger.Instance;
 
         // ------------------------------------------------------------
-        // Arrange: connected in-memory duplex network
+        // Arrange: in-memory duplex transport
         // ------------------------------------------------------------
-        // Two pipes simulate a bidirectional network connection
         var serverPipe = new Pipe();
         var clientPipe = new Pipe();
 
-        // Server connection: reads what client writes, writes back to client
         var serverConnection =
             new PipeNetworkConnection(serverPipe.Reader, clientPipe.Writer);
-        var serverAdapter = new NetworkAdapter(
-            serverConnection,
-            new NetworkFrameWriter(),
-            new NetworkFrameReader());
-
-        // Client connection: reads what server writes, writes to server
         var clientConnection =
             new PipeNetworkConnection(clientPipe.Reader, serverPipe.Writer);
-        var clientAdapter = new NetworkAdapter(
-            clientConnection,
-            new NetworkFrameWriter(),
-            new NetworkFrameReader());
-
-        // Protocol sessions (Layer 2)
-        var serverSession = ProtocolSessions.CreateOddSession();
-        var clientSession = ProtocolSessions.CreateEvenSession();
-
-        // Protocol drivers (Layer 3)
-        var serverDriver = new ProtocolDriver(logger, serverAdapter, serverSession);
-        var clientDriver = new ProtocolDriver(logger, clientAdapter, clientSession);
 
         // ------------------------------------------------------------
-        // Start both drivers
+        // Build server session
         // ------------------------------------------------------------
-        using var cts = new CancellationTokenSource();
-        var runServer = serverDriver.RunAsync(cts.Token);
-        var runClient = clientDriver.RunAsync(cts.Token);
+        var serverSession = ProtocolSessions.CreateSession(
+            logger,
+            OddEvenStreamIdParity.Odd,
+            runtime =>
+            {
+                var pipeline = new NetworkPipelineBuilder()
+                    .AppendFrameCodec(
+                        new LengthPrefixedFrameEncoder(),
+                        new LengthPrefixedFrameDecoder())
+                    .UseConnection(() => serverConnection)
+                    .Build();
 
-        await Task.Yield();
+                var adapter = new NetworkAdapter(
+                    pipeline.FrameWriter,
+                    pipeline.FrameReader);
+
+                return new ProtocolDriver(
+                    logger,
+                    pipeline.Connection,
+                    pipeline.RootDecoder,
+                    pipeline.FrameReader,
+                    adapter,
+                    runtime);
+            });
+
 
         // ------------------------------------------------------------
-        // Capture inbound delivery on the server side
+        // Build client session
         // ------------------------------------------------------------
-        // IMPORTANT:
-        // Assert delivery via inbound callbacks, not AwaitOutboundAsync.
+        var clientSession = ProtocolSessions.CreateSession(
+            logger,
+            OddEvenStreamIdParity.Even,
+            runtime =>
+            {
+                var pipeline = new NetworkPipelineBuilder()
+                    .AppendFrameCodec(
+                        new LengthPrefixedFrameEncoder(),
+                        new LengthPrefixedFrameDecoder())
+                    .UseConnection(() => clientConnection)
+                    .Build();
+
+                var adapter = new NetworkAdapter(
+                    pipeline.FrameWriter,
+                    pipeline.FrameReader);
+
+                return new ProtocolDriver(
+                    logger,
+                    pipeline.Connection,
+                    pipeline.RootDecoder,
+                    pipeline.FrameReader,
+                    adapter,
+                    runtime);
+            });
+
+        // ------------------------------------------------------------
+        // Capture inbound delivery via observers
+        // ------------------------------------------------------------
         var eventTcs =
             new TaskCompletionSource<(uint EventType, ReadOnlyMemory<byte> Payload)>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
@@ -75,60 +105,54 @@ public sealed class ProtocolDriverEndToEndTests
                 TaskCreationOptions.RunContinuationsAsynchronously);
 
         serverSession.Observer.EventReceived += (evt, payload) =>
-        {
             eventTcs.TrySetResult((evt, payload));
-        };
 
         serverSession.Observer.RequestReceived += (req, payload) =>
-        {
             requestTcs.TrySetResult(req);
-        };
 
         // ------------------------------------------------------------
-        // Act: application sends protocol data via the session API
+        // Act: start sessions (NOT drivers)
         // ------------------------------------------------------------
+        using var cts = new CancellationTokenSource();
 
-        // IMPORTANT:
-        // Applications use SendEvent / SendRequest.
-        // They do NOT inject frames or touch adapters.
+        var serverRun = serverSession.Lifecycle.StartAsync(cts.Token);
+        var clientRun = clientSession.Lifecycle.StartAsync(cts.Token);
 
+        await Task.WhenAll(serverSession.Lifecycle.Ready, clientSession.Lifecycle.Ready);
+
+        // ------------------------------------------------------------
+        // Act: send protocol data
+        // ------------------------------------------------------------
         var eventPayload = new byte[] { 0xDE, 0xAD };
         var requestPayload = new byte[] { 0xBE, 0xEF };
 
-        // Client application sends an event
-        clientSession.Commands.SendEvent(1, eventPayload);
-
-        // Client application sends a request
+        clientSession.Commands.SendEvent(1u, eventPayload);
         _ = clientSession.Commands.SendRequest(requestPayload);
 
-        // Give the drivers time to move bytes through the pipes
-        var completedEvent = await Task.WhenAny(
-            eventTcs.Task,
-            Task.Delay(TimeSpan.FromSeconds(120), TestContext.CancellationToken));
+        // ------------------------------------------------------------
+        // Assert: inbound delivery observed
+        // ------------------------------------------------------------
         Assert.AreSame(
-            eventTcs.Task, completedEvent,
-            "Timed out waiting for EventReceived");
+            eventTcs.Task,
+            await Task.WhenAny(
+                eventTcs.Task,
+                Task.Delay(TimeSpan.FromSeconds(5), TestContext.CancellationToken)));
+
         var receivedEvent = await eventTcs.Task;
 
-        var completedRequest = await Task.WhenAny(
-            requestTcs.Task,
-            Task.Delay(TimeSpan.FromSeconds(120), TestContext.CancellationToken));
         Assert.AreSame(
-            requestTcs.Task, completedRequest,
-            "Timed out waiting for EventReceived");
+            requestTcs.Task,
+            await Task.WhenAny(
+                requestTcs.Task,
+                Task.Delay(TimeSpan.FromSeconds(5), TestContext.CancellationToken)));
+
         var receivedRequest = await requestTcs.Task;
 
-        // ------------------------------------------------------------
-        // Assert: server session received inbound frames
-        // ------------------------------------------------------------
-
-        // Event should arrive via EventReceived
         Assert.AreEqual(1u, receivedEvent.EventType);
         CollectionAssert.AreEqual(
             eventPayload,
             receivedEvent.Payload.ToArray());
 
-        // Request should arrive via RequestReceived
         Assert.IsNotNull(receivedRequest);
         Assert.AreEqual(1u, receivedRequest.Context.RequestId);
 
@@ -136,6 +160,6 @@ public sealed class ProtocolDriverEndToEndTests
         // Cleanup
         // ------------------------------------------------------------
         cts.Cancel();
-        await Task.WhenAll(runServer, runClient);
+        await Task.WhenAll(serverRun, clientRun);
     }
 }

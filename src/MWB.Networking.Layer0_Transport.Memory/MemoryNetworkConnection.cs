@@ -1,48 +1,55 @@
-﻿namespace MWB.Networking.Layer0_Transport.Memory;
+﻿using MWB.Networking.Layer0_Transport.Encoding;
 
-public sealed class MemoryNetworkConnection : INetworkConnection
+namespace MWB.Networking.Layer0_Transport.Memory;
+
+public sealed class MemoryNetworkConnection : INetworkConnection, IDisposable
 {
+    private readonly MemoryStream _stream;
+
     public MemoryNetworkConnection(int initialCapacity = 1024 * 1024)
     {
-        // Pre-size to reduce resize noise
-        this.Stream = new MemoryStream(initialCapacity);
+        // Pre-size to reduce resize noise during benchmarks
+        _stream = new MemoryStream(initialCapacity);
     }
 
-    private MemoryStream Stream
-    {
-        get;
-    }
+    /// <summary>
+    /// Reads raw bytes from the connection.
+    /// Not supported for this in-memory benchmark connection.
+    /// </summary>
+    public ValueTask<int> ReadAsync(
+        Memory<byte> buffer,
+        CancellationToken ct)
+        => throw new NotSupportedException(
+            "MemoryNetworkConnection does not support reading.");
 
-    public Task WaitUntilConnectedAsync(CancellationToken ct)
-        => Task.CompletedTask;
-
-    public Task WriteBlockAsync(
-        ReadOnlyMemory<byte>[] segments,
+    /// <summary>
+    /// Writes raw byte segments to the underlying memory buffer.
+    /// </summary>
+    public ValueTask WriteAsync(
+        ByteSegments segments,
         CancellationToken ct)
     {
         // IMPORTANT:
-        // This intentionally avoids async scheduling cost.
-        // We want raw write throughput, not realism.
-
-        foreach (var segment in segments)
+        // Intentionally synchronous.
+        // This connection is for throughput measurement, not realism.
+        foreach (var segment in segments.Segments)
         {
             if (!segment.IsEmpty)
             {
-                this.Stream.Write(segment.Span);
+                _stream.Write(segment.Span);
             }
         }
 
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
-    // Optional: expose stats for test inspection
-    public long BytesWritten => this.Stream.Length;
-
-    // Not used for this benchmark
-    public Task<byte[]> ReadBlockAsync(CancellationToken ct)
-        => throw new NotSupportedException();
+    /// <summary>
+    /// Number of bytes written so far (for benchmark inspection).
+    /// </summary>
+    public long BytesWritten => _stream.Length;
 
     public void Dispose()
     {
+        _stream.Dispose();
     }
 }

@@ -1,5 +1,6 @@
 using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Session;
+using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
@@ -25,7 +26,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void InterleavedSessionStreams_FramesEmittedInOrder()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             // Open two session-scoped streams
@@ -60,7 +61,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void LocalSessionStreams_MayInterleaveOutboundFrames()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             var s1 = session.Commands.OpenSessionStream(ProtocolFrames.EmptyPayload);

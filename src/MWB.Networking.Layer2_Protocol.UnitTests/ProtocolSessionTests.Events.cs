@@ -22,7 +22,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void SingleEvent_IsRaisedToApplication_AndNotEmittedOutbound()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
             
             uint? receivedType = null;
@@ -50,7 +50,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void MultipleEvents_AreRaisedInOrder()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             var received = new List<byte>();
@@ -72,7 +72,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Event_WithEmptyPayload_IsRaisedCorrectly()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             var callCount = 0;
@@ -95,7 +95,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Event_DoesNotAffectSnapshot()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             session.Observer.EventReceived += (_, _) => { };
@@ -111,7 +111,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Event_DoesNotProduceOutboundFrames()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             session.Observer.EventReceived += (_, _) => { };

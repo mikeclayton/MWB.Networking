@@ -1,5 +1,6 @@
 using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Session;
+using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
@@ -25,7 +26,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Request_MissingRequestId_ThrowsProtocolException()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             var frame = new ProtocolFrame(ProtocolFrameKind.Request, null, null, null, ProtocolFrames.EmptyPayload);
@@ -37,7 +38,7 @@ public partial class ProtocolSessionTests
         public void Response_MissingRequestId_ThrowsProtocolException()
         {
             // Cancel is always routed through request handling; a null RequestId always throws.
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             var frame = new ProtocolFrame(ProtocolFrameKind.Response, null, null, null, ProtocolFrames.EmptyPayload);
@@ -49,7 +50,7 @@ public partial class ProtocolSessionTests
         public void Error_MissingRequestId_ThrowsProtocolException()
         {
             // Cancel is always routed through request handling; a null RequestId always throws.
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             var frame = new ProtocolFrame(ProtocolFrameKind.Error, null, null, null, ProtocolFrames.EmptyPayload);
@@ -60,7 +61,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void DuplicateRequestId_ThrowsProtocolException()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -72,7 +73,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Response_UnknownRequestId_ThrowsProtocolException()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             Assert.Throws<ProtocolException>(
@@ -82,7 +83,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Error_UnknownRequestId_ThrowsProtocolException()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             Assert.Throws<ProtocolException>(
@@ -92,7 +93,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Cancel_UnknownRequestId_ThrowsProtocolException()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             Assert.Throws<ProtocolException>(
@@ -103,7 +104,7 @@ public partial class ProtocolSessionTests
         public void Response_AfterCompleteRequest_ThrowsProtocolException()
         {
             // Complete removes the context; the same RequestId is now unknown.
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -116,7 +117,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void CompleteRequest_Twice_ThrowsProtocolException()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1));

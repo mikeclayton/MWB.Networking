@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
+using MWB.Networking.Layer2_Protocol.Driver;
 using MWB.Networking.Layer2_Protocol.Session.Api;
-using MWB.Networking.Layer2_Protocol.Session.Infrastructure;
 using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
 using MWB.Networking.Logging;
 
@@ -10,22 +9,29 @@ namespace MWB.Networking.Layer2_Protocol.Session;
 public static class ProtocolSessions
 {
     [LogMethod]
-    public static ProtocolSessionHandle CreateOddSession()
-        => ProtocolSessions.CreateOddSession(
-            NullLogger.Instance);
+    public static ProtocolSessionHandle CreateSession(
+        ILogger logger,
+        OddEvenStreamIdParity streamIdParity,
+        Func<IProtocolSessionRuntime, ProtocolDriver> driverFactory)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(driverFactory);
 
-    [LogMethod]
-    public static ProtocolSessionHandle CreateOddSession(ILogger logger)
-        => ProtocolSessionFactory.CreateSession(
-            logger, new(OddEvenStreamIdParity.Odd));
+        var streamIdProvider =
+            new OddEvenStreamIdProvider(streamIdParity);
 
-    [LogMethod]
-    public static ProtocolSessionHandle CreateEvenSession()
-        => ProtocolSessions.CreateOddSession(
-            NullLogger.Instance);
+        var session = new ProtocolSession(
+            logger,
+            streamIdProvider);
 
-    [LogMethod]
-    public static ProtocolSessionHandle CreateEvenSession(ILogger logger)
-        => ProtocolSessionFactory.CreateSession(
-            logger, new(OddEvenStreamIdParity.Even));
+        var sessionHandle = new ProtocolSessionHandle(session);
+
+        var driver = driverFactory(session)
+            ?? throw new InvalidOperationException(
+                "driverFactory returned null");
+
+        session.AttachDriver(driver);
+
+        return sessionHandle;
+    }
 }

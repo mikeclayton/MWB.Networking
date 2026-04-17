@@ -1,9 +1,10 @@
-﻿using System.Buffers.Binary;
+﻿using MWB.Networking.Layer0_Transport.Encoding;
+using System.Buffers;
 using System.IO.Pipelines;
 
 namespace MWB.Networking.Layer0_Transport.Pipes;
 
-public sealed class PipeNetworkConnection : INetworkConnection
+public sealed class PipeNetworkConnection : INetworkConnection, IDisposable
 {
     public PipeNetworkConnection(PipeReader reader, PipeWriter writer)
     {
@@ -21,89 +22,70 @@ public sealed class PipeNetworkConnection : INetworkConnection
         get;
     }
 
-    public Task WaitUntilConnectedAsync(CancellationToken ct)
-        => Task.CompletedTask;
-
-    public async Task WriteBlockAsync(
-        ReadOnlyMemory<byte>[] segments,
+    /// <summary>
+    /// Reads raw bytes from the pipe into the provided buffer.
+    /// Returns 0 on EOF.
+    /// </summary>
+    public async ValueTask<int> ReadAsync(
+        Memory<byte> buffer,
         CancellationToken ct)
     {
-        // compute total length
-        var totalLength = 0;
-        foreach (var segment in segments)
+        while (true)
         {
-            totalLength += segment.Length;
+            var result = await Reader.ReadAsync(ct).ConfigureAwait(false);
+            var sequence = result.Buffer;
+
+            if (sequence.Length > 0)
+            {
+                // Copy as much as fits into the provided buffer
+                int toCopy = (int)Math.Min(sequence.Length, buffer.Length);
+                sequence.Slice(0, toCopy).CopyTo(buffer.Span);
+
+                // Advance reader by consumed bytes
+                this.Reader.AdvanceTo(sequence.GetPosition(toCopy));
+                return toCopy;
+            }
+
+            if (result.IsCompleted)
+            {
+                // EOF
+                this.Reader.AdvanceTo(sequence.End);
+                return 0;
+            }
+
+            // Otherwise: no data yet, keep waiting
+            this.Reader.AdvanceTo(sequence.Start, sequence.End);
         }
+    }
 
-        // write length prefix
-        var span = this.Writer.GetSpan(4);
-        BinaryPrimitives.WriteInt32BigEndian(span, totalLength);
-        this.Writer.Advance(4);
-
-        // write segments
-        foreach (var segment in segments)
+    /// <summary>
+    /// Writes raw byte segments to the pipe.
+    /// </summary>
+    public async ValueTask WriteAsync(
+        ByteSegments segments,
+        CancellationToken ct)
+    {
+        foreach (var segment in segments.Segments)
         {
             if (!segment.IsEmpty)
             {
-                segment.Span.CopyTo(this.Writer.GetSpan(segment.Length));
+                segment.Span.CopyTo(
+                    this.Writer.GetSpan(segment.Length));
                 this.Writer.Advance(segment.Length);
             }
         }
 
-        await this.Writer.FlushAsync(ct);
-    }
+        var result = await this.Writer.FlushAsync(ct).ConfigureAwait(false);
 
-    public async Task<byte[]> ReadBlockAsync(CancellationToken ct)
-    {
-        // Read length prefix
-        var lengthBytes = await ReadExactAsync(4, ct);
-        int length = BinaryPrimitives.ReadInt32BigEndian(lengthBytes);
-
-        if (length < 0)
+        if (result.IsCompleted)
         {
-            throw new IOException("Invalid block length.");
+            throw new IOException("Pipe closed during write.");
         }
-
-        // Read payload
-        var block = await this.ReadExactAsync(length, ct);
-        return block;
-    }
-
-
-    private async Task<byte[]> ReadExactAsync(int length, CancellationToken ct)
-    {
-        var result = new byte[length];
-        var offset = 0;
-
-        while (offset < length)
-        {
-            var readResult = await this.Reader.ReadAsync(ct);
-            var buffer = readResult.Buffer;
-
-            if (buffer.Length == 0 && readResult.IsCompleted)
-            {
-                throw new IOException("Unexpected end of stream.");
-            }
-
-            // Take only as much as we still need
-            var toConsume = Math.Min(buffer.Length, length - offset);
-            var slice = buffer.Slice(0, toConsume);
-
-            // ✅ Copy segment-by-segment
-            foreach (ReadOnlyMemory<byte> segment in slice)
-            {
-                segment.Span.CopyTo(result.AsSpan(offset));
-                offset += segment.Length;
-            }
-
-            // Tell the PipeReader how much we consumed
-            this.Reader.AdvanceTo(slice.End);
-        }
-
-        return result;
     }
 
     public void Dispose()
     {
+        this.Reader.Complete();
+        this.Writer.Complete();
     }
 }

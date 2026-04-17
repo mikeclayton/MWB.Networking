@@ -1,10 +1,9 @@
 ﻿using KeyboardSharingConsole.CommandLine;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Tcp;
-using MWB.Networking.Layer1_Framing;
-using MWB.Networking.Layer2_Protocol.Session;
-using MWB.Networking.Layer3_Runtime;
+using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
 using System.Diagnostics;
 using System.Net;
 
@@ -14,49 +13,26 @@ var options = CommandLineParser.Parse(args);
 Console.Title =
     $"Producer/Consumer :: listen {options.ListenPort} -> peer {options.ConnectPort}";
 
-
 // ------------------------------------------------------------
 // Logging
 // ------------------------------------------------------------
-
-//var logger = LoggingHelper.CreateLogger();
 var logger = NullLogger.Instance;
 var cts = new CancellationTokenSource();
 
 logger.LogDebug(Console.Title);
 
 // ------------------------------------------------------------
-// Determine role for this PoC
+// Determine role
 // ------------------------------------------------------------
-
 bool isProducer = options.ListenPort > options.ConnectPort;
 
 Console.WriteLine(isProducer
     ? "[ROLE] Producer"
     : "[ROLE] Consumer");
 
-
-// ------------------------------------------------------------
-// Layer 2: Protocol session
-// ------------------------------------------------------------
-
-Console.WriteLine("creating protocol session");
-
-var session = ProtocolSessions.CreateEvenSession(logger);
-
-var eventCount = 0;
-session.Observer.EventReceived += (eventType, payload) =>
-{
-    eventCount++;
-    Console.WriteLine(
-        $"[INBOUND] ({eventCount}) Event {eventType}: {BitConverter.ToString(payload.ToArray())}");
-};
-
-
 // ------------------------------------------------------------
 // Layer 0: Network connection provider
 // ------------------------------------------------------------
-
 Console.WriteLine("creating TCP network connection provider");
 
 var listenEndpoint = isProducer
@@ -75,80 +51,85 @@ var providerConfig = new TcpNetworkConnectionConfig(
 using var provider =
     new TcpNetworkConnectionProvider(logger, providerConfig);
 
-// Open logical connection (starts listener/connect loops internally)
 Console.WriteLine("opening logical connection");
 
 var handle =
     await provider.OpenConnectionAsync(cts.Token);
 
+// ------------------------------------------------------------
+// Layer 2: Protocol session (builder owns wiring)
+// ------------------------------------------------------------
+Console.WriteLine("creating protocol session");
+
+var sessionBuilder = new ProtocolSessionBuilder()
+    .WithLogger(logger)
+    .ConfigurePipeline(p =>
+        p.AppendFrameCodec(
+             new LengthPrefixedFrameEncoder(),
+             new LengthPrefixedFrameDecoder())
+         .UseConnection(() => handle.Connection));
+
+sessionBuilder =
+    isProducer
+        ? sessionBuilder.UseEvenStreamIds()
+        : sessionBuilder.UseOddStreamIds();
+
+var session = sessionBuilder.Build();
 
 // ------------------------------------------------------------
-// Layer 1: Framing
+// Observe inbound protocol events
 // ------------------------------------------------------------
-
-var adapter = new NetworkAdapter(
-    handle.Connection,
-    new NetworkFrameWriter(),
-    new NetworkFrameReader());
-
+var eventCount = 0;
+session.Observer.EventReceived += (eventType, payload) =>
+{
+    eventCount++;
+    Console.WriteLine(
+        $"[INBOUND] ({eventCount}) Event {eventType}: {BitConverter.ToString(payload.ToArray())}");
+};
 
 // ------------------------------------------------------------
-// Layer 3: Protocol driver
+// Start session runtime
 // ------------------------------------------------------------
-
-Console.WriteLine("starting protocol driver");
-
-var driver =
-    new ProtocolDriver(logger, adapter, session);
+Console.WriteLine("starting protocol session");
 
 var runTask =
-    driver.RunAsync(cts.Token);
-
+    session.Lifecycle.StartAsync(cts.Token);
 
 // ------------------------------------------------------------
 // Give transport time to settle (PoC only)
 // ------------------------------------------------------------
-
 await Task.Delay(500);
 
-
 // ------------------------------------------------------------
-// Send ONE hard-coded event (Producer only)
+// Send events (Producer only)
 // ------------------------------------------------------------
-
-await driver.Ready;
-
 if (isProducer)
 {
-    Console.WriteLine("[PRODUCER] sending hard-coded event");
+    Console.WriteLine("[PRODUCER] sending hard-coded events");
+
+    await session.Lifecycle.Ready; // forwarded from driver
 
     var stopwatch = Stopwatch.StartNew();
+
     for (var i = 0; i < 1000; i++)
     {
         session.Commands.SendEvent(
             eventType: 1,
             payload: BitConverter.GetBytes(options.ListenPort));
     }
+
     stopwatch.Stop();
 
-    Console.WriteLine($"[PRODUCER] done queuing outbound in {stopwatch.ElapsedMilliseconds} ms");
-    Console.WriteLine($"[PRODUCER] done queuing outbound in {stopwatch.ElapsedTicks} ticks");
-
-    // wait for all events to be transmitted, then read outbound buffer for "enqueued" and "transmitted" timestamps
+    Console.WriteLine($"[PRODUCER] queued outbound in {stopwatch.ElapsedMilliseconds} ms");
 }
 else
 {
     Console.WriteLine("[CONSUMER] waiting for inbound events");
-
-    // wait for all events to be received, then read inbound buffer for "received" timestamps
-
 }
 
-
 // ------------------------------------------------------------
-// Keep process alive
+// Shutdown
 // ------------------------------------------------------------
-
 Console.WriteLine("Press Enter to exit...");
 Console.ReadLine();
 

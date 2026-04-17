@@ -1,5 +1,7 @@
-﻿using MWB.Networking.Layer0_Transport.Memory;
+﻿using MWB.Networking.Hosting;
+using MWB.Networking.Layer0_Transport.Memory;
 using MWB.Networking.Layer1_Framing;
+using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
 using System.Diagnostics;
 
 namespace MWB.Networking.Layer0_Transport.UnitTests;
@@ -30,12 +32,17 @@ public class MemoryConnectionTests
             const int FrameCount = 1_000_000;
 
             // create one-way in-memory transport
-            var clientConnection = new MemoryNetworkConnection(1024 * 1024 * 50);
 
-            var clientAdapter = new NetworkAdapter(
-                clientConnection,
-                new NetworkFrameWriter(),
-                new NetworkFrameReader());
+            var pipeline = new NetworkPipelineBuilder()
+                .AppendFrameCodec(
+                    encoder: new LengthPrefixedFrameEncoder(),
+                    decoder: new LengthPrefixedFrameDecoder())
+                .UseConnection(() => new MemoryNetworkConnection(1024 * 1024 * 50))
+                .Build();
+
+            var adapter = new NetworkAdapter(
+                pipeline.FrameWriter,
+                pipeline.FrameReader);
 
             var payload = new ReadOnlyMemory<byte>([0x01, 0x02, 0x03]);
 
@@ -52,7 +59,7 @@ public class MemoryConnectionTests
                         requestId: (uint)(i + 1),
                         streamId: null,
                         payload: payload);
-                    await clientAdapter.WriteFrameAsync(frame, TestContext.CancellationToken);
+                    await adapter.WriteFrameAsync(frame, TestContext.CancellationToken);
                 }
                 writerStopwatch.Stop();
             }, TestContext.CancellationToken);

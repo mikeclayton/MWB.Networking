@@ -1,56 +1,44 @@
-﻿using MWB.Networking.Layer0_Transport;
-
-namespace MWB.Networking.Layer1_Framing;
+﻿namespace MWB.Networking.Layer1_Framing;
 
 public sealed class NetworkAdapter
 {
     public NetworkAdapter(
-        INetworkConnection connection,
-        INetworkFrameWriter frameWriter,
-        INetworkFrameReader frameReader)
+        NetworkFrameWriter frameWriter,
+        NetworkFrameReader frameReader)
     {
-        this.NetworkConnection = connection ?? throw new ArgumentNullException(nameof(connection));
         this.FrameWriter = frameWriter ?? throw new ArgumentNullException(nameof(frameWriter));
         this.FrameReader = frameReader ?? throw new ArgumentNullException(nameof(frameReader));
     }
 
-    private INetworkConnection NetworkConnection
+    private NetworkFrameWriter FrameWriter
     {
         get;
     }
 
-    private INetworkFrameWriter FrameWriter
-    {
-        get;
-    }
-
-    private INetworkFrameReader FrameReader
+    private NetworkFrameReader FrameReader
     {
         get;
     }
 
     /// <summary>
-    /// Writes a single NetworkFrame to the underlying connection.
-    /// Blocks until the underlying connection is available or throws on failure.
+    /// Writes a single NetworkFrame to the encoding pipeline.
+    /// Completion indicates the frame has been handed off to the transport sink.
     /// </summary>
-    public async Task WriteFrameAsync(
+    public Task WriteFrameAsync(
         NetworkFrame frame,
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(frame);
-        // write a single frame to the connection
-        await this.FrameWriter.WriteFrameAsync(this.NetworkConnection, frame, ct);
+        return FrameWriter.WriteAsync(frame, ct).AsTask();
     }
 
     /// <summary>
-    /// Reads a single NetworkFrame from the underlying connection.
-    /// Blocks until a frame is received or throws on disconnect.
+    /// Reads the next decoded NetworkFrame.
+    /// Blocks until a frame is available or cancellation is requested.
     /// </summary>
-    public async Task<NetworkFrame> ReadFrameAsync(
+    public Task<NetworkFrame> ReadFrameAsync(
         CancellationToken ct = default)
     {
-        // read a single frame from the connection
-        var frame = await this.FrameReader.ReadFrameAsync(this.NetworkConnection, ct);
-        return frame;
+        return FrameReader.ReadFrameAsync(ct);
     }
 }

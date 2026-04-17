@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
 using MWB.Networking.Layer2_Protocol.Session;
+using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
@@ -27,7 +28,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void DrainOutbound_IsEmptyAtStart()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             var outbound = runtime.DrainOutboundFrames();
@@ -38,7 +39,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void DrainOutbound_ClearsQueueAfterFirstCall()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             IncomingRequest? r1 = null;
@@ -75,7 +76,7 @@ public partial class ProtocolSessionTests
 
         public void DrainOutbound_AccumulatesAcrossMultipleOutboundEmits()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             IncomingRequest? request1 = null;
@@ -111,7 +112,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void DrainOutbound_AfterPartialDrain_ContainsOnlyNewOutboundFrames()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             IncomingRequest? r1 = null;
@@ -152,7 +153,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Snapshot_InitiallyEmpty()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
 
             var snap = session.Diagnostics.GetSnapshot();
 
@@ -163,7 +164,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Snapshot_IsNonDestructive()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
             
             runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -179,7 +180,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Snapshot_AllClosed_ShowsEmpty()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -196,7 +197,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Snapshot_RequestsAndStreams_AreIndependentIdNamespaces()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             // The same numeric ID may be in use simultaneously as both a request and a stream.
@@ -212,7 +213,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Snapshot_DoesNotContainStreamIdsInRequestsOrViceVersa()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -231,7 +232,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void OnInbound_NullFrame_ThrowsArgumentNullException()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             Assert.Throws<ArgumentNullException>(() => runtime.ProcessFrame(null!));
@@ -240,7 +241,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void OnInbound_UnknownFrameKind_ThrowsProtocolException_WithUnknownFrameKindError()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             var frame = new ProtocolFrame((ProtocolFrameKind)0xFF, null, null, null, ProtocolFrames.EmptyPayload);
@@ -257,7 +258,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void MixedRequestsAndStreams_TrackedIndependently()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -274,7 +275,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void ClosingRequest_DoesNotAffectOpenStreams()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -291,7 +292,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void ClosingStream_DoesNotAffectOpenRequests()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -308,7 +309,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Inbound_ResponseFrame_IsAccepted()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -325,7 +326,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void FullMixedLifecycle_SnapshotAccurateAtEachStep()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             // Open two requests and two streams.

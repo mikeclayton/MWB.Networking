@@ -7,6 +7,7 @@ public sealed class ProtocolSessionHandle
         ArgumentNullException.ThrowIfNull(session);
         this.Commands = session;
         this.Diagnostics = session;
+        this.Lifecycle = session;
         this.Observer = session;
         this.Runtime = session;
     }
@@ -17,6 +18,11 @@ public sealed class ProtocolSessionHandle
     }
 
     internal IProtocolSessionDiagnostics Diagnostics
+    {
+        get;
+    }
+
+    public IProtocolSessionLifecycle Lifecycle
     {
         get;
     }

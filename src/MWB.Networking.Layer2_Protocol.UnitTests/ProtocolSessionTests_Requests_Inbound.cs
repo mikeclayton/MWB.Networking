@@ -1,5 +1,6 @@
 using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Session;
+using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
@@ -25,7 +26,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void NewRequest_AppearsInSnapshot()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -40,7 +41,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Inbound_Response_ClosesRequest()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -52,7 +53,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Inbound_RequestError_ClosesRequest()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -64,7 +65,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void MultipleConcurrentRequests_AllTrackedInSnapshot()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             runtime.ProcessFrame(ProtocolFrames.Request(10));
@@ -82,7 +83,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void MultipleRequests_CloseIndependently()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -99,7 +100,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void RequestId_ReusableAfterClose()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -118,7 +119,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Inbound_ResponseFrame_IsAccepted()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -134,7 +135,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Inbound_Response_DoesNotEmitOutbound()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -149,7 +150,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Inbound_Error_DoesNotEmitOutbound()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             runtime.ProcessFrame(ProtocolFrames.Request(1));

@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
+using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer1_Framing;
+using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
 using System.Diagnostics;
 using System.IO.Pipelines;
 
@@ -26,19 +28,38 @@ public class PipeConnectionTests
             var serverPipe = new Pipe();
             var clientPipe = new Pipe();
 
+
             // open the server connection
-            var serverConnection = new PipeNetworkConnection(serverPipe.Reader, clientPipe.Writer);
+            var serverConnection = new PipeNetworkConnection(
+                reader: serverPipe.Reader,
+                writer: clientPipe.Writer);
+
+            var serverPipeline = new NetworkPipelineBuilder()
+                .AppendFrameCodec(
+                    encoder: new LengthPrefixedFrameEncoder(),
+                    decoder: new LengthPrefixedFrameDecoder())
+                .UseConnection(() => serverConnection)
+                .Build();
+
             var serverAdapter = new NetworkAdapter(
-                serverConnection,
-                new NetworkFrameWriter(),
-                new NetworkFrameReader());
+                serverPipeline.FrameWriter,
+                serverPipeline.FrameReader);
 
             // open the client connection
-            var clientConnection = new PipeNetworkConnection(clientPipe.Reader, serverPipe.Writer);
+            var clientConnection = new PipeNetworkConnection(
+                reader: clientPipe.Reader,
+                writer: serverPipe.Writer);
+
+            var clientPipeline = new NetworkPipelineBuilder()
+                .AppendFrameCodec(
+                    encoder: new LengthPrefixedFrameEncoder(),
+                    decoder: new LengthPrefixedFrameDecoder())
+                .UseConnection(() => clientConnection)
+                .Build();
+
             var clientAdapter = new NetworkAdapter(
-                clientConnection,
-                new NetworkFrameWriter(),
-                new NetworkFrameReader());
+                clientPipeline.FrameWriter,
+                clientPipeline.FrameReader);
 
             // write a frame to the server
             var writeFrame = new NetworkFrame(
@@ -81,15 +102,31 @@ public class PipeConnectionTests
                 reader: clientToServer.Reader,
                 writer: serverToClient.Writer);
 
+            // ----------------------------
+            // Build client pipeline
+            // ----------------------------
+            var clientPipeline = new NetworkPipelineBuilder()
+                .AppendFrameCodec(
+                    encoder: new LengthPrefixedFrameEncoder(),
+                    decoder: new LengthPrefixedFrameDecoder())
+                .UseConnection(() => clientConnection)
+                .Build();
             var clientAdapter = new NetworkAdapter(
-                clientConnection,
-                new NetworkFrameWriter(),
-                new NetworkFrameReader());
+                clientPipeline.FrameWriter,
+                clientPipeline.FrameReader);
 
+            // ----------------------------
+            // Build server pipeline
+            // ----------------------------
+            var serverPipeline = new NetworkPipelineBuilder()
+                .AppendFrameCodec(
+                    encoder: new LengthPrefixedFrameEncoder(),
+                    decoder: new LengthPrefixedFrameDecoder())
+                .UseConnection(() => serverConnection)
+                .Build();
             var serverAdapter = new NetworkAdapter(
-                serverConnection,
-                new NetworkFrameWriter(),
-                new NetworkFrameReader());
+                serverPipeline.FrameWriter,
+                serverPipeline.FrameReader);
 
             var payload = new ReadOnlyMemory<byte>([0x01, 0x02, 0x03]);
 
@@ -168,15 +205,31 @@ public class PipeConnectionTests
                 reader: clientToServer.Reader,
                 writer: serverToClient.Writer);
 
+            // ----------------------------
+            // Build client pipeline
+            // ----------------------------
+            var clientPipeline = new NetworkPipelineBuilder()
+                .AppendFrameCodec(
+                    encoder: new LengthPrefixedFrameEncoder(),
+                    decoder: new LengthPrefixedFrameDecoder())
+                .UseConnection(() => clientConnection)
+                .Build();
             var clientAdapter = new NetworkAdapter(
-                clientConnection,
-                new NetworkFrameWriter(),
-                new NetworkFrameReader());
+                clientPipeline.FrameWriter,
+                clientPipeline.FrameReader);
 
+            // ----------------------------
+            // Build server pipeline
+            // ----------------------------
+            var serverPipeline = new NetworkPipelineBuilder()
+                .AppendFrameCodec(
+                    encoder: new LengthPrefixedFrameEncoder(),
+                    decoder: new LengthPrefixedFrameDecoder())
+                .UseConnection(() => serverConnection)
+                .Build();
             var serverAdapter = new NetworkAdapter(
-                serverConnection,
-                new NetworkFrameWriter(),
-                new NetworkFrameReader());
+                serverPipeline.FrameWriter,
+                serverPipeline.FrameReader);
 
             var payload = new ReadOnlyMemory<byte>([0x01, 0x02, 0x03]);
 

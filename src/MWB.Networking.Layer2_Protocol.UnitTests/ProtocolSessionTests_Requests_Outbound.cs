@@ -1,6 +1,7 @@
 using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
 using MWB.Networking.Layer2_Protocol.Session;
+using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
@@ -26,7 +27,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Request_IsRaisedToApplication_AndNotEmittedOutbound()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             IncomingRequest? received = null;
@@ -49,7 +50,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Respond_EmitsResponseToOutbound()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             IncomingRequest? request = null;
@@ -79,7 +80,7 @@ public partial class ProtocolSessionTests
 
         public void Request_AllowsOnlyOneResponse_SecondRespondThrows()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             IncomingRequest? request = null;
@@ -111,7 +112,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void TwoConcurrentRequests_ResponsesEmittedInOrder()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             IncomingRequest? req1 = null;
@@ -150,7 +151,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Request_IsClosedAfterSingleResponse()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             IncomingRequest? request = null;
@@ -171,7 +172,7 @@ public partial class ProtocolSessionTests
         [TestMethod]
         public void Request_SecondResponse_IsRejected()
         {
-            var session = ProtocolSessions.CreateEvenSession();
+            var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
             IncomingRequest? request = null;

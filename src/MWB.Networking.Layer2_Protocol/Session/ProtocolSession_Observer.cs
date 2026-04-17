@@ -6,6 +6,9 @@ namespace MWB.Networking.Layer2_Protocol.Session;
 
 internal sealed partial class ProtocolSession : IProtocolSessionObserver
 {
+    private IProtocolSessionObserver AsObserver()
+        => this;
+
     // ------------------------------------------------------------------
     // Event handling
     // ------------------------------------------------------------------
