@@ -41,7 +41,7 @@ public sealed class LogicalConnection :
     {
         ArgumentNullException.ThrowIfNull(connection);
 
-        using var scope = this.Logger.BeginMethodScope(this);
+        using var scope = this.Logger.BeginMethodLoggingScope(this);
 
         var old = this.SwapActiveConnection(connection);
         old?.Dispose();

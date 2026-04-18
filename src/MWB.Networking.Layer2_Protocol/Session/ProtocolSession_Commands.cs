@@ -14,7 +14,7 @@ internal sealed partial class ProtocolSession : IProtocolSessionCommands
     // Events
     // ------------------------------------------------------------
 
-    [LogMethod]
+    //[LogMethod]
     void IProtocolSessionCommands.SendEvent(uint eventType, ReadOnlyMemory<byte> payload)
     {
         this.EventManager.SendEvent(eventType, payload);

@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
-using MWB.Networking.Logging;
+using MWB.Networking.Logging.Formatters;
 
 namespace KeyboardSharingConsole.Helpers;
 

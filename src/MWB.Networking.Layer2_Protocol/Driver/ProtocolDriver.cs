@@ -104,10 +104,10 @@ public sealed class ProtocolDriver : IHasLogger
     /// <summary>
     /// Runs the protocol driver until cancelled or a fatal error occurs.
     /// </summary>
-    [LogMethod]
+    //[LogMethod]
     public async Task RunAsync(CancellationToken ct)
     {
-        using var scope = this.Logger.BeginMethodScope(this);
+        using var scope = this.Logger.BeginMethodLoggingScope(this);
 
         var readTask = this.RunReadLoopAsync(ct);
         var writeTask = this.RunWriteLoopAsync(ct);
@@ -127,10 +127,10 @@ public sealed class ProtocolDriver : IHasLogger
     /// Drives the transport read loop and feeds bytes into the frame decoder.
     /// Decoded frames are delivered asynchronously via NetworkFrameReader.
     /// </summary>
-    [LogMethod]
+    //[LogMethod]
     private async Task RunReadLoopAsync(CancellationToken ct)
     {
-        using var scope = this.Logger.BeginMethodScope(this);
+        using var scope = this.Logger.BeginMethodLoggingScope(this);
         this.Logger.LogDebug("[DRIVER READ LOOP] entering");
 
         var buffer = ArrayPool<byte>.Shared.Rent(64 * 1024);
@@ -158,6 +158,9 @@ public sealed class ProtocolDriver : IHasLogger
                 if (bytesRead == 0)
                 {
                     this.Logger.LogDebug("[DRIVER READ LOOP] EOF");
+                    await this.Decoder
+                        .CompleteAsync(this.FrameReader, ct)
+                        .ConfigureAwait(false);
                     return;
                 }
 
@@ -182,10 +185,10 @@ public sealed class ProtocolDriver : IHasLogger
     /// Continuously drains outbound frames from the protocol session
     /// and writes them to the adapter.
     /// </summary>
-    [LogMethod]
+    //[LogMethod]
     private async Task RunWriteLoopAsync(CancellationToken ct)
     {
-        using var scope = this.Logger.BeginMethodScope(this);
+        using var scope = this.Logger.BeginMethodLoggingScope(this);
 
         while (!ct.IsCancellationRequested)
         {
@@ -237,10 +240,10 @@ public sealed class ProtocolDriver : IHasLogger
     /// Consumes decoded NetworkFrames from the adapter and feeds them
     /// into the protocol session.
     /// </summary>
-    [LogMethod]
+    //[LogMethod]
     public async Task ConsumeFramesAsync(CancellationToken ct)
     {
-        using var scope = this.Logger.BeginMethodScope(this);
+        using var scope = this.Logger.BeginMethodLoggingScope(this);
 
         while (!ct.IsCancellationRequested)
         {

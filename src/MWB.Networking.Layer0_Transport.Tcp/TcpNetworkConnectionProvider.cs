@@ -53,8 +53,7 @@ public sealed class TcpNetworkConnectionProvider
     public async Task<LogicalConnectionHandle> OpenConnectionAsync(
         CancellationToken ct)
     {
-        using var logScope = this.Logger.BeginMethodScope(this);
-        this.Logger.LogDebug("Entering method");
+        using var logScope = this.Logger.BeginMethodLoggingScope(this);
 
         _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
@@ -71,15 +70,12 @@ public sealed class TcpNetworkConnectionProvider
         var handle = this.LogicalConnection;
         await handle.Connection.WhenReadyAsync(ct);
 
-        this.Logger.LogDebug("Leaving method");
-
         return handle;
     }
 
     private async Task StartListenerAsync(CancellationToken ct)
     {
-        using var logScope = this.Logger.BeginMethodScope(this);
-        this.Logger.LogDebug("Entering method");
+        using var logScope = this.Logger.BeginMethodLoggingScope(this);
 
         this.Listener = new TcpListener(this.Config.LocalEndpoint!);
         this.Listener.Start();
@@ -100,14 +96,11 @@ public sealed class TcpNetworkConnectionProvider
         {
             // normal shutdown
         }
-
-        this.Logger.LogDebug("Leaving method");
     }
 
     private async Task StartOutboundConnectLoopAsync(CancellationToken ct)
     {
-        using var logScope = this.Logger.BeginMethodScope(this);
-        this.Logger.LogDebug("Entering method");
+        using var logScope = this.Logger.BeginMethodLoggingScope(this);
 
         // Defensive: no remote endpoint means nothing to do
         if (this.Config.RemoteEndpoint is null)
@@ -194,16 +187,13 @@ public sealed class TcpNetworkConnectionProvider
                 break;
             }
         }
-
-        this.Logger.LogDebug("Leaving method");
     }
 
     private void AttachCandidate(
         TcpNetworkConnection candidate,
         ConnectionDirection direction)
     {
-        using var logScope = this.Logger.BeginMethodScope(this);
-        this.Logger.LogDebug("Entering method");
+        using var logScope = this.Logger.BeginMethodLoggingScope(this);
 
         // lock to ensure critical section below is protected,
         // but don't await while holding the lock
@@ -230,7 +220,6 @@ public sealed class TcpNetworkConnectionProvider
         {
             candidate.Dispose();
         }
-        this.Logger.LogDebug("Leaving method");
     }
 
     private static bool WinsOverExisting(
@@ -243,8 +232,14 @@ public sealed class TcpNetworkConnectionProvider
 
     public void Dispose()
     {
+        // stop all background activity first
         _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = null;
+
+        // stop accepting inbound connections
         this.Listener?.Stop();
+        this.Listener = null;
 
         // lock to ensure critical section below is protected,
         // but don't await while holding the lock
@@ -252,5 +247,9 @@ public sealed class TcpNetworkConnectionProvider
 
         this.ActiveConnection?.Dispose();
         this.ActiveConnection = null;
+
+        // CRITICAL: terminate the logical connection itself
+        // This unblocks WhenReadyAsync, read loops, decoders, and protocol consumers
+        this.LogicalConnection.Connection.Dispose();
     }
 }

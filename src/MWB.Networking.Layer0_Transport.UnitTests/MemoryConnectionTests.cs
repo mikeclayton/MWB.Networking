@@ -50,6 +50,7 @@ public class MemoryConnectionTests
 
             var adapter =
              new NetworkAdapter(
+                 logger,
                  pipeline.FrameWriter,
                  pipeline.FrameReader);
 

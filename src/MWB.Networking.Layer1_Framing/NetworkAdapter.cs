@@ -1,13 +1,23 @@
-﻿namespace MWB.Networking.Layer1_Framing;
+﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Logging;
+
+namespace MWB.Networking.Layer1_Framing;
 
 public sealed class NetworkAdapter
 {
     public NetworkAdapter(
+        ILogger logger,
         NetworkFrameWriter frameWriter,
         NetworkFrameReader frameReader)
     {
+        this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         this.FrameWriter = frameWriter ?? throw new ArgumentNullException(nameof(frameWriter));
         this.FrameReader = frameReader ?? throw new ArgumentNullException(nameof(frameReader));
+    }
+
+    public ILogger Logger
+    {
+        get;
     }
 
     private NetworkFrameWriter FrameWriter
@@ -28,8 +38,17 @@ public sealed class NetworkAdapter
         NetworkFrame frame,
         CancellationToken ct = default)
     {
+        using var loggerScope = this.Logger.EnterMethod(this);
+        this.Logger.LogDebug(
+            "kind: {FrameKind}, eventType: {EventType}, requestId: {RequestId}, streamId: {StreamId}",
+            frame.Kind, frame.EventType, frame.RequestId, frame.StreamId);
+
         ArgumentNullException.ThrowIfNull(frame);
-        return FrameWriter.WriteAsync(frame, ct).AsTask();
+        var writeFrameTask = this.FrameWriter.WriteAsync(frame, ct).AsTask();
+
+        this.Logger.LeaveMethod();
+
+        return writeFrameTask;
     }
 
     /// <summary>
@@ -39,6 +58,8 @@ public sealed class NetworkAdapter
     public Task<NetworkFrame> ReadFrameAsync(
         CancellationToken ct = default)
     {
+        using var loggerScope = this.Logger.BeginMethodLoggingScope(this);
+
         return FrameReader.ReadFrameAsync(ct);
     }
 }

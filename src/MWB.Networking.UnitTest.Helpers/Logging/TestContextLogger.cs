@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Logging.Scopes;
 
 namespace MWB.Networking.UnitTest.Helpers.Logging;
 
@@ -13,7 +14,8 @@ internal sealed class TestContextLogger : ILogger
         _category = category;
     }
 
-    public IDisposable? BeginScope<TState>(TState state) => NullScope.Instance;
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull
+        => NullScope.Instance;
 
     public bool IsEnabled(LogLevel logLevel) => true;
 
@@ -33,9 +35,5 @@ internal sealed class TestContextLogger : ILogger
         }
     }
 
-    private sealed class NullScope : IDisposable
-    {
-        public static readonly NullScope Instance = new();
-        public void Dispose() { }
-    }
+ 
 }

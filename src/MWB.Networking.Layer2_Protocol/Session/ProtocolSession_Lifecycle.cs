@@ -9,7 +9,9 @@ internal sealed partial class ProtocolSession : IProtocolSessionLifecycle
         get
         {
             if (this.ProtocolDriver is null)
-                throw new InvalidOperationException("ProtocolDriver not attached.");
+            {
+                throw new InvalidOperationException("Protocol driver not attached.");
+            }
 
             return this.ProtocolDriver.Ready;
         }

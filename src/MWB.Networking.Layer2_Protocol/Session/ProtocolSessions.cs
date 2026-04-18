@@ -8,7 +8,7 @@ namespace MWB.Networking.Layer2_Protocol.Session;
 
 public static class ProtocolSessions
 {
-    [LogMethod]
+    //[LogMethod]
     public static ProtocolSessionHandle CreateSession(
         ILogger logger,
         OddEvenStreamIdParity streamIdParity,

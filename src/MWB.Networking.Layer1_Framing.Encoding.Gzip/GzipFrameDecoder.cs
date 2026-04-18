@@ -12,4 +12,11 @@ public sealed class GzipFrameDecoder : IFrameDecoder
     {
         throw new NotImplementedException();
     }
+
+    public ValueTask CompleteAsync(
+        IFrameDecoderSink output,
+        CancellationToken ct = default)
+    {
+        throw new NotImplementedException();
+    }
 }

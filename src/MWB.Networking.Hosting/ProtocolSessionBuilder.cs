@@ -60,6 +60,7 @@ public sealed partial class ProtocolSessionBuilder
         // ------------------------------------------------------------
 
         var adapter = new NetworkAdapter(
+            logger,
             pipeline.FrameWriter,
             pipeline.FrameReader);
 

@@ -1,0 +1,24 @@
+﻿<Project Sdk="MSTest.Sdk/4.2.1">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MWB.Networking.Hosting\MWB.Networking.Hosting.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Memory\MWB.Networking.Layer0_Transport.Memory.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Pipes\MWB.Networking.Layer0_Transport.Pipes.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer0_Transport\MWB.Networking.Layer0_Transport.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer1_Framing\MWB.Networking.Layer1_Framing.csproj" />
+    <ProjectReference Include="..\MWB.Networking.UnitTest.Helpers\MWB.Networking.UnitTest.Helpers.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="Microsoft.Testing.Extensions.CodeCoverage" Version="18.6.2" />
+  </ItemGroup>
+
+</Project>

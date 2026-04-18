@@ -19,37 +19,66 @@ public static class ILoggerExtensions
     //    logger.LogDebug("Leaving {ClassName}.{MemberName}", className, memberName);
     //}
 
-    public static IDisposable? BeginMethodScope(this ILogger logger, object obj, [CallerMemberName] string methodName = "")
-    {
-        var hasDisplayName = obj as IHasDisplayName;
-        var hasId = obj as IHasId;
-        return logger.BeginMethodScope(
-            className: obj.GetType().Name,
-            displayName: hasDisplayName?.DisplayName,
-            longId: hasId?.Id.ToString(),
-            shortId: hasId?.ShortId,
-            methodName: methodName);
-    }
+    //public static IDisposable? BeginMethodScope(this ILogger logger, object classInstance, [CallerMemberName] string methodName = "")
+    //{
+    //    var hasDisplayName = classInstance as IHasDisplayName;
+    //    var hasId = classInstance as IHasId;
+    //    return logger.BeginMethodScope(
+    //        className: classInstance.GetType().Name,
+    //        displayName: hasDisplayName?.DisplayName,
+    //        longId: hasId?.Id.ToString(),
+    //        shortId: hasId?.ShortId,
+    //        methodName: methodName);
+    //}
 
-    public static IDisposable? BeginMethodScope(this ILogger logger, string className, string? displayName, string? longId, string? shortId, string methodName)
+    //public static IDisposable? BeginMethodScope(this ILogger logger, string className, string? displayName, string? longId, string? shortId, [CallerMemberName] string methodName = "")
+    //{
+    //    return logger.BeginScope(
+    //        new OrderedDictionary<string, string?>
+    //        {
+    //            ["ClassName"] = className,
+    //            ["DisplayName"] = displayName,
+    //            ["LongId"] = longId,
+    //            ["ShortId"] = shortId,
+    //            ["MethodName"] = methodName
+    //        }
+    //    );
+    //}
+
+    public static ExecutionScope BeginMethodLoggingScope(
+            this ILogger logger,
+            object classInstance,
+            [CallerMemberName] string methodName = "")
     {
-        return logger.BeginScope(
-            new OrderedDictionary<string, string?>
-            {
-                ["ClassName"] = className,
-                ["DisplayName"] = displayName,
-                ["LongId"] = longId,
-                ["ShortId"] = shortId,
-                ["MethodName"] = methodName
-            }
+        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(classInstance);
+
+        return ExecutionScope.StartScope(
+            onStartScope: () => logger.EnterMethod(classInstance, methodName),
+            onEndScope: () => logger.LeaveMethod()
         );
     }
 
-    //[Conditional("DEBUG")]
-    //public static void LogDebug2(this ILogger logger, string format, string? className, string? id, string? method, params object?[] args)
-    //{
-    //    var fullFormat = "[{ClassName}:{Id}:{MethodName}] " + format;
-    //    var fullArgs = new List<object?> { className, id, method }.Concat(args);
-    //    logger.LogDebug(fullFormat, fullArgs);
-    //}
+    public static IDisposable? EnterMethod(this ILogger logger, object classInstance, [CallerMemberName] string methodName = "")
+    {
+        var hasDisplayName = classInstance as IHasDisplayName;
+        var hasId = classInstance as IHasId;
+        var loggerScope = logger.BeginScope(
+            new OrderedDictionary<string, string?>
+            {
+                ["ClassName"] = classInstance.GetType().Name,
+                ["DisplayName"] = hasDisplayName?.DisplayName,
+                ["LongId"] = hasId?.Id.ToString(),
+                ["ShortId"] = hasId?.ShortId,
+                ["MethodName"] = methodName
+            }
+        );
+        logger.LogDebug("Entering method");
+        return loggerScope;
+    }
+
+    public static void LeaveMethod(this ILogger logger)
+    {
+        logger.LogDebug("Leaving method");
+    }
 }

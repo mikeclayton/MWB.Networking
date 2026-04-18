@@ -88,26 +88,39 @@ internal sealed partial class ProtocolSession : IHasLogger
 
     public async Task WaitForOutboundFrameAsync(CancellationToken ct)
     {
+        // check if there are any frame on the queue already
+        // (e.g. sent before the write loop started)
+
+        // Fast path: check the predicate under the same lock as enqueue/dequeue
+        using (var lockScope = this.OutboundFramesLock.EnterScope())
+        {
+            if (this.OutboundFrames.Count > 0)
+            {
+                return;
+            }
+        }
+
+        // Slow path: wait for a new frame to be enqueued
         await this.OutboundFrameAvailableSignal
             .WaitAsync(ct)
             .ConfigureAwait(false);
     }
 
-    internal bool TryDequeueOutboundFrame(out ProtocolFrame frame)
-    {
-        using var lockScope = this.OutboundFramesLock.EnterScope();
+    //internal bool TryDequeueOutboundFrame(out ProtocolFrame frame)
+    //{
+    //    using var lockScope = this.OutboundFramesLock.EnterScope();
 
-        if (this.OutboundFrames.Count == 0)
-        {
-            frame = default!;
-            return false;
-        }
+    //    if (this.OutboundFrames.Count == 0)
+    //    {
+    //        frame = default!;
+    //        return false;
+    //    }
 
-        frame = this.OutboundFrames.Dequeue();
-        return true;
-    }
+    //    frame = this.OutboundFrames.Dequeue();
+    //    return true;
+    //}
 
-    [LogMethod]
+    //[LogMethod]
     internal void EnqueueOutboundFrame(ProtocolFrame frame)
     {
         ArgumentNullException.ThrowIfNull(frame);

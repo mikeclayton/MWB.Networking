@@ -13,6 +13,7 @@ public sealed class LengthPrefixedFrameDecoder : IFrameDecoder, IDisposable
     private readonly int _maxFrameSize;
 
     private int? _expectedPayloadLength;
+    private bool _completed;
 
     public LengthPrefixedFrameDecoder(ILogger logger, int maxFrameSize = 16 * 1024 * 1024)
     {
@@ -28,12 +29,21 @@ public sealed class LengthPrefixedFrameDecoder : IFrameDecoder, IDisposable
         get;
     }
 
-    // should *not* be async
+    // ─────────────────────────────────────────────────────────────
+    // Decode
+    // ─────────────────────────────────────────────────────────────
+    // NOTE: intentionally non-async; returns ValueTask for efficiency
     public ValueTask DecodeFrameAsync(
         ReadOnlySequence<byte> input,
         IFrameDecoderSink output,
         CancellationToken ct)
     {
+        if (_completed)
+        {
+            throw new InvalidOperationException(
+                "DecodeFrameAsync called after decoder completion.");
+        }
+
         // Append all incoming segments into the decoder buffer
         foreach (var segment in input)
         {
@@ -52,7 +62,7 @@ public sealed class LengthPrefixedFrameDecoder : IFrameDecoder, IDisposable
             ct.ThrowIfCancellationRequested();
 
             // Step 1: parse length prefix if not already known
-            if (_expectedPayloadLength == null)
+            if (_expectedPayloadLength is null)
             {
                 if (_buffer.Count < 4)
                 {
@@ -92,15 +102,14 @@ public sealed class LengthPrefixedFrameDecoder : IFrameDecoder, IDisposable
                 return ValueTask.CompletedTask;
             }
 
-            // Step 3: emit payload as a single decoded frame
+            // Step 3: emit decoded frame
             var payloadLength = _expectedPayloadLength.Value;
             var payloadSpan = _buffer.Span.Slice(0, payloadLength);
 
             // Copy out payload before mutating buffer
             var payload = new ByteSegments(payloadSpan.ToArray());
 
-            // Consume payload *before* emitting
-            _buffer.Consume(_expectedPayloadLength.Value);
+            _buffer.Consume(payloadLength);
             _expectedPayloadLength = null;
 
             // Emit decoded frame
@@ -109,20 +118,46 @@ public sealed class LengthPrefixedFrameDecoder : IFrameDecoder, IDisposable
                 "[DECODER] {DecoderType} Emitting decoded frame with payload size {PayloadSize}",
                 nameof(LengthPrefixedFrameDecoder),
                 payloadLength);
-            var task = output.OnFrameDecodedAsync(payload, ct);
+
+            var writeTask = output.OnFrameDecodedAsync(payload, ct);
             this.Logger.LogDebug(
                 "[DECODER] {DecoderType} Sink returned IsCompletedSuccessfully = {Completed}",
                 nameof(LengthPrefixedFrameDecoder),
-                task.IsCompletedSuccessfully);
+                writeTask.IsCompletedSuccessfully);
 
-            // If the sink goes async, stop decoding for now
-            if (!task.IsCompletedSuccessfully)
+            // If the sink goes async, pause decoding
+            if (!writeTask.IsCompletedSuccessfully)
             {
-                return task;
+                return writeTask;
             }
-
-            // otherwise, continue loop and try to decode another frame
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Completion
+    // ─────────────────────────────────────────────────────────────
+    public ValueTask CompleteAsync(
+        IFrameDecoderSink output,
+        CancellationToken ct)
+    {
+        if (_completed)
+        {
+            return ValueTask.CompletedTask;
+        }
+
+        _completed = true;
+
+        ct.ThrowIfCancellationRequested();
+
+        // Any buffered data at EOF is a protocol violation
+        if (_expectedPayloadLength is not null || _buffer.Count > 0)
+        {
+            throw new InvalidDataException(
+                "End-of-stream encountered with incomplete length-prefixed frame.");
+        }
+
+        // Nothing to flush — framing guarantees whole-frame delivery
+        return ValueTask.CompletedTask;
     }
 
     public void Dispose()

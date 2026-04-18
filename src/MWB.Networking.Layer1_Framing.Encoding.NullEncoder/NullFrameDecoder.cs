@@ -13,4 +13,12 @@ public sealed class NullFrameDecoder : IFrameDecoder
         // intentionally emits nothing
         return ValueTask.CompletedTask;
     }
+
+    public ValueTask CompleteAsync(
+        IFrameDecoderSink output,
+        CancellationToken ct = default)
+    {
+        // intentionally emits nothing
+        return ValueTask.CompletedTask;
+    }
 }

@@ -23,7 +23,7 @@ public sealed class ProtocolDriverEndToEndTests
         // Initialize logging
         // ------------------------------------------------------------
 
-        var logger = LoggingHelper.CreateTestContextLogger(this.TestContext);
+        var (logger, loggerFactory) = TestContextLoggerFactory.CreateLogger(this.TestContext);
 
         // ------------------------------------------------------------
         // Arrange: in-memory duplex transport

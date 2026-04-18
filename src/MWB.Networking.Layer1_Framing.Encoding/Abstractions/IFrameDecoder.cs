@@ -26,5 +26,13 @@ namespace MWB.Networking.Layer1_Framing.Encoding.Abstractions
             ReadOnlySequence<byte> input,
             IFrameDecoderSink output,
             CancellationToken ct = default);
+    
+        /// <summary>
+        /// Signals that no more input will arrive and the decoder
+        /// should flush any buffered state and emit any final frames.
+        /// </summary>
+        ValueTask CompleteAsync(
+            IFrameDecoderSink output,
+            CancellationToken ct = default);
     }
 }
