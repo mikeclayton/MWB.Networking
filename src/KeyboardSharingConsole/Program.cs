@@ -1,11 +1,8 @@
 ﻿using KeyboardSharingConsole.CommandLine;
+using KeyboardSharingConsole.Helpers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Tcp;
-using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
-using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
-using System.Diagnostics;
 using System.Net;
 
 Console.WriteLine("Hello, World!");
@@ -35,7 +32,6 @@ Console.WriteLine(isProducer
 // Layer 0: Network connection provider
 // ------------------------------------------------------------
 Console.WriteLine("creating TCP network connection provider");
-
 using var provider =
     new TcpNetworkConnectionProvider(
         logger,
@@ -50,7 +46,6 @@ using var provider =
     );
 
 Console.WriteLine("opening logical connection");
-
 var connectionHandle =
     await provider.OpenConnectionAsync(cts.Token);
 
@@ -58,82 +53,25 @@ var connectionHandle =
 // Layer 2: Protocol session (builder owns wiring)
 // ------------------------------------------------------------
 Console.WriteLine("creating protocol session");
-
-var session =
-    new ProtocolSessionBuilder()
-        .WithLogger(logger)
-        .UseStreamIdParity(
-            isProducer
-                ? OddEvenStreamIdParity.Even
-                : OddEvenStreamIdParity.Odd)
-        .ConfigurePipeline(
-            pipeline =>
-            {
-                pipeline
-                    .AppendFrameCodec(
-                        new LengthPrefixedFrameEncoder(logger),
-                        new LengthPrefixedFrameDecoder(logger))
-                     .UseConnection(() => connectionHandle.Connection);
-            })
-        .ConfigureObservers(
-            observers =>
-            {
-                observers.EventReceived = null;
-                observers.RequestReceived = null;
-                observers.StreamOpened = null;
-                observers.StreamDataReceived = null;
-                observers.StreamClosed = null;
-            }
-        )
-        .Build();
-
-// ------------------------------------------------------------
-// Observe inbound protocol events
-// ------------------------------------------------------------
-var eventCount = 0;
-
-session.Observer.EventReceived += (eventType, payload) =>
-{
-    eventCount++;
-    Console.WriteLine(
-        $"[INBOUND] ({eventCount}) Event {eventType}: {BitConverter.ToString(payload.ToArray())}");
-};
+var keyboardEventConsumer = new KeyboardEventConsumer();
+var session = ProtocolSessionHelper.CreateSession(
+    logger, isProducer, connectionHandle.Connection, keyboardEventConsumer.OnEventReceived);
 
 // ------------------------------------------------------------
 // Start protocol runtime
 // ------------------------------------------------------------
 Console.WriteLine("starting protocol session");
-
-var runTask =
-    session.StartAsync(cts.Token);
-
-// ------------------------------------------------------------
-// Give transport time to settle (PoC only)
-// ------------------------------------------------------------
-await Task.Delay(500);
+var runTask = session.StartAsync(cts.Token);
 
 // ------------------------------------------------------------
 // Send events (producer only)
 // ------------------------------------------------------------
 if (isProducer)
 {
-    Console.WriteLine("[PRODUCER] sending hard-coded events");
-
-    await session.WhenReady;
-
-    var stopwatch = Stopwatch.StartNew();
-
-    for (var i = 0; i < 1000; i++)
-    {
-        session.Commands.SendEvent(
-            eventType: 1,
-            payload: BitConverter.GetBytes(options.ListenPort));
-    }
-
-    stopwatch.Stop();
-
-    Console.WriteLine(
-        $"[PRODUCER] queued outbound in {stopwatch.ElapsedMilliseconds} ms");
+    await KeyboardProducerLoop.RunAsync(
+        session,
+        cts.Token,
+        eventType: 1);
 }
 else
 {
@@ -145,9 +83,7 @@ else
 // ------------------------------------------------------------
 Console.WriteLine("Press Enter to exit...");
 Console.ReadLine();
-
 cts.Cancel();
-
 try
 {
     await runTask;

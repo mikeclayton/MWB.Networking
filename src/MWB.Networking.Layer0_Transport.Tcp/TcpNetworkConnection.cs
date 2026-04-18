@@ -19,7 +19,6 @@ internal sealed class TcpNetworkConnection : INetworkConnection
         _stream = client.GetStream();
     }
 
-
     /// <summary>
     /// Reads raw bytes from the network stream.
     /// Returns 0 on EOF.
