@@ -93,13 +93,13 @@ public sealed class ProtocolDriver : IHasLogger
         get;
     } = new(1, 1);
 
-    private TaskCompletionSource ReadySource
+    private TaskCompletionSource WhenReadySource
     {
         get;
     } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    public Task Ready
-        => this.ReadySource.Task;
+    public Task WhenReady
+        => this.WhenReadySource.Task;
 
     /// <summary>
     /// Runs the protocol driver until cancelled or a fatal error occurs.
@@ -113,7 +113,7 @@ public sealed class ProtocolDriver : IHasLogger
         var writeTask = this.RunWriteLoopAsync(ct);
         var consumeTask = this.ConsumeFramesAsync(ct);
 
-        this.ReadySource.TrySetResult();
+        this.WhenReadySource.TrySetResult();
 
         await Task
             .WhenAny(

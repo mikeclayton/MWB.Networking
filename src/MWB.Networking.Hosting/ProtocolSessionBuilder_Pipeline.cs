@@ -17,7 +17,6 @@ public sealed partial class ProtocolSessionBuilder
         Action<NetworkPipelineBuilder> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
-        this.EnsureNotBuilt();
 
         _pipelineConfig = configure;
         return this;

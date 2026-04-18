@@ -1,7 +1,7 @@
 ﻿using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Requests.Api;
 using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 using MWB.Networking.Layer2_Protocol.Streams.Api;
-using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
 using MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
 namespace MWB.Networking.Layer2_Protocol.Streams;
@@ -14,7 +14,7 @@ public sealed partial class StreamManager
 
     internal void AbortIncomingStream(uint streamId)
     {
-        if (!this.StreamEntries.TryGetValue(streamId, out var entry))
+        if (!this.TryGetStreamEntry(streamId, out var entry))
         {
             return;
         }
@@ -36,7 +36,7 @@ public sealed partial class StreamManager
         }
 
         var streamId = frame.StreamId.Value;
-        _ = this.StreamEntries.TryGetValue(streamId, out var streamEntry);
+        _ = this.TryGetStreamEntry(streamId, out var streamEntry);
         var incomingStream = streamEntry?.IncomingStream;
 
         if (frame.Kind == ProtocolFrameKind.StreamOpen)
@@ -55,13 +55,18 @@ public sealed partial class StreamManager
                 }
             }
 
+            IncomingRequest? incomingRequest =
+                owningRequest is not null
+                    ? new IncomingRequest(this.Session, owningRequest)
+                    : null;
+
             incomingStream = new IncomingStream(this.Session, streamId);
 
             streamEntry = new StreamEntry(
                 new StreamContext(streamId, owningRequest),
                 incomingStream
             );
-            this.StreamEntries.Add(streamId, streamEntry);
+            this.AddStreamEntry(streamEntry);
 
             // Semantic notification
             this.Session.OnStreamOpened(

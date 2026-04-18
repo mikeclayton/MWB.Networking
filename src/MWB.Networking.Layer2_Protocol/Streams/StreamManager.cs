@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
 using MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
@@ -32,28 +33,53 @@ public sealed partial class StreamManager : IHasLogger
     }
 
     // ------------------------------------------------------------------
+    // Cached request contexts
+    // ------------------------------------------------------------------
+
+    private readonly Dictionary<uint, StreamEntry> _streamEntries = [];
+
+    private void AddStreamEntry(StreamEntry entry)
+    {
+        _streamEntries.Add(entry.StreamId, entry);
+    }
+
+    private bool StreamEntryExists(uint streamId)
+    {
+        return _streamEntries.ContainsKey(streamId);
+    }
+
+    internal bool TryGetStreamEntry(uint streamId, [NotNullWhen(true)] out StreamEntry? result)
+    {
+        return _streamEntries.TryGetValue(streamId, out result);
+    }
+
+    private List<StreamEntry> GetStreamEntries()
+    {
+        return _streamEntries.Values.ToList();
+    }
+
+    private List<uint> GetStreamEntryIds()
+    {
+        return _streamEntries.Keys.ToList();
+    }
+
+    private bool RemoveStreamEntry(uint streamId)
+    {
+        return _streamEntries.Remove(streamId);
+    }
+    // ------------------------------------------------------------------
     // Stream handling
     // ------------------------------------------------------------------
 
-    private Dictionary<uint, StreamEntry> StreamEntries
-    {
-        get;
-    } = [];
-
     internal IEnumerable<uint> GetStreamIds()
     {
-        return this.StreamEntries.Keys;
-    }
-
-    internal bool TryGetStreamEntry(uint key, [NotNullWhen(true)] out StreamEntry? result)
-    {
-        return this.StreamEntries.TryGetValue(key, out result);
+        return this.GetStreamEntryIds();
     }
 
     private void RemoveStream(uint streamId)
     {
         // no-op if if doesn't exist
-        if (!this.StreamEntries.Remove(streamId))
+        if (!this.RemoveStreamEntry(streamId))
         {
             // already gone, fine
             // this.Logger.Warn($"{nameof(RemoveStream)} called for non-existent stream {streamId}");
@@ -62,7 +88,7 @@ public sealed partial class StreamManager : IHasLogger
 
     internal void TearDownStream(uint streamId)
     {
-        if (!this.StreamEntries.TryGetValue(streamId, out var entry))
+        if (!this.TryGetStreamEntry(streamId, out var entry))
         {
             // already gone, fine
             // this.Logger.Warn($"{nameof(TearDownStream)} called for non-existent stream {streamId}");
@@ -76,14 +102,14 @@ public sealed partial class StreamManager : IHasLogger
     internal void TearDownRequestStreams(uint requestId)
     {
         // Iterate over a snapshot to avoid modifying during enumeration
-        var snapshot = this.StreamEntries.ToArray();
+        var snapshot = this.GetStreamEntries();
 
-        foreach (var (streamId, entry) in snapshot)
+        foreach (var entry in snapshot)
         {
             if (entry.Context.OwningRequest?.RequestId == requestId)
             {
                 entry.Context.Close();
-                this.TearDownStream(streamId);
+                this.TearDownStream(entry.StreamId);
             }
         }
     }

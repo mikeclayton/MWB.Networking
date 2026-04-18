@@ -6,6 +6,12 @@ namespace MWB.Networking.Layer2_Protocol.Requests;
 
 internal sealed partial class RequestManager
 {
+    private uint NextRequestId
+    {
+        get;
+        set;
+    } = 1;
+
     // ------------------------------------------------------------------
     // Request handling - Outbound
     // ------------------------------------------------------------------
@@ -17,7 +23,7 @@ internal sealed partial class RequestManager
 
         // Create and track request context
         var context = new RequestContext(requestId);
-        this.RequestContexts.Add(requestId, context);
+        this.AddRequestContext(context);
 
         // Emit the protocol request frame to the peer
         this.Session.EnqueueOutboundFrame(ProtocolFrames.Request(requestId, payload));

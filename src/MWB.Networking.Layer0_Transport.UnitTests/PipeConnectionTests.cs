@@ -90,12 +90,12 @@ public class PipeConnectionTests
             // ------------------------------------------------------------
             using var cts = new CancellationTokenSource();
 
-            var serverRun = serverSession.Lifecycle.StartAsync(cts.Token);
-            var clientRun = clientSession.Lifecycle.StartAsync(cts.Token);
+            var serverRun = serverSession.StartAsync(cts.Token);
+            var clientRun = clientSession.StartAsync(cts.Token);
 
             await Task.WhenAll(
-                serverSession.Lifecycle.Ready,
-                clientSession.Lifecycle.Ready);
+                serverSession.WhenReady,
+                clientSession.WhenReady);
 
             // ------------------------------------------------------------
             // Act: send a frame from client to server
@@ -123,125 +123,13 @@ public class PipeConnectionTests
         }
 
         [TestMethod]
-        public async Task PipePerfTestBlockingWriteBlockingRead()
-        {
-            const int FrameCount = 100_000;
-
-            var (logger, loggerFactory) = DebugLoggerFactory.CreateLogger();
-            using var loggerScope = logger.EnterMethod(this);
-
-            logger.LogDebug("TEST: If you see this, the logger itself works");
-            logger.LogDebug(nameof(PipePerfTestBlockingWriteBlockingRead));
-
-            // create duplex in-memory transport (pipes cross-wired)
-            var clientToServer = new Pipe(new PipeOptions(
-                pauseWriterThreshold: 1024 * 1024 * 50,
-                resumeWriterThreshold: 1024 * 1024 * 50));
-            var serverToClient = new Pipe();
-
-            var clientConnection = new PipeNetworkConnection(
-                reader: serverToClient.Reader,
-                writer: clientToServer.Writer);
-
-            var serverConnection = new PipeNetworkConnection(
-                reader: clientToServer.Reader,
-                writer: serverToClient.Writer);
-
-            // ----------------------------
-            // Build client pipeline
-            // ----------------------------
-            var clientPipeline = new NetworkPipelineBuilder()
-                .AppendFrameCodec(
-                    encoder: new LengthPrefixedFrameEncoder(logger),
-                    decoder: new LengthPrefixedFrameDecoder(logger))
-                .UseConnection(() => clientConnection)
-                .Build();
-
-            var clientAdapter = new NetworkAdapter(
-                logger,
-                clientPipeline.FrameWriter,
-                clientPipeline.FrameReader);
-
-            // ----------------------------
-            // Build server pipeline
-            // ----------------------------
-            var serverPipeline = new NetworkPipelineBuilder()
-                .AppendFrameCodec(
-                    encoder: new LengthPrefixedFrameEncoder(logger),
-                    decoder: new LengthPrefixedFrameDecoder(logger))
-                .UseConnection(() => serverConnection)
-                .Build();
-
-            var serverAdapter = new NetworkAdapter(
-                logger,
-                serverPipeline.FrameWriter,
-                serverPipeline.FrameReader);
-
-            var payload = new ReadOnlyMemory<byte>([0x01, 0x02, 0x03]);
-
-            var globalStopwatch = new Stopwatch();
-
-            // Writer task
-            var writerStopwatch = new Stopwatch();
-            var writer = Task.Run(async () =>
-            {
-                globalStopwatch.Start();
-                writerStopwatch.Start();
-                for (int i = 0; i < FrameCount; i++)
-                {
-                    var frame = new NetworkFrame(
-                        kind: NetworkFrameKind.Request,
-                        eventType: null,
-                        requestId: (uint)(i + 1),
-                        streamId: null,
-                        payload: payload);
-                    await clientAdapter.WriteFrameAsync(frame, TestContext.CancellationToken);
-                }
-                writerStopwatch.Stop();
-                await clientToServer.Writer.CompleteAsync();
-            }, TestContext.CancellationToken);
-            await writer;
-
-            // Reader task
-            var readerStopwatch = new Stopwatch();
-            var reader = Task.Run(async () =>
-            {
-                readerStopwatch.Start();
-                for (int i = 0; i < FrameCount; i++)
-                {
-                    var frame = await serverAdapter.ReadFrameAsync(TestContext.CancellationToken);
-                    // Optional correctness checks (cheap and safe)
-                    Assert.AreEqual(NetworkFrameKind.Request, frame.Kind);
-                    Assert.AreEqual((uint)(i + 1), frame.RequestId);
-                    Assert.AreEqual(payload.Length, frame.Payload.Length);
-                }
-                readerStopwatch.Stop();
-                globalStopwatch.Stop();
-            }, TestContext.CancellationToken);
-            await reader;
-
-            await Task.WhenAll(writer, reader);
-
-            TestContext.WriteLine(
-                $"Wrote {FrameCount} frames in {writerStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
-                $"({FrameCount / writerStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
-
-            TestContext.WriteLine(
-                $"Read {FrameCount} frames in {readerStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
-                $"({FrameCount / readerStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
-
-            TestContext.WriteLine(
-                $"Processed {FrameCount} frames in {globalStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
-                $"({FrameCount / globalStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
-        }
-
-        [TestMethod]
         public async Task Layer1_Framing_PipePerfTest_NonBlocking()
         {
             const int FrameCount = 100_000;
 
-            //var logger = LoggingHelper.CreateTestContextLogger(this.TestContext);
-            var (logger, loggerFactory) = DebugLoggerFactory.CreateLogger();
+            var logger = NullLogger.Instance;
+            //var (logger, loggerFactory) = DebugLoggerFactory.CreateLogger();
+
             using var loggerScope = logger.EnterMethod(this);
 
             // create duplex in-memory transport (pipes cross-wired)
@@ -288,10 +176,10 @@ public class PipeConnectionTests
 
             var payload = new ReadOnlyMemory<byte>([0x01, 0x02, 0x03]);
 
-            var globalStopwatch = new Stopwatch();
+            var globalStopwatch = Stopwatch.StartNew();
 
             // Writer task
-            var writerStopwatch = new Stopwatch();
+            var writerStopwatch = Stopwatch.StartNew();
             var writer = Task.Run(async () =>
             {
                 globalStopwatch.Start();
@@ -311,12 +199,12 @@ public class PipeConnectionTests
             }, TestContext.CancellationToken);
 
             // Reader task
-            var readerStopwatch = new Stopwatch();
+            var readerStopwatch = Stopwatch.StartNew();
             var buffer = new byte[64 * 1024];
             while (true)
             {
                 var bytesRead =
-                    await serverConnection.ReadAsync(buffer);
+                    await serverConnection.ReadAsync(buffer, TestContext.CancellationToken);
 
                 if (bytesRead == 0)
                 {
@@ -326,7 +214,8 @@ public class PipeConnectionTests
                 await serverPipeline.RootDecoder
                     .DecodeFrameAsync(
                         new ReadOnlySequence<byte>(buffer, 0, bytesRead),
-                        serverPipeline.FrameReader);
+                        serverPipeline.FrameReader,
+                        TestContext.CancellationToken);
             }
             readerStopwatch.Stop();
 
@@ -343,24 +232,24 @@ public class PipeConnectionTests
                 $"({FrameCount / globalStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
         }
 
+        /// <remarks>
+        /// This is identical to Layer2_Protocol_SendBeforeStart_IsDeliveredAfterStart,
+        /// just wth 100_000 events as a performance test rather than 3 events for a
+        /// correctness test. We could probably make the number of frames a test input
+        /// and run both tests with the same code.
+        /// </remarks>
         [TestMethod]
-        public async Task Layer3_Protocol_PipePerfTest_NonBlocking()
+        public async Task Layer2_Protocol_PipePerfTest_NonBlocking()
         {
             const int FrameCount = 100_000;
 
+            //var (logger, _) = DebugLoggerFactory.CreateLogger();
             var logger = NullLogger.Instance;
 
-            //var (logger, loggerFactory) = DebugLoggerFactory.CreateLogger();
-            //using var loggerScope = logger.EnterMethod(this);
-            //logger.LogDebug("TEST: If you see this, the logger itself works");
-
             // -------------------------------------------------
-            // Transport (pipes)
+            // Transport (in-memory pipes)
             // -------------------------------------------------
-            var clientToServer = new Pipe(new PipeOptions(
-                pauseWriterThreshold: 1024 * 1024 * 50,
-                resumeWriterThreshold: 1024 * 1024 * 50));
-
+            var clientToServer = new Pipe();
             var serverToClient = new Pipe();
 
             var clientConnection = new PipeNetworkConnection(
@@ -372,95 +261,102 @@ public class PipeConnectionTests
                 writer: serverToClient.Writer);
 
             // -------------------------------------------------
-            // Build sessions (but DO NOT start them yet)
+            // Build sessions (NOT started yet)
             // -------------------------------------------------
             var clientSession = new ProtocolSessionBuilder()
                 .WithLogger(logger)
                 .UseEvenStreamIds()
-                .ConfigurePipeline(
-                    pipeline =>
-                    {
-                        pipeline
-                            .AppendFrameCodec(
-                                new LengthPrefixedFrameEncoder(logger),
-                                new LengthPrefixedFrameDecoder(logger))
-                            .UseConnection(() => clientConnection);
-                    })
+                .ConfigurePipeline(p =>
+                {
+                    p.AppendFrameCodec(
+                        new LengthPrefixedFrameEncoder(logger),
+                        new LengthPrefixedFrameDecoder(logger))
+                     .UseConnection(() => clientConnection);
+                })
                 .Build();
+
+            // used in observer.EventReceived
+            var received = 0;
+            var allReceived = new TaskCompletionSource(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var readerStopwatch = (Stopwatch?)null;
 
             var serverSession = new ProtocolSessionBuilder()
                 .WithLogger(logger)
                 .UseOddStreamIds()
-                .ConfigurePipeline(
-                    pipeline =>
+                .ConfigurePipeline(pipeline =>
+                {
+                    pipeline
+                        .AppendFrameCodec(
+                            new LengthPrefixedFrameEncoder(logger),
+                            new LengthPrefixedFrameDecoder(logger))
+                        .UseConnection(() => serverConnection);
+                })
+                .ConfigureObservers(
+                    observers =>
                     {
-                        pipeline
-                            .AppendFrameCodec(
-                                new LengthPrefixedFrameEncoder(logger),
-                                new LengthPrefixedFrameDecoder(logger))
-                            .UseConnection(() => serverConnection);
-                    })
+                        observers.EventReceived = (_, _) =>
+                        {
+                            readerStopwatch ??= Stopwatch.StartNew();
+                            if (Interlocked.Increment(ref received) == FrameCount)
+                            {
+                                allReceived.TrySetResult();
+                            }
+                        };
+                    }
+                )
                 .Build();
 
             var payload = new ReadOnlyMemory<byte>(new byte[] { 1, 2, 3 });
+
+            // =================================================
+            // PHASE 1: ENQUEUE (non‑blocking)
+            // =================================================
             var globalStopwatch = new Stopwatch();
-
-            // =================================================
-            // PHASE 1: ENQUEUE ONLY
-            // =================================================
-
-            // IMPORTANT:
-            // No protocol loops running.
-            // This measures PURE enqueue cost.
-            var writerStopwatch = Stopwatch.StartNew();
-            for (int i = 0; i < FrameCount; i++)
+            var writerStopwatch = new Stopwatch();
+            for (var i = 0; i < FrameCount; i++)
             {
                 clientSession.Commands.SendEvent(1, payload);
             }
             writerStopwatch.Stop();
 
-            // =================================================
-            // PHASE 2: DRAIN ONLY
-            // =================================================
-            var receivedCount = 0;
-            var allReceived = new TaskCompletionSource(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-
-            Stopwatch? readerStopwatch = null;
-            serverSession.Observer.EventReceived += (_, _) =>
-            {
-                readerStopwatch ??= Stopwatch.StartNew();
-                if (Interlocked.Increment(ref receivedCount) == FrameCount)
-                {
-                    allReceived.TrySetResult();
-                }
-            };
+            // -------------------------------------------------
+            // PHASE 2: Start sessions
+            // -------------------------------------------------
 
             // start the protocol loops
             // (wait within a maximum timeout so the test fails rather than hangs forever)
             using var lifecycleCts = new CancellationTokenSource();
-            var serverRun = serverSession.Lifecycle.StartAsync(lifecycleCts.Token);
-            var clientRun = clientSession.Lifecycle.StartAsync(lifecycleCts.Token);
+            var serverRun = serverSession.StartAsync(lifecycleCts.Token);
+            var clientRun = clientSession.StartAsync(lifecycleCts.Token);
             await Task
                 .WhenAll(
-                    serverSession.Lifecycle.Ready,
-                    clientSession.Lifecycle.Ready)
-                .WaitAsync(TimeSpan.FromSeconds(10), cancellationToken: default);
+                    serverSession.WhenReady,
+                    clientSession.WhenReady)
+                .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
 
+            // -------------------------------------------------
+            // Assert: pre-start messages are delivered
+            // -------------------------------------------------
             // wait for messages to be dequeued
             // (wait within a maximum timeout so the test fails rather than hangs forever)
             await allReceived.Task
-                .WaitAsync(TimeSpan.FromSeconds(10), cancellationToken: default);
+                .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
             readerStopwatch?.Stop();
+            globalStopwatch.Stop();
+
+            Assert.AreEqual(FrameCount, received);
+
+            // -------------------------------------------------
+            // Clean shutdown
+            // -------------------------------------------------
 
             // shut down cleanly
             // (wait within a maximum timeout so the test fails rather than hangs forever)
             lifecycleCts.Cancel();
             await Task
                 .WhenAll(serverRun, clientRun)
-                .WaitAsync(TimeSpan.FromSeconds(10), cancellationToken: default);
-
-            globalStopwatch.Stop();
+                .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
 
             TestContext.WriteLine(
                 $"Wrote {FrameCount} frames in {writerStopwatch.Elapsed.TotalMilliseconds:F2} ms " +

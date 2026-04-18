@@ -1,14 +1,19 @@
-﻿using MWB.Networking.Layer2_Protocol.Session;
+﻿using MWB.Networking.Layer2_Protocol.Requests.Api;
+using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
 namespace MWB.Networking.Layer2_Protocol.Streams.Api;
 
 public sealed class IncomingStream : IProtocolStream
 {
-    internal IncomingStream(ProtocolSession session, uint streamId)
+    internal IncomingStream(
+        ProtocolSession session,
+        uint streamId,
+        IncomingRequest? owningRequest = null)
     {
         this.Session = session ?? throw new ArgumentNullException(nameof(session));
         this.StreamId = streamId;
+        this.OwningRequest = owningRequest;
     }
 
     private ProtocolSession Session
@@ -23,6 +28,15 @@ public sealed class IncomingStream : IProtocolStream
 
     uint IProtocolStream.StreamId
         => this.StreamId;
+
+    /// <summary>
+    /// The request that owns this stream, if any.
+    /// Null indicates a session-scoped stream.
+    /// </summary>
+    public IncomingRequest? OwningRequest
+    {
+        get;
+    }
 
     private IncomingStreamState State
     {

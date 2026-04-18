@@ -4,21 +4,41 @@ namespace MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
 internal sealed class StreamEntry
 {
-    public StreamEntry(StreamContext context, IncomingStream? incomingStream)
-        : this(context, incomingStream ?? throw new ArgumentNullException(nameof(incomingStream)), null)
+    public StreamEntry(StreamContext context, IncomingStream incomingStream)
+        : this(
+            context,
+            incomingStream ?? throw new ArgumentNullException(nameof(incomingStream)),
+            null)
     {
     }
 
-    public StreamEntry(StreamContext context, OutgoingStream? outgoingStream)
-        : this(context, null, outgoingStream ?? throw new ArgumentNullException(nameof(outgoingStream)))
+    public StreamEntry(StreamContext context, OutgoingStream outgoingStream)
+        : this(
+            context,
+            null,
+            outgoingStream ?? throw new ArgumentNullException(nameof(outgoingStream)))
     {
     }
 
     private StreamEntry(StreamContext context, IncomingStream? incomingStream, OutgoingStream? outgoingStream)
     {
+        // Enforce: exactly one stream must be provided
+        if ((incomingStream is null) == (outgoingStream is null))
+        {
+            throw new ArgumentException(
+                "StreamEntry must have exactly one of IncomingStream or OutgoingStream.");
+        }
+
+        this.StreamId = incomingStream?.StreamId ?? outgoingStream?.StreamId
+            ?? throw new InvalidOperationException();
         this.Context = context;
         this.IncomingStream = incomingStream;
         this.OutgoingStream = outgoingStream;
+    }
+
+    public uint StreamId
+    {
+        get;
     }
 
     public StreamContext Context

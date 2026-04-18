@@ -36,4 +36,17 @@ public sealed class ProtocolSessionHandle
     {
         get;
     }
+
+
+    /// <summary>
+    /// Starts the protocol session, enabling transport I/O and event delivery.
+    /// This is a convenience forwarder to <c>ProtocolSessionHandle.Lifecycle.StartAsync</c>.
+    /// </summary>
+    public Task StartAsync(CancellationToken ct = default)
+    {
+        return this.Lifecycle.StartAsync(ct);
+    }
+
+    public Task WhenReady
+        => this.Lifecycle.WhenReady;
 }

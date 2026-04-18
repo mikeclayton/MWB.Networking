@@ -75,12 +75,23 @@ var session =
                         new LengthPrefixedFrameDecoder(logger))
                      .UseConnection(() => connectionHandle.Connection);
             })
+        .ConfigureObservers(
+            observers =>
+            {
+                observers.EventReceived = null;
+                observers.RequestReceived = null;
+                observers.StreamOpened = null;
+                observers.StreamDataReceived = null;
+                observers.StreamClosed = null;
+            }
+        )
         .Build();
 
 // ------------------------------------------------------------
 // Observe inbound protocol events
 // ------------------------------------------------------------
 var eventCount = 0;
+
 session.Observer.EventReceived += (eventType, payload) =>
 {
     eventCount++;
@@ -94,7 +105,7 @@ session.Observer.EventReceived += (eventType, payload) =>
 Console.WriteLine("starting protocol session");
 
 var runTask =
-    session.Lifecycle.StartAsync(cts.Token);
+    session.StartAsync(cts.Token);
 
 // ------------------------------------------------------------
 // Give transport time to settle (PoC only)
@@ -108,7 +119,7 @@ if (isProducer)
 {
     Console.WriteLine("[PRODUCER] sending hard-coded events");
 
-    await session.Lifecycle.Ready; // forwarded from driver
+    await session.WhenReady;
 
     var stopwatch = Stopwatch.StartNew();
 

@@ -4,7 +4,7 @@ namespace MWB.Networking.Layer2_Protocol.Session;
 
 internal sealed partial class ProtocolSession : IProtocolSessionLifecycle
 {
-    public Task Ready
+    public Task WhenReady
     {
         get
         {
@@ -13,7 +13,7 @@ internal sealed partial class ProtocolSession : IProtocolSessionLifecycle
                 throw new InvalidOperationException("Protocol driver not attached.");
             }
 
-            return this.ProtocolDriver.Ready;
+            return this.ProtocolDriver.WhenReady;
         }
     }
 

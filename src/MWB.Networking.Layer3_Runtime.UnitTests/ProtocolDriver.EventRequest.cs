@@ -117,12 +117,12 @@ public sealed class ProtocolDriverEndToEndTests
         // ------------------------------------------------------------
         using var cts = new CancellationTokenSource();
 
-        var serverRun = serverSession.Lifecycle.StartAsync(cts.Token);
-        var clientRun = clientSession.Lifecycle.StartAsync(cts.Token);
+        var serverRun = serverSession.StartAsync(cts.Token);
+        var clientRun = clientSession.StartAsync(cts.Token);
 
         await Task.WhenAll(
-            serverSession.Lifecycle.Ready,
-            clientSession.Lifecycle.Ready);
+            serverSession.WhenReady,
+            clientSession.WhenReady);
 
         // ------------------------------------------------------------
         // Act: send request from client to server

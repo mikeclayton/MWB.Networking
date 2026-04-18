@@ -29,8 +29,7 @@ public sealed partial class StreamManager
         var stream = new OutgoingStream(this.Session, streamId);
 
         // Track stream
-        this.StreamEntries.Add(
-            streamId,
+        this.AddStreamEntry(
             new StreamEntry(context, stream)
         );
 
@@ -56,8 +55,7 @@ public sealed partial class StreamManager
 
         var stream = new OutgoingStream(this.Session, streamId);
 
-        this.StreamEntries.Add(
-            streamId,
+        this.AddStreamEntry(
             new StreamEntry(context, stream)
         );
 
@@ -69,7 +67,7 @@ public sealed partial class StreamManager
 
     internal void CloseOutgoingStream(uint streamId)
     {
-        if (!this.StreamEntries.TryGetValue(streamId, out var entry))
+        if (!this.TryGetStreamEntry(streamId, out var entry))
         {
             return;
         }
@@ -84,7 +82,7 @@ public sealed partial class StreamManager
 
     internal void AbortStream(uint streamId)
     {
-        if (!this.StreamEntries.TryGetValue(streamId, out var entry))
+        if (!this.TryGetStreamEntry(streamId, out var entry))
         {
             return;
         }

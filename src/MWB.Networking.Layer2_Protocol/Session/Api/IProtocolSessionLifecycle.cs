@@ -2,7 +2,7 @@
 
 public interface IProtocolSessionLifecycle
 {
-    Task Ready
+    Task WhenReady
     {
         get;
     }

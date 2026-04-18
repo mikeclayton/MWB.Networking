@@ -12,26 +12,21 @@ namespace MWB.Networking.Hosting;
 /// This type owns network pipeline wiring and delegates
 /// final session creation to the protocol layer.
 /// </summary>
+/// <remarks>
+/// Each call to <see cref="Build"/> creates a completely new and isolated
+/// protocol session object graph, including the pipeline, driver, queues,
+/// observers, and background loops.
+///
+/// The builder is therefore reusable and may be treated as a session template
+/// or factory. No runtime objects are retained or shared between builds.
+/// </remarks>
 public sealed partial class ProtocolSessionBuilder
 {
-    private bool _built;
-
-    private void EnsureNotBuilt()
-    {
-        if (_built)
-        {
-            throw new InvalidOperationException("Builder already used.");
-        }
-    }
-
     /// <summary>
     /// Builds and returns a fully wired protocol session.
     /// </summary>
     public ProtocolSessionHandle Build()
     {
-        this.EnsureNotBuilt();
-        _built = true;
-
         if (_pipelineConfig is null)
         {
             throw new InvalidOperationException(
@@ -64,6 +59,12 @@ public sealed partial class ProtocolSessionBuilder
             pipeline.FrameWriter,
             pipeline.FrameReader);
 
+        var driverOptions = new ProtocolDriverOptions(
+            pipeline.Connection,
+            pipeline.RootDecoder,
+            pipeline.FrameReader,
+            adapter);
+
         // ------------------------------------------------------------
         // Create protocol session (semantic authority)
         // ------------------------------------------------------------
@@ -71,12 +72,14 @@ public sealed partial class ProtocolSessionBuilder
         var session = ProtocolSessions.CreateSession(
             logger,
             _streamIdParity.Value,
-            new ProtocolDriverOptions(
-                pipeline.Connection,
-                pipeline.RootDecoder,
-                pipeline.FrameReader,
-                adapter)
+            driverOptions
         );
+
+        // ------------------------------------------------------------
+        // Configure event handlers
+        // ------------------------------------------------------------
+
+        ProtocolSessionBuilder.AssignObservers(session, _observerConfig);
 
         return session;
     }

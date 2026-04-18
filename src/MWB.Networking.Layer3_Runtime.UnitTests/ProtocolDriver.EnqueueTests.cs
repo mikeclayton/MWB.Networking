@@ -30,7 +30,7 @@ public sealed class ProtocolDriverEnqueueTest
     /// of being drained by the write loop once it was eventually started.
     /// </remarks>
     [TestMethod]
-    public async Task Protocol_SendBeforeStart_IsDeliveredAfterStart()
+    public async Task Layer2_Protocol_SendBeforeStart_IsDeliveredAfterStart()
     {
         const int FrameCount = 3;
 
@@ -94,8 +94,10 @@ public sealed class ProtocolDriverEnqueueTest
         var allReceived = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
 
+        var readerStopwatch = (Stopwatch?)null;
         serverSession.Observer.EventReceived += (_, _) =>
         {
+            readerStopwatch ??= Stopwatch.StartNew();
             if (Interlocked.Increment(ref received) == FrameCount)
             {
                 allReceived.TrySetResult();
@@ -109,23 +111,22 @@ public sealed class ProtocolDriverEnqueueTest
         // start the protocol loops
         // (wait within a maximum timeout so the test fails rather than hangs forever)
         using var lifecycleCts = new CancellationTokenSource();
-        var serverRun = serverSession.Lifecycle.StartAsync(lifecycleCts.Token);
-        var clientRun = clientSession.Lifecycle.StartAsync(lifecycleCts.Token);
+        var serverRun = serverSession.StartAsync(lifecycleCts.Token);
+        var clientRun = clientSession.StartAsync(lifecycleCts.Token);
         await Task
             .WhenAll(
-                serverSession.Lifecycle.Ready,
-                clientSession.Lifecycle.Ready)
-            .WaitAsync(TimeSpan.FromSeconds(10), cancellationToken: default);
+                serverSession.WhenReady,
+                clientSession.WhenReady)
+            .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
 
         // -------------------------------------------------
         // Assert: pre-start messages are delivered
         // -------------------------------------------------
         // wait for messages to be dequeued
         // (wait within a maximum timeout so the test fails rather than hangs forever)
-        var readerStopwatch = Stopwatch.StartNew();
         await allReceived.Task
-            .WaitAsync(TimeSpan.FromSeconds(10), cancellationToken: default);
-        readerStopwatch.Stop();
+            .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
+        readerStopwatch?.Stop();
 
         Assert.AreEqual(FrameCount, received);
 
@@ -138,10 +139,10 @@ public sealed class ProtocolDriverEnqueueTest
         lifecycleCts.Cancel();
         await Task
             .WhenAll(serverRun, clientRun)
-            .WaitAsync(TimeSpan.FromSeconds(10), cancellationToken: default);
+            .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
 
         TestContext.WriteLine(
-            $"Read {FrameCount} frames in {readerStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
-            $"({FrameCount / readerStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
+            $"Read {FrameCount} frames in {readerStopwatch?.Elapsed.TotalMilliseconds:F2} ms " +
+            $"({FrameCount / readerStopwatch?.Elapsed.TotalSeconds:N0} frames/sec)");
     }
 }

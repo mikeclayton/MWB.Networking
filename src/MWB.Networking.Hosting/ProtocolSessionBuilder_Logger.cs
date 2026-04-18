@@ -18,7 +18,6 @@ public sealed partial class ProtocolSessionBuilder
     public ProtocolSessionBuilder WithLogger(ILogger logger)
     {
         ArgumentNullException.ThrowIfNull(logger);
-        this.EnsureNotBuilt();
 
         _logger = logger;
         return this;
