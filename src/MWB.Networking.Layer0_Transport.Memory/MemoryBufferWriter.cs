@@ -1,0 +1,51 @@
+﻿namespace MWB.Networking.Layer0_Transport.Memory;
+
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+
+
+/// <summary>
+/// Buffered, non-blocking writer for <see cref="SegmentedMemoryBuffer"/>.
+/// </summary>
+internal sealed class MemoryBufferWriter
+{
+    private readonly SegmentedMemoryBuffer _buffer;
+    private bool _completed;
+
+    internal MemoryBufferWriter(SegmentedMemoryBuffer buffer)
+    {
+        _buffer = buffer;
+    }
+
+    /// <summary>
+    /// Writes a single contiguous byte segment.
+    /// </summary>
+    public ValueTask WriteAsync(
+        ReadOnlyMemory<byte> data,
+        CancellationToken cancellationToken = default)
+    {
+        if (_completed)
+        {
+            throw new InvalidOperationException("Writer already completed.");
+        }
+
+        // Copy once to preserve segment boundaries
+        _buffer.Enqueue(data.ToArray());
+        return ValueTask.CompletedTask;
+    }
+
+    /// <summary>
+    /// Completes the writer and signals EOF to the reader.
+    /// </summary>
+    public void Complete()
+    {
+        if (_completed)
+        {
+            return;
+        }
+
+        _completed = true;
+        _buffer.Complete();
+    }
+}

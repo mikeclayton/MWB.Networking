@@ -3,6 +3,7 @@ using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Memory;
 using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
+using System.ComponentModel;
 using System.Diagnostics;
 
 namespace MWB.Networking.Layer0_Transport.UnitTests;
@@ -35,24 +36,30 @@ public class MemoryConnectionTests
             var logger = NullLogger.Instance;
 
             // ------------------------------------------------------------
-            // Arrange: memory transport + framing
+            // Arrange: duplex in-memory transport + framing pipeline
             // ------------------------------------------------------------
-            using var connection =
-             new MemoryNetworkConnection(1024 * 1024 * 50);
 
+            var (providerA, providerB) =
+                InMemoryNetworkConnectionProvider.CreateDuplexProviders();
+
+            // We'll write frames from A; B is unused in this test
+            var connectionA =
+                await providerA.OpenConnectionAsync(TestContext.CancellationToken);
+
+            // Build framing pipeline on top of the in-memory connection
             var pipeline =
                 new NetworkPipelineBuilder()
                     .AppendFrameCodec(
                         new LengthPrefixedFrameEncoder(logger),
                         new LengthPrefixedFrameDecoder(logger))
-                    .UseConnection(() => connection)
+                    .UseConnection(() => connectionA)
                     .Build();
 
             var adapter =
-             new NetworkAdapter(
-                 logger,
-                 pipeline.FrameWriter,
-                 pipeline.FrameReader);
+                new NetworkAdapter(
+                    logger,
+                    pipeline.FrameWriter,
+                    pipeline.FrameReader);
 
             var payload = new ReadOnlyMemory<byte>(
                 new byte[] { 0x01, 0x02, 0x03 });
@@ -60,6 +67,7 @@ public class MemoryConnectionTests
             // ------------------------------------------------------------
             // Act: write frames
             // ------------------------------------------------------------
+
             var stopwatch = Stopwatch.StartNew();
             for (int i = 0; i < FrameCount; i++)
             {
@@ -79,6 +87,7 @@ public class MemoryConnectionTests
             // ------------------------------------------------------------
             // Report
             // ------------------------------------------------------------
+
             TestContext.WriteLine(
                 $"[Framing] Wrote {FrameCount} frames in {stopwatch.Elapsed.TotalMilliseconds:F2} ms " +
                 $"({FrameCount / stopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
