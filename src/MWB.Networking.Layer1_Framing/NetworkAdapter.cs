@@ -38,15 +38,13 @@ public sealed class NetworkAdapter
         NetworkFrame frame,
         CancellationToken ct = default)
     {
-        using var loggerScope = this.Logger.EnterMethod(this);
+        using var loggerScope = this.Logger.BeginMethodLoggingScope(this);
         this.Logger.LogDebug(
             "kind: {FrameKind}, eventType: {EventType}, requestId: {RequestId}, streamId: {StreamId}",
             frame.Kind, frame.EventType, frame.RequestId, frame.StreamId);
 
         ArgumentNullException.ThrowIfNull(frame);
         var writeFrameTask = this.FrameWriter.WriteAsync(frame, ct).AsTask();
-
-        this.Logger.LeaveMethod();
 
         return writeFrameTask;
     }

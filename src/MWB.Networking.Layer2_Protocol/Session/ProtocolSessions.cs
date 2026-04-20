@@ -2,7 +2,6 @@
 using MWB.Networking.Layer2_Protocol.Driver;
 using MWB.Networking.Layer2_Protocol.Session.Api;
 using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
-using MWB.Networking.Logging;
 
 namespace MWB.Networking.Layer2_Protocol.Session;
 

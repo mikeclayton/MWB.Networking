@@ -1,9 +1,19 @@
 ﻿namespace MWB.Networking.Layer0_Transport;
 
+
 /// <summary>
-/// Bundles the safe logical connection and its privileged control surface.
-/// The control interface must only be used by transport providers.
+/// Bundles a logical network connection with its privileged control surface.
 /// </summary>
+/// <remarks>
+/// <see cref="LogicalConnectionHandle"/> exists to enforce a clear boundary
+/// between the consumer‑facing <see cref="ILogicalConnection"/> and the
+/// privileged <see cref="ILogicalConnectionControl"/> used by transport
+/// infrastructure.
+/// 
+/// Higher protocol layers and application code should interact exclusively
+/// with the logical connection, while only network transport implementers
+/// are permitted to access the control surface.
+/// </remarks>
 public sealed class LogicalConnectionHandle
 {
     internal LogicalConnectionHandle(

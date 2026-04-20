@@ -59,7 +59,7 @@ public static class ILoggerExtensions
         );
     }
 
-    public static IDisposable? EnterMethod(this ILogger logger, object classInstance, [CallerMemberName] string methodName = "")
+    internal static IDisposable? EnterMethod(this ILogger logger, object classInstance, [CallerMemberName] string methodName = "")
     {
         var hasDisplayName = classInstance as IHasDisplayName;
         var hasId = classInstance as IHasId;
@@ -77,7 +77,7 @@ public static class ILoggerExtensions
         return loggerScope;
     }
 
-    public static void LeaveMethod(this ILogger logger)
+    internal static void LeaveMethod(this ILogger logger)
     {
         logger.LogDebug("Leaving method");
     }

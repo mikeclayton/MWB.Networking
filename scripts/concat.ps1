@@ -8,8 +8,7 @@ param (
 
 # Normalize paths
 $SourceRoot = (Resolve-Path $SourceRoot).Path
-$OutputFile = Resolve-Path -Path $OutputFile -ErrorAction SilentlyContinue `
-    ?? (New-Item -ItemType File -Path $OutputFile).FullName
+$OutputFile = Resolve-Path -Path $OutputFile
 
 # Extensions to include
 $includeExtensions = @(

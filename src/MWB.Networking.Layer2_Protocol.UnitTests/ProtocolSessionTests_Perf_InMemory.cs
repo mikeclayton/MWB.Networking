@@ -4,7 +4,6 @@ using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Memory;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
 using MWB.Networking.Logging;
-using MWB.Networking.UnitTest.Helpers.Logging;
 using System.Diagnostics;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
@@ -31,11 +30,9 @@ public partial class ProtocolSessionTests
         {
             const int FrameCount = 100_000;
 
-            //var (logger, loggerFactory) = DebugLoggerFactory.CreateLogger();
             var logger = NullLogger.Instance;
-
-            using var loggerScope = logger.EnterMethod(this);
-
+            //var (logger, loggerFactory) = DebugLoggerFactory.CreateLogger();
+            using var loggerScope = logger.BeginMethodLoggingScope(this);
             logger.LogDebug("TEST: If you see this, the logger itself works");
             logger.LogDebug(nameof(Layer2_Protocol_SendBeforeStart_PerformanceTest));
 
@@ -53,7 +50,7 @@ public partial class ProtocolSessionTests
                 await providerB.OpenConnectionAsync(TestContext.CancellationToken);
 
             // ----------------------------
-            // Build session A (writwe)
+            // Build session A (ritwe)
             // ----------------------------
 
             var sessionA = new ProtocolSessionBuilder()

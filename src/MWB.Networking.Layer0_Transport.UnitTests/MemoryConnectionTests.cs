@@ -3,7 +3,6 @@ using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Memory;
 using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
-using System.ComponentModel;
 using System.Diagnostics;
 
 namespace MWB.Networking.Layer0_Transport.UnitTests;

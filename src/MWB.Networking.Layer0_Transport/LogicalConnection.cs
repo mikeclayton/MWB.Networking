@@ -4,6 +4,15 @@ using MWB.Networking.Logging;
 
 namespace MWB.Networking.Layer0_Transport;
 
+/// <summary>
+/// Provides a concrete implementation of a logical, full‑duplex network connection.
+/// </summary>
+/// <remarks>
+/// <see cref="LogicalConnection"/> is a stable, long‑lived connection
+/// implementation of <see cref="ILogicalConnection"/> that is exposed to higher
+/// layers, while allowing the underlying <see cref="INetworkConnection"/>
+/// to be attached, replaced, or disposed transparently by infrastructure components.
+/// </remarks>
 public sealed class LogicalConnection :
     ILogicalConnection,
     ILogicalConnectionControl,

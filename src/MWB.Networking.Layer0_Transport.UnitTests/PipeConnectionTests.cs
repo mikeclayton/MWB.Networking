@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
+﻿using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer1_Framing;
@@ -127,10 +126,10 @@ public class PipeConnectionTests
         {
             const int FrameCount = 100_000;
 
-            var logger = NullLogger.Instance;
-            //var (logger, loggerFactory) = DebugLoggerFactory.CreateLogger();
+            //var logger = NullLogger.Instance;
+            var (logger, loggerFactory) = DebugLoggerFactory.CreateLogger();
 
-            using var loggerScope = logger.EnterMethod(this);
+            using var loggerScope = logger.BeginMethodLoggingScope(this);
 
             // create duplex in-memory transport (pipes cross-wired)
             var clientToServer = new Pipe(new PipeOptions(

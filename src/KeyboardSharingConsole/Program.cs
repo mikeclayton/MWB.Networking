@@ -3,18 +3,18 @@ using KeyboardSharingConsole.Helpers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Tcp;
-using System.Net;
 
 Console.WriteLine("Hello, World!");
 
 var options = CommandLineParser.Parse(args);
 Console.Title =
-    $"Producer/Consumer :: listen {options.ListenPort} -> peer {options.ConnectPort}";
+    $"peer {options.LocalPeerName} listen {options.ListenPort} -> peer {options.ConnectPort}";
 
 // ------------------------------------------------------------
 // Logging & lifetime
 // ------------------------------------------------------------
 var logger = NullLogger.Instance;
+//var logger = LoggingHelper.CreateLogger();
 using var cts = new CancellationTokenSource();
 
 logger.LogDebug(Console.Title);
@@ -22,28 +22,38 @@ logger.LogDebug(Console.Title);
 // ------------------------------------------------------------
 // Determine role
 // ------------------------------------------------------------
-var isProducer = options.ListenPort > options.ConnectPort;
 
-Console.WriteLine(isProducer
-    ? "[ROLE] Producer"
-    : "[ROLE] Consumer");
+logger.LogDebug("[LOCAL PEER NAME] {LocalPeerName}", options.LocalPeerName);
+logger.LogDebug("[REMOTE PEER NAME] {RemotePeerName}", options.RemotePeerName);
 
 // ------------------------------------------------------------
 // Layer 0: Network connection provider
 // ------------------------------------------------------------
-Console.WriteLine("creating TCP network connection provider");
-using var provider =
-    new TcpNetworkConnectionProvider(
-        logger,
-        new TcpNetworkConnectionConfig(
-            localEndpoint: isProducer
-                ? null
-                : new IPEndPoint(IPAddress.Loopback, options.ListenPort),
-            remoteEndpoint: isProducer
-                ? new IPEndPoint(IPAddress.Loopback, options.ConnectPort)
-                : null,
-            noDelay: true)
-    );
+logger.LogDebug("creating network connection provider");
+
+var isPeerA = (options.LocalPeerName == "PeerA");
+var preferredArbitrationDirection = isPeerA
+    ? ConnectionDirection.Outbound
+    : ConnectionDirection.Inbound;
+
+Console.WriteLine(
+    $"[ARBITRATION] Preferred: {preferredArbitrationDirection}");
+
+//// temporary until we have an automatic, zero-config arbitrator
+//using var provider =
+//    new TcpNetworkConnectionProvider(
+//        logger,
+//        new TcpNetworkConnectionConfig(
+//            localEndpoint: new IPEndPoint(
+//                IPAddress.Loopback, options.ListenPort),
+//            remoteEndpoint: new IPEndPoint(
+//                IPAddress.Loopback, options.ConnectPort),
+//            noDelay: true),
+//        preferredArbitrationDirection: preferredArbitrationDirection
+//    );
+
+using var provider = await NamedPipeHelper.CreateNamedPipeConnectionProviderAsync(
+    logger, options.LocalPeerName, options.RemotePeerName, cts.Token);
 
 Console.WriteLine("opening logical connection");
 var connectionHandle =
@@ -55,7 +65,7 @@ var connectionHandle =
 Console.WriteLine("creating protocol session");
 var keyboardEventConsumer = new KeyboardEventConsumer();
 var session = ProtocolSessionHelper.CreateSession(
-    logger, isProducer, connectionHandle.Connection, keyboardEventConsumer.OnEventReceived);
+    logger, isPeerA, connectionHandle.Connection, keyboardEventConsumer.OnEventReceived);
 
 // ------------------------------------------------------------
 // Start protocol runtime
@@ -64,19 +74,12 @@ Console.WriteLine("starting protocol session");
 var runTask = session.StartAsync(cts.Token);
 
 // ------------------------------------------------------------
-// Send events (producer only)
+// Send events
 // ------------------------------------------------------------
-if (isProducer)
-{
-    await KeyboardProducerLoop.RunAsync(
-        session,
-        cts.Token,
-        eventType: 1);
-}
-else
-{
-    Console.WriteLine("[CONSUMER] waiting for inbound events");
-}
+await KeyboardProducerLoop.RunAsync(
+    session,
+    cts.Token,
+    eventType: 1);
 
 // ------------------------------------------------------------
 // Shutdown

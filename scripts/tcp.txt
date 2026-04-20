@@ -1,5 +1,138 @@
-﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer0_Transport.Tcp.Arbitration;
+================================================================================
+FILE: MWB.Networking.Layer0_Transport.Tcp\TcpNetworkConnection.cs
+================================================================================
+
+using MWB.Networking.Layer0_Transport.Encoding;
+using System.Net.Sockets;
+
+namespace MWB.Networking.Layer0_Transport.Tcp;
+
+/// <summary>
+/// Represents a single physical TCP connection.
+/// Instances are created and owned by <see cref="TcpNetworkConnectionProvider"/>.
+/// Consumers should interact with <see cref="ILogicalConnection"/> instead.
+/// </summary>
+internal sealed class TcpNetworkConnection : INetworkConnection
+{
+    private readonly TcpClient _client;
+    private readonly NetworkStream _stream;
+
+    internal TcpNetworkConnection(TcpClient client, int maxFrameSize)
+    {
+        _client = client ?? throw new ArgumentNullException(nameof(client));
+        _stream = client.GetStream();
+    }
+
+    /// <summary>
+    /// Reads raw bytes from the network stream.
+    /// Returns 0 on EOF.
+    /// </summary>
+    public ValueTask<int> ReadAsync(
+        Memory<byte> buffer,
+        CancellationToken ct)
+    {
+        return _stream.ReadAsync(buffer, ct);
+    }
+
+    /// <summary>
+    /// Writes raw byte segments to the network stream.
+    /// </summary>
+    public async ValueTask WriteAsync(
+        ByteSegments segments,
+        CancellationToken ct)
+    {
+        foreach (var segment in segments.Segments)
+        {
+            if (!segment.IsEmpty)
+            {
+                await _stream
+                    .WriteAsync(segment, ct)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        await _stream.FlushAsync(ct).ConfigureAwait(false);
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            _stream.Dispose();
+        }
+        finally
+        {
+            _client.Dispose();
+        }
+    }
+}
+
+
+
+================================================================================
+FILE: MWB.Networking.Layer0_Transport.Tcp\TcpNetworkConnectionConfig.cs
+================================================================================
+
+using System.Net;
+
+namespace MWB.Networking.Layer0_Transport.Tcp;
+
+public class TcpNetworkConnectionConfig
+{
+    public const int DefaultMaxFrameSize = 64 * 1024; // 64 KB
+
+    public TcpNetworkConnectionConfig(
+        IPEndPoint? localEndpoint,
+        IPEndPoint? remoteEndpoint,
+        int maxFrameSize = TcpNetworkConnectionConfig.DefaultMaxFrameSize,
+        bool noDelay = true)
+    {
+        this.LocalEndpoint = localEndpoint;
+        this.RemoteEndpoint = remoteEndpoint;
+        this.MaxFrameSize = maxFrameSize;
+        this.NoDelay = noDelay;
+    }
+
+    /// <summary>
+    /// Local endpoint to bind to for inbound connections.
+    /// If null, no listener will be started.
+    /// </summary>
+    public IPEndPoint? LocalEndpoint
+    {
+        get;
+    }
+
+    /// <summary>
+    /// Remote endpoint to connect to for outbound connections.
+    /// If null, no outbound connection will be attempted.
+    /// </summary>
+    public IPEndPoint? RemoteEndpoint
+    {
+        get;
+    }
+
+    public int MaxFrameSize
+    {
+        get;
+    }
+
+
+    /// <summary>
+    /// Whether Nagle's algorithm should be disabled.
+    /// </summary>
+    public bool NoDelay
+    {
+        get;
+    }
+}
+
+
+
+================================================================================
+FILE: MWB.Networking.Layer0_Transport.Tcp\TcpNetworkConnectionProvider.cs
+================================================================================
+
+using Microsoft.Extensions.Logging;
 using MWB.Networking.Logging;
 using System.Net.Sockets;
 
@@ -8,26 +141,11 @@ namespace MWB.Networking.Layer0_Transport.Tcp;
 public sealed class TcpNetworkConnectionProvider
     : INetworkConnectionProvider
 {
-    /// <remarks>
-    /// preferredArbitrationDirection is an application-supplied hint used solely
-    /// to *temporarily* break symmetric TCP connection races. This is a temporary
-    /// policy until a zero-configuration symmetric arbitrator is introduced
-    /// (which won't be publicly visible).
-    /// </remarks>
-    public TcpNetworkConnectionProvider(
-        ILogger logger,
-        TcpNetworkConnectionConfig config,
-        ConnectionDirection preferredArbitrationDirection)
+    public TcpNetworkConnectionProvider(ILogger logger, TcpNetworkConnectionConfig config)
     {
         this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         this.Config = config ?? throw new ArgumentNullException(nameof(config));
         this.LogicalConnection = LogicalConnectionFactory.Create(logger);
-
-        // PreferredDirectionArbitrator is a temporary, application-configured
-        // symmetry-breaking policy. It will be replaced by an automatic
-        // zero-configuration symmetric arbitrator in the future.
-        this.ConnectionArbitrator = new PreferredDirectionArbitrator(
-            preferredArbitrationDirection);
     }
 
     public ILogger Logger
@@ -36,11 +154,6 @@ public sealed class TcpNetworkConnectionProvider
     }
 
     private TcpNetworkConnectionConfig Config
-    {
-        get;
-    }
-
-    private ITcpConnectionArbitrator ConnectionArbitrator
     {
         get;
     }
@@ -56,12 +169,6 @@ public sealed class TcpNetworkConnectionProvider
     } = new();
 
     private TcpNetworkConnection? ActiveConnection
-    {
-        get;
-        set;
-    }
-
-    private ConnectionDirection? ActiveConnectionDirection
     {
         get;
         set;
@@ -217,52 +324,44 @@ public sealed class TcpNetworkConnectionProvider
     }
 
     private void AttachCandidate(
-        TcpNetworkConnection candidateConnection,
-        ConnectionDirection candidateDirection)
+        TcpNetworkConnection candidate,
+        ConnectionDirection direction)
     {
         using var logScope = this.Logger.BeginMethodLoggingScope(this);
-
-        ArgumentNullException.ThrowIfNull(candidateConnection);
 
         // lock to ensure critical section below is protected,
         // but don't await while holding the lock
         using var lockScope = this.LockObject.EnterScope();
 
         var control = this.LogicalConnection.Control;
-
-        // set and return if not already set
         if (this.ActiveConnection is null)
         {
-            this.ActiveConnection = candidateConnection;
-            this.ActiveConnectionDirection = candidateDirection;
-            control.Attach(candidateConnection);
+            this.ActiveConnection = candidate;
+            control.Attach(candidate);
             this.Logger.LogDebug(
                 "AttachCandidate accepted connection (direction={Direction})",
-                candidateDirection);
+                direction);
             return;
         }
 
-        // choose the highest priority connection if already set,
-        // and dispose the loser
-        var activeConnectionDirection = this.ActiveConnectionDirection
-            ?? throw new InvalidOperationException("ActiveConnectionDirection not set");
-        if (this.ConnectionArbitrator.ShouldReplace(
-            activeConnectionDirection,
-            candidateDirection))
+        if (TcpNetworkConnectionProvider.WinsOverExisting(direction))
         {
             this.ActiveConnection.Dispose();
-            this.ActiveConnection = candidateConnection;
-            this.ActiveConnectionDirection = candidateDirection;
-            control.Attach(candidateConnection);
+            this.ActiveConnection = candidate;
+            control.Attach(candidate);
         }
         else
         {
-            candidateConnection.Dispose();
-
-            this.Logger.LogDebug(
-                    "AttachCandidate rejected connection (direction={Direction})",
-                    candidateDirection);
+            candidate.Dispose();
         }
+    }
+
+    private static bool WinsOverExisting(
+        ConnectionDirection incoming)
+    {
+        // simple deterministic policy:
+        // inbound beats outbound
+        return incoming == ConnectionDirection.Inbound;
     }
 
     public void Dispose()
@@ -282,10 +381,89 @@ public sealed class TcpNetworkConnectionProvider
 
         this.ActiveConnection?.Dispose();
         this.ActiveConnection = null;
-        this.ActiveConnectionDirection = null;
 
         // CRITICAL: terminate the logical connection itself
         // This unblocks WhenReadyAsync, read loops, decoders, and protocol consumers
         this.LogicalConnection.Connection.Dispose();
     }
 }
+
+
+
+================================================================================
+FILE: MWB.Networking.Layer0_Transport.UnitTests\Helpers\TcpTestServer.cs
+================================================================================
+
+using System.Net;
+using System.Net.Sockets;
+
+namespace MWB.Networking.Layer0_Transport.UnitTests.Helpers;
+
+internal sealed class TestTcpServer : IDisposable
+{
+    public TestTcpServer(IPAddress address)
+    {
+        this.Listener = new TcpListener(address, 0);
+    }
+
+    private TcpListener Listener
+    {
+        get;
+    }
+
+    public int Port
+    {
+        get;
+        private set;
+    }
+
+    private TaskCompletionSource<NetworkStream> ClientConnected
+    {
+        get;
+    } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public NetworkStream ClientStream
+    {
+        get
+        {
+            return this.ClientConnected.Task.IsCompleted
+                ? this.ClientConnected.Task.Result
+                : throw new InvalidOperationException("Client not connected yet.");
+        }
+    }
+
+    public void Start()
+    {
+        this.Listener.Start();
+        this.Port = ((IPEndPoint)this.Listener.LocalEndpoint).Port;
+        _ = AcceptAsync();
+    }
+    public Task<NetworkStream> WaitForClientAsync()
+    {
+        return this.ClientConnected.Task;
+    }
+
+    private async Task AcceptAsync()
+    {
+        try
+        {
+            var client = await this.Listener.AcceptTcpClientAsync();
+            this.ClientConnected.TrySetResult(client.GetStream());
+        }
+        catch (ObjectDisposedException)
+        {
+            // Listener stopped – ignore
+        }
+    }
+
+    public void Dispose()
+    {
+        if (this.ClientConnected.Task.IsCompleted)
+        {
+            this.ClientConnected.Task.Result.Dispose();
+        }
+        this.Listener.Stop();
+    }
+}
+
+

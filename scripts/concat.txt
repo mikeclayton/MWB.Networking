@@ -73,12 +73,101 @@ internal static class CommandLineParser
 
 
 ================================================================================
+FILE: KeyboardSharingConsole\Helpers\KeyboardEventConsumer.cs
+================================================================================
+
+using System.Text;
+
+namespace KeyboardSharingConsole.Helpers;
+
+public sealed class KeyboardEventConsumer
+{
+    private int _count;
+
+    public int EventCount => _count;
+
+    public void OnEventReceived(uint eventType, ReadOnlyMemory<byte> payload)
+    {
+        var text = Encoding.UTF8.GetString(payload.Span);
+        Interlocked.Increment(ref _count);
+
+        // ESC sentinel
+        if (text.Length > 0 && text[0] == (char)27)
+        {
+            Console.WriteLine();
+            Console.WriteLine("[CONSUMER] ESC received. Remote exit signaled.");
+            return;
+        }
+
+        Console.Write(text);
+    }
+}
+
+
+
+================================================================================
+FILE: KeyboardSharingConsole\Helpers\KeyboardProducerLoop.cs
+================================================================================
+
+using MWB.Networking.Layer2_Protocol.Session.Api;
+using System.Text;
+
+namespace KeyboardSharingConsole.Helpers
+{
+    public static class KeyboardProducerLoop
+    {
+        public static async Task<int> RunAsync(
+            ProtocolSessionHandle session,
+            CancellationToken cancellationToken,
+            uint eventType = 1)
+        {
+            ArgumentNullException.ThrowIfNull(session);
+
+            await session.WhenReady.ConfigureAwait(false);
+
+            Console.WriteLine("[KEYBOARD] Type keys to send. Press ESC to quit.");
+
+            var sentCount = 0;
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                var keyInfo = Console.ReadKey(intercept: true);
+
+                // Encode the key as UTF‑8
+                var payload =
+                    Encoding.UTF8.GetBytes(keyInfo.KeyChar.ToString());
+
+                session.Commands.SendEvent(
+                    eventType: eventType,
+                    payload: payload);
+
+                sentCount++;
+
+                // Optional local echo
+                Console.Write(keyInfo.KeyChar);
+
+                if (keyInfo.Key == ConsoleKey.Escape)
+                {
+                    Console.WriteLine();
+                    Console.WriteLine("[KEYBOARD] ESC sent, exiting.");
+                    break;
+                }
+            }
+
+            return sentCount;
+        }
+    }
+}
+
+
+
+================================================================================
 FILE: KeyboardSharingConsole\Helpers\LoggingHelper.cs
 ================================================================================
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
-using MWB.Networking.Logging;
+using MWB.Networking.Logging.Formatters;
 
 namespace KeyboardSharingConsole.Helpers;
 
@@ -100,6 +189,60 @@ internal static class LoggingHelper
         var logger = loggerFactory.CreateLogger("Network");
 
         return logger;
+    }
+}
+
+
+
+================================================================================
+FILE: KeyboardSharingConsole\Helpers\ProtocolSessionHelper.cs
+================================================================================
+
+using Microsoft.Extensions.Logging;
+using MWB.Networking.Hosting;
+using MWB.Networking.Layer0_Transport;
+using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
+using MWB.Networking.Layer2_Protocol.Session.Api;
+using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
+
+namespace KeyboardSharingConsole.Helpers;
+
+internal static class ProtocolSessionHelper
+{
+    public static ProtocolSessionHandle CreateSession(
+        ILogger logger,
+        bool isProducer,
+        INetworkConnection connection,
+        Action<uint, ReadOnlyMemory<byte>> eventReceived)
+    {
+        var session =
+            new ProtocolSessionBuilder()
+                .WithLogger(logger)
+                .UseStreamIdParity(
+                    isProducer
+                        ? OddEvenStreamIdParity.Even
+                        : OddEvenStreamIdParity.Odd)
+                .ConfigurePipeline(
+                    pipeline =>
+                    {
+                        pipeline
+                            .AppendFrameCodec(
+                                new LengthPrefixedFrameEncoder(logger),
+                                new LengthPrefixedFrameDecoder(logger))
+                             .UseConnection(() => connection);
+                    })
+                .ConfigureObservers(
+                    observers =>
+                    {
+                        observers.EventReceived = eventReceived;
+                        //observers.RequestReceived = null;
+                        //observers.StreamOpened = null;
+                        //observers.StreamDataReceived = null;
+                        //observers.StreamClosed = null;
+                    }
+                )
+                .Build();
+        return session;
     }
 }
 
@@ -375,7 +518,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("KeyboardSharingConsole")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+80453e89e7e0705e1de54c452c167002bf6734b6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8b960980468a8777a9df702230d245bcb50d101d")]
 [assembly: System.Reflection.AssemblyProductAttribute("KeyboardSharingConsole")]
 [assembly: System.Reflection.AssemblyTitleAttribute("KeyboardSharingConsole")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -407,13 +550,10 @@ FILE: KeyboardSharingConsole\Program.cs
 ================================================================================
 
 using KeyboardSharingConsole.CommandLine;
+using KeyboardSharingConsole.Helpers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Tcp;
-using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
-using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
-using System.Diagnostics;
 using System.Net;
 
 Console.WriteLine("Hello, World!");
@@ -443,7 +583,6 @@ Console.WriteLine(isProducer
 // Layer 0: Network connection provider
 // ------------------------------------------------------------
 Console.WriteLine("creating TCP network connection provider");
-
 using var provider =
     new TcpNetworkConnectionProvider(
         logger,
@@ -458,7 +597,6 @@ using var provider =
     );
 
 Console.WriteLine("opening logical connection");
-
 var connectionHandle =
     await provider.OpenConnectionAsync(cts.Token);
 
@@ -466,71 +604,25 @@ var connectionHandle =
 // Layer 2: Protocol session (builder owns wiring)
 // ------------------------------------------------------------
 Console.WriteLine("creating protocol session");
-
-var session =
-    new ProtocolSessionBuilder()
-        .WithLogger(logger)
-        .UseStreamIdParity(
-            isProducer
-                ? OddEvenStreamIdParity.Even
-                : OddEvenStreamIdParity.Odd)
-        .ConfigurePipeline(
-            pipeline =>
-            {
-                pipeline
-                    .AppendFrameCodec(
-                        new LengthPrefixedFrameEncoder(logger),
-                        new LengthPrefixedFrameDecoder(logger))
-                     .UseConnection(() => connectionHandle.Connection);
-            })
-        .Build();
-
-// ------------------------------------------------------------
-// Observe inbound protocol events
-// ------------------------------------------------------------
-var eventCount = 0;
-session.Observer.EventReceived += (eventType, payload) =>
-{
-    eventCount++;
-    Console.WriteLine(
-        $"[INBOUND] ({eventCount}) Event {eventType}: {BitConverter.ToString(payload.ToArray())}");
-};
+var keyboardEventConsumer = new KeyboardEventConsumer();
+var session = ProtocolSessionHelper.CreateSession(
+    logger, isProducer, connectionHandle.Connection, keyboardEventConsumer.OnEventReceived);
 
 // ------------------------------------------------------------
 // Start protocol runtime
 // ------------------------------------------------------------
 Console.WriteLine("starting protocol session");
-
-var runTask =
-    session.Lifecycle.StartAsync(cts.Token);
-
-// ------------------------------------------------------------
-// Give transport time to settle (PoC only)
-// ------------------------------------------------------------
-await Task.Delay(500);
+var runTask = session.StartAsync(cts.Token);
 
 // ------------------------------------------------------------
 // Send events (producer only)
 // ------------------------------------------------------------
 if (isProducer)
 {
-    Console.WriteLine("[PRODUCER] sending hard-coded events");
-
-    await session.Lifecycle.Ready; // forwarded from driver
-
-    var stopwatch = Stopwatch.StartNew();
-
-    for (var i = 0; i < 1000; i++)
-    {
-        session.Commands.SendEvent(
-            eventType: 1,
-            payload: BitConverter.GetBytes(options.ListenPort));
-    }
-
-    stopwatch.Stop();
-
-    Console.WriteLine(
-        $"[PRODUCER] queued outbound in {stopwatch.ElapsedMilliseconds} ms");
+    await KeyboardProducerLoop.RunAsync(
+        session,
+        cts.Token,
+        eventType: 1);
 }
 else
 {
@@ -542,9 +634,7 @@ else
 // ------------------------------------------------------------
 Console.WriteLine("Press Enter to exit...");
 Console.ReadLine();
-
 cts.Cancel();
-
 try
 {
     await runTask;
@@ -776,7 +866,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MWB.Networking.Hosting")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+80453e89e7e0705e1de54c452c167002bf6734b6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b996398640a14840c4bc0bd5479a80a8b3649c35")]
 [assembly: System.Reflection.AssemblyProductAttribute("MWB.Networking.Hosting")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MWB.Networking.Hosting")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -857,10 +947,65 @@ public sealed partial class ProtocolSessionBuilder
     public ProtocolSessionBuilder WithLogger(ILogger logger)
     {
         ArgumentNullException.ThrowIfNull(logger);
-        this.EnsureNotBuilt();
 
         _logger = logger;
         return this;
+    }
+}
+
+
+
+================================================================================
+FILE: MWB.Networking.Hosting\ProtocolSessionBuilder_Observer.cs
+================================================================================
+
+using MWB.Networking.Layer2_Protocol.Session.Api;
+
+namespace MWB.Networking.Hosting;
+
+public sealed partial class ProtocolSessionBuilder
+{
+
+    private readonly ProtocolSessionObserverConfiguration _observerConfig = new();
+
+    public ProtocolSessionBuilder ConfigureObservers(
+        Action<ProtocolSessionObserverConfiguration> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        configure(_observerConfig);
+        return this;
+    }
+
+    private static void AssignObservers(
+        ProtocolSessionHandle session,
+        ProtocolSessionObserverConfiguration config)
+    {
+        var observer = session.Observer;
+
+        if (config.EventReceived is not null)
+        {
+            observer.EventReceived += config.EventReceived;
+        }
+
+        if (config.RequestReceived is not null)
+        {
+            observer.RequestReceived += config.RequestReceived;
+        }
+
+        if (config.StreamOpened is not null)
+        {
+            observer.StreamOpened += config.StreamOpened;
+        }
+
+        if (config.StreamDataReceived is not null)
+        {
+            observer.StreamDataReceived += config.StreamDataReceived;
+        }
+
+        if (config.StreamClosed is not null)
+        {
+            observer.StreamClosed += config.StreamClosed;
+        }
     }
 }
 
@@ -889,7 +1034,6 @@ public sealed partial class ProtocolSessionBuilder
         Action<NetworkPipelineBuilder> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
-        this.EnsureNotBuilt();
 
         _pipelineConfig = configure;
         return this;
@@ -951,26 +1095,21 @@ namespace MWB.Networking.Hosting;
 /// This type owns network pipeline wiring and delegates
 /// final session creation to the protocol layer.
 /// </summary>
+/// <remarks>
+/// Each call to <see cref="Build"/> creates a completely new and isolated
+/// protocol session object graph, including the pipeline, driver, queues,
+/// observers, and background loops.
+///
+/// The builder is therefore reusable and may be treated as a session template
+/// or factory. No runtime objects are retained or shared between builds.
+/// </remarks>
 public sealed partial class ProtocolSessionBuilder
 {
-    private bool _built;
-
-    private void EnsureNotBuilt()
-    {
-        if (_built)
-        {
-            throw new InvalidOperationException("Builder already used.");
-        }
-    }
-
     /// <summary>
     /// Builds and returns a fully wired protocol session.
     /// </summary>
     public ProtocolSessionHandle Build()
     {
-        this.EnsureNotBuilt();
-        _built = true;
-
         if (_pipelineConfig is null)
         {
             throw new InvalidOperationException(
@@ -999,8 +1138,15 @@ public sealed partial class ProtocolSessionBuilder
         // ------------------------------------------------------------
 
         var adapter = new NetworkAdapter(
+            logger,
             pipeline.FrameWriter,
             pipeline.FrameReader);
+
+        var driverOptions = new ProtocolDriverOptions(
+            pipeline.Connection,
+            pipeline.RootDecoder,
+            pipeline.FrameReader,
+            adapter);
 
         // ------------------------------------------------------------
         // Create protocol session (semantic authority)
@@ -1009,12 +1155,14 @@ public sealed partial class ProtocolSessionBuilder
         var session = ProtocolSessions.CreateSession(
             logger,
             _streamIdParity.Value,
-            new ProtocolDriverOptions(
-                pipeline.Connection,
-                pipeline.RootDecoder,
-                pipeline.FrameReader,
-                adapter)
+            driverOptions
         );
+
+        // ------------------------------------------------------------
+        // Configure event handlers
+        // ------------------------------------------------------------
+
+        ProtocolSessionBuilder.AssignObservers(session, _observerConfig);
 
         return session;
     }
@@ -1023,62 +1171,390 @@ public sealed partial class ProtocolSessionBuilder
 
 
 ================================================================================
-FILE: MWB.Networking.Layer0_Transport.Memory\MemoryNetworkConnection.cs
+FILE: MWB.Networking.Hosting\ProtocolSessionObserverConfiguration.cs
 ================================================================================
 
-using MWB.Networking.Layer0_Transport.Encoding;
+using MWB.Networking.Layer2_Protocol.Requests.Api;
+using MWB.Networking.Layer2_Protocol.Streams.Api;
 
-namespace MWB.Networking.Layer0_Transport.Memory;
+namespace MWB.Networking.Hosting;
 
-public sealed class MemoryNetworkConnection : INetworkConnection, IDisposable
+public sealed class ProtocolSessionObserverConfiguration
 {
-    private readonly MemoryStream _stream;
+    // ------------------------------------------------------------------
+    // Events
+    // ------------------------------------------------------------------
 
-    public MemoryNetworkConnection(int initialCapacity = 1024 * 1024)
+    /// <summary>
+    /// Invoked when a protocol event is received.
+    /// Configuration-time only; wired during session build.
+    /// </summary>
+    public Action<uint, ReadOnlyMemory<byte>>? EventReceived
     {
-        // Pre-size to reduce resize noise during benchmarks
-        _stream = new MemoryStream(initialCapacity);
+        get;
+        set;
+    }
+
+    // ------------------------------------------------------------------
+    // Requests
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// Invoked when a response is received.
+    /// </summary>
+    public Action<IncomingRequest, ReadOnlyMemory<byte>>? RequestReceived
+    {
+        get;
+        set;
+    }
+
+    // ------------------------------------------------------------------
+    // Streams
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// Invoked when a stream is opened.
+    /// </summary>
+    public Action<IncomingStream, StreamMetadata>? StreamOpened
+    {
+        get;
+        set;
     }
 
     /// <summary>
-    /// Reads raw bytes from the connection.
-    /// Not supported for this in-memory benchmark connection.
+    /// Invoked when a data is received for a stream.
+    /// </summary>
+    public Action<IncomingStream, ReadOnlyMemory<byte>>? StreamDataReceived
+    {
+        get;
+        set;
+    }
+
+    /// <summary>
+    /// Invoked when a stream is closed.
+    /// </summary>
+    public Action<IncomingStream>? StreamClosed
+    {
+        get;
+        set;
+    }
+}
+
+
+
+================================================================================
+FILE: MWB.Networking.Layer0_Transport.Memory\InMemoryConnectionPair.cs
+================================================================================
+
+namespace MWB.Networking.Layer0_Transport.Memory;
+
+/// <summary>
+/// Represents the two endpoints of a duplex in-memory transport.
+/// Exactly two connections are created, sharing two unidirectional buffers.
+/// </summary>
+internal sealed class InMemoryConnectionPair
+{
+    public InMemoryConnectionPair()
+    {
+        // One buffer for each direction
+        var bufferAtoB = new SegmentedMemoryBuffer();
+        var bufferBtoA = new SegmentedMemoryBuffer();
+
+        this.ConnectionAtoB = new InMemoryNetworkConnection(
+            reader: bufferBtoA.Reader,
+            writer: bufferAtoB.Writer);
+
+        this.ConnectionBtoA = new InMemoryNetworkConnection(
+            reader: bufferAtoB.Reader,
+            writer: bufferBtoA.Writer);
+    }
+
+    public INetworkConnection ConnectionAtoB
+    {
+        get;
+    }
+
+    public INetworkConnection ConnectionBtoA
+    {
+        get;
+    }
+}
+
+
+
+================================================================================
+FILE: MWB.Networking.Layer0_Transport.Memory\InMemoryConnectionProvider.cs
+================================================================================
+
+namespace MWB.Networking.Layer0_Transport.Memory;
+
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+
+/// <summary>
+/// Provides one end of a duplex, buffered, in‑memory network connection.
+/// Intended for tests and single‑process protocol harnesses.
+/// </summary>
+public sealed class InMemoryNetworkConnectionProvider
+{
+    private readonly INetworkConnection _connection;
+    private bool _opened;
+
+    private InMemoryNetworkConnectionProvider(INetworkConnection connection)
+    {
+        _connection = connection;
+    }
+
+    /// <summary>
+    /// Creates two paired providers representing opposite ends
+    /// of a single duplex in‑memory transport.
+    /// </summary>
+    public static (
+        InMemoryNetworkConnectionProvider ProviderA,
+        InMemoryNetworkConnectionProvider ProviderB)
+        CreateDuplexProviders()
+    {
+        var pair = new InMemoryConnectionPair();
+
+        return (
+            new InMemoryNetworkConnectionProvider(pair.ConnectionAtoB),
+            new InMemoryNetworkConnectionProvider(pair.ConnectionBtoA)
+        );
+    }
+
+    /// <summary>
+    /// Opens the in‑memory connection. May only be called once.
+    /// </summary>
+    public ValueTask<INetworkConnection> OpenConnectionAsync(
+        CancellationToken cancellationToken = default)
+    {
+        if (Interlocked.Exchange(ref _opened, true))
+        {
+            throw new InvalidOperationException(
+                "InMemoryNetworkConnectionProvider can only open one connection.");
+        }
+
+        return new ValueTask<INetworkConnection>(_connection);
+    }
+}
+
+
+
+================================================================================
+FILE: MWB.Networking.Layer0_Transport.Memory\InMemoryNetworkConnection.cs
+================================================================================
+
+namespace MWB.Networking.Layer0_Transport.Memory;
+
+using MWB.Networking.Layer0_Transport.Encoding;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+
+/// <summary>
+/// Buffered in-process implementation of <see cref="INetworkConnection"/>.
+/// Provides stream semantics with explicit EOF on disposal.
+/// </summary>
+public sealed class InMemoryNetworkConnection : INetworkConnection, IDisposable
+{
+    private readonly MemoryBufferReader _reader;
+    private readonly MemoryBufferWriter _writer;
+    private bool _disposed;
+
+    internal InMemoryNetworkConnection(
+        MemoryBufferReader reader,
+        MemoryBufferWriter writer)
+    {
+        _reader = reader;
+        _writer = writer;
+    }
+
+    /// <summary>
+    /// Writes a sequence of byte segments.
+    /// Writes are buffered, non-blocking, and preserve segment boundaries.
+    /// </summary>
+    public async ValueTask WriteAsync(
+        ByteSegments segments,
+        CancellationToken cancellationToken)
+    {
+        this.ThrowIfDisposed();
+
+        foreach (var segment in segments.Segments)
+        {
+            await _writer
+                .WriteAsync(segment, cancellationToken)
+                .ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Writes a contiguous block of bytes.
+    /// </summary>
+    public ValueTask WriteAsync(
+        ReadOnlyMemory<byte> data,
+        CancellationToken cancellationToken)
+    {
+        this.ThrowIfDisposed();
+        return _writer.WriteAsync(data, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads bytes into the provided buffer.
+    /// May return fewer bytes than requested. Returns 0 on EOF.
     /// </summary>
     public ValueTask<int> ReadAsync(
         Memory<byte> buffer,
-        CancellationToken ct)
-        => throw new NotSupportedException(
-            "MemoryNetworkConnection does not support reading.");
+        CancellationToken cancellationToken)
+    {
+        this.ThrowIfDisposed();
+        return _reader.ReadAsync(buffer, cancellationToken);
+    }
 
     /// <summary>
-    /// Writes raw byte segments to the underlying memory buffer.
+    /// Completes the write side and signals EOF to the reader.
     /// </summary>
-    public ValueTask WriteAsync(
-        ByteSegments segments,
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _writer.Complete();
+    }
+
+    private void ThrowIfDisposed()
+    {
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(InMemoryNetworkConnection));
+        }
+    }
+}
+
+
+
+================================================================================
+FILE: MWB.Networking.Layer0_Transport.Memory\MemoryBufferReader.cs
+================================================================================
+
+namespace MWB.Networking.Layer0_Transport.Memory;
+
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+
+/// <summary>
+/// Stream-style reader over a segmented memory buffer.
+/// </summary>
+internal sealed class MemoryBufferReader
+{
+    private readonly SegmentedMemoryBuffer _buffer;
+
+    private byte[]? _current;
+    private int _offset;
+
+    internal MemoryBufferReader(SegmentedMemoryBuffer buffer)
+    {
+        _buffer = buffer;
+    }
+
+    /// <summary>
+    /// Reads bytes into the destination buffer.
+    /// May return fewer bytes than requested.
+    /// Returns 0 only on EOF.
+    /// </summary>
+    public async ValueTask<int> ReadAsync(
+        Memory<byte> destination,
         CancellationToken ct)
     {
-        // IMPORTANT:
-        // Intentionally synchronous.
-        // This connection is for throughput measurement, not realism.
-        foreach (var segment in segments.Segments)
+        // If we have no current segment (or it has been fully consumed),
+        // acquire the next one from the buffer.
+        if (_current == null || _offset >= _current.Length)
         {
-            if (!segment.IsEmpty)
+            _current = await _buffer
+                .DequeueAsync(ct)
+                .ConfigureAwait(false);
+
+            _offset = 0;
+
+            if (_current == null)
             {
-                _stream.Write(segment.Span);
+                return 0; // EOF
             }
         }
 
+        // copy as much as fits into the destination buffer
+        var bytesToCopy = Math.Min(
+            destination.Length,
+            _current.Length - _offset);
+
+        _current
+            .AsMemory(_offset, bytesToCopy)
+            .CopyTo(destination);
+
+        _offset += bytesToCopy;
+        return bytesToCopy;
+    }
+}
+
+
+
+================================================================================
+FILE: MWB.Networking.Layer0_Transport.Memory\MemoryBufferWriter.cs
+================================================================================
+
+namespace MWB.Networking.Layer0_Transport.Memory;
+
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+
+
+/// <summary>
+/// Buffered, non-blocking writer for <see cref="SegmentedMemoryBuffer"/>.
+/// </summary>
+internal sealed class MemoryBufferWriter
+{
+    private readonly SegmentedMemoryBuffer _buffer;
+    private bool _completed;
+
+    internal MemoryBufferWriter(SegmentedMemoryBuffer buffer)
+    {
+        _buffer = buffer;
+    }
+
+    /// <summary>
+    /// Writes a single contiguous byte segment.
+    /// </summary>
+    public ValueTask WriteAsync(
+        ReadOnlyMemory<byte> data,
+        CancellationToken cancellationToken = default)
+    {
+        if (_completed)
+        {
+            throw new InvalidOperationException("Writer already completed.");
+        }
+
+        // Copy once to preserve segment boundaries
+        _buffer.Enqueue(data.ToArray());
         return ValueTask.CompletedTask;
     }
 
     /// <summary>
-    /// Number of bytes written so far (for benchmark inspection).
+    /// Completes the writer and signals EOF to the reader.
     /// </summary>
-    public long BytesWritten => _stream.Length;
-
-    public void Dispose()
+    public void Complete()
     {
-        _stream.Dispose();
+        if (_completed)
+        {
+            return;
+        }
+
+        _completed = true;
+        _buffer.Complete();
     }
 }
 
@@ -1136,7 +1612,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MWB.Networking.Layer0_Transport.Memory")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+80453e89e7e0705e1de54c452c167002bf6734b6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8b960980468a8777a9df702230d245bcb50d101d")]
 [assembly: System.Reflection.AssemblyProductAttribute("MWB.Networking.Layer0_Transport.Memory")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MWB.Networking.Layer0_Transport.Memory")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -1158,6 +1634,113 @@ global using System.Linq;
 global using System.Net.Http;
 global using System.Threading;
 global using System.Threading.Tasks;
+
+
+
+================================================================================
+FILE: MWB.Networking.Layer0_Transport.Memory\SegmentedMemoryBuffer.cs
+================================================================================
+
+using System.Collections.Concurrent;
+
+namespace MWB.Networking.Layer0_Transport.Memory;
+
+/// <summary>
+/// Single-writer, single-reader buffered byte channel.
+/// Owns exactly one reader and one writer.
+/// </summary>
+internal sealed class SegmentedMemoryBuffer : IDisposable
+{
+    private readonly ConcurrentQueue<byte[]> _segments = new();
+    private readonly SemaphoreSlim _dataAvailable = new(0);
+    private bool _completed;
+    private bool _disposed;
+
+    public SegmentedMemoryBuffer()
+    {
+        this.Writer = new MemoryBufferWriter(this);
+        this.Reader = new MemoryBufferReader(this);
+    }
+
+    public MemoryBufferWriter Writer
+    {
+        get;
+    }
+    public MemoryBufferReader Reader
+    {
+        get;
+    }
+
+    internal void Enqueue(byte[] segment)
+    {
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(SegmentedMemoryBuffer));
+        }
+
+        if (_completed)
+        {
+            throw new InvalidOperationException(
+                "Cannot enqueue after buffer completion.");
+        }
+
+        _segments.Enqueue(segment);
+        _dataAvailable.Release();
+    }
+
+    internal void Complete()
+    {
+        if (_completed)
+        {
+            return;
+        }
+
+        _completed = true;
+        _dataAvailable.Release();
+    }
+
+
+    /// <summary>
+    /// Dequeues the next segment, waits for data, or returns null on EOF.
+    /// </summary>
+    internal async ValueTask<byte[]?> DequeueAsync(CancellationToken ct)
+    {
+        while (true)
+        {
+            // return immediately if an item is available
+            if (_segments.TryDequeue(out var segment))
+            {
+                return segment;
+            }
+
+            // return null if we've finsihed writing
+            if (_completed)
+            {
+                return null;
+            }
+
+            // otherwise wait for the next segment to arrive
+            await _dataAvailable
+                .WaitAsync(ct)
+                .ConfigureAwait(false);
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _completed = true;
+
+        // Unblock any waiting readers
+        _dataAvailable.Release();
+        _dataAvailable.Dispose();
+    }
+}
 
 
 
@@ -1251,7 +1834,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MWB.Networking.Layer0_Transport.NullConnection")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+80453e89e7e0705e1de54c452c167002bf6734b6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8b960980468a8777a9df702230d245bcb50d101d")]
 [assembly: System.Reflection.AssemblyProductAttribute("MWB.Networking.Layer0_Transport.NullConnection")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MWB.Networking.Layer0_Transport.NullConnection")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -1328,7 +1911,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MWB.Networking.Layer0_Transport.Pipes")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+80453e89e7e0705e1de54c452c167002bf6734b6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8b960980468a8777a9df702230d245bcb50d101d")]
 [assembly: System.Reflection.AssemblyProductAttribute("MWB.Networking.Layer0_Transport.Pipes")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MWB.Networking.Layer0_Transport.Pipes")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -1519,7 +2102,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MWB.Networking.Layer0_Transport.Encoding")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+80453e89e7e0705e1de54c452c167002bf6734b6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+73b311ba67025a3f88378368d17eef81682b7b17")]
 [assembly: System.Reflection.AssemblyProductAttribute("MWB.Networking.Layer0_Transport.Encoding")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MWB.Networking.Layer0_Transport.Encoding")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -1660,7 +2243,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MWB.Networking.Layer0_Transport.Tcp")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+80453e89e7e0705e1de54c452c167002bf6734b6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b996398640a14840c4bc0bd5479a80a8b3649c35")]
 [assembly: System.Reflection.AssemblyProductAttribute("MWB.Networking.Layer0_Transport.Tcp")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MWB.Networking.Layer0_Transport.Tcp")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -1692,7 +2275,7 @@ FILE: MWB.Networking.Layer0_Transport.Tcp\Properties\AssemblyInfo.cs
 using MWB.Networking.Logging;
 using System.Runtime.CompilerServices;
 
-[module: LogMethod]
+//[module: LogMethod]
 
 
 
@@ -1720,7 +2303,6 @@ internal sealed class TcpNetworkConnection : INetworkConnection
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _stream = client.GetStream();
     }
-
 
     /// <summary>
     /// Reads raw bytes from the network stream.
@@ -1886,8 +2468,7 @@ public sealed class TcpNetworkConnectionProvider
     public async Task<LogicalConnectionHandle> OpenConnectionAsync(
         CancellationToken ct)
     {
-        using var logScope = this.Logger.BeginMethodScope(this);
-        this.Logger.LogDebug("Entering method");
+        using var logScope = this.Logger.BeginMethodLoggingScope(this);
 
         _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
@@ -1904,15 +2485,12 @@ public sealed class TcpNetworkConnectionProvider
         var handle = this.LogicalConnection;
         await handle.Connection.WhenReadyAsync(ct);
 
-        this.Logger.LogDebug("Leaving method");
-
         return handle;
     }
 
     private async Task StartListenerAsync(CancellationToken ct)
     {
-        using var logScope = this.Logger.BeginMethodScope(this);
-        this.Logger.LogDebug("Entering method");
+        using var logScope = this.Logger.BeginMethodLoggingScope(this);
 
         this.Listener = new TcpListener(this.Config.LocalEndpoint!);
         this.Listener.Start();
@@ -1933,14 +2511,11 @@ public sealed class TcpNetworkConnectionProvider
         {
             // normal shutdown
         }
-
-        this.Logger.LogDebug("Leaving method");
     }
 
     private async Task StartOutboundConnectLoopAsync(CancellationToken ct)
     {
-        using var logScope = this.Logger.BeginMethodScope(this);
-        this.Logger.LogDebug("Entering method");
+        using var logScope = this.Logger.BeginMethodLoggingScope(this);
 
         // Defensive: no remote endpoint means nothing to do
         if (this.Config.RemoteEndpoint is null)
@@ -2027,16 +2602,13 @@ public sealed class TcpNetworkConnectionProvider
                 break;
             }
         }
-
-        this.Logger.LogDebug("Leaving method");
     }
 
     private void AttachCandidate(
         TcpNetworkConnection candidate,
         ConnectionDirection direction)
     {
-        using var logScope = this.Logger.BeginMethodScope(this);
-        this.Logger.LogDebug("Entering method");
+        using var logScope = this.Logger.BeginMethodLoggingScope(this);
 
         // lock to ensure critical section below is protected,
         // but don't await while holding the lock
@@ -2063,7 +2635,6 @@ public sealed class TcpNetworkConnectionProvider
         {
             candidate.Dispose();
         }
-        this.Logger.LogDebug("Leaving method");
     }
 
     private static bool WinsOverExisting(
@@ -2187,6 +2758,7 @@ using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Memory;
 using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
+using System.ComponentModel;
 using System.Diagnostics;
 
 namespace MWB.Networking.Layer0_Transport.UnitTests;
@@ -2219,23 +2791,30 @@ public class MemoryConnectionTests
             var logger = NullLogger.Instance;
 
             // ------------------------------------------------------------
-            // Arrange: memory transport + framing
+            // Arrange: duplex in-memory transport + framing pipeline
             // ------------------------------------------------------------
-            using var connection =
-             new MemoryNetworkConnection(1024 * 1024 * 50);
 
+            var (providerA, providerB) =
+                InMemoryNetworkConnectionProvider.CreateDuplexProviders();
+
+            // We'll write frames from A; B is unused in this test
+            var connectionA =
+                await providerA.OpenConnectionAsync(TestContext.CancellationToken);
+
+            // Build framing pipeline on top of the in-memory connection
             var pipeline =
                 new NetworkPipelineBuilder()
                     .AppendFrameCodec(
                         new LengthPrefixedFrameEncoder(logger),
                         new LengthPrefixedFrameDecoder(logger))
-                    .UseConnection(() => connection)
+                    .UseConnection(() => connectionA)
                     .Build();
 
             var adapter =
-             new NetworkAdapter(
-                 pipeline.FrameWriter,
-                 pipeline.FrameReader);
+                new NetworkAdapter(
+                    logger,
+                    pipeline.FrameWriter,
+                    pipeline.FrameReader);
 
             var payload = new ReadOnlyMemory<byte>(
                 new byte[] { 0x01, 0x02, 0x03 });
@@ -2243,6 +2822,7 @@ public class MemoryConnectionTests
             // ------------------------------------------------------------
             // Act: write frames
             // ------------------------------------------------------------
+
             var stopwatch = Stopwatch.StartNew();
             for (int i = 0; i < FrameCount; i++)
             {
@@ -2262,6 +2842,7 @@ public class MemoryConnectionTests
             // ------------------------------------------------------------
             // Report
             // ------------------------------------------------------------
+
             TestContext.WriteLine(
                 $"[Framing] Wrote {FrameCount} frames in {stopwatch.Elapsed.TotalMilliseconds:F2} ms " +
                 $"({FrameCount / stopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
@@ -2362,7 +2943,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MWB.Networking.Layer0_Transport.UnitTests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+73b311ba67025a3f88378368d17eef81682b7b17")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8b960980468a8777a9df702230d245bcb50d101d")]
 [assembly: System.Reflection.AssemblyProductAttribute("MWB.Networking.Layer0_Transport.UnitTests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MWB.Networking.Layer0_Transport.UnitTests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -2422,12 +3003,14 @@ namespace MWB.Networking.Layer0_Transport.UnitTests
 FILE: MWB.Networking.Layer0_Transport.UnitTests\PipeConnectionTests.cs
 ================================================================================
 
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
+using MWB.Networking.Logging;
 using MWB.Networking.UnitTest.Helpers.Logging;
 using System.Buffers;
 using System.Diagnostics;
@@ -2449,7 +3032,7 @@ public class PipeConnectionTests
         [TestMethod]
         public async Task BasicRequestPayloadRoundtrip()
         {
-            var logger = LoggingHelper.CreateTestContextLogger(this.TestContext);
+            var (logger, loggerFactory) = TestContextLoggerFactory.CreateLogger(this.TestContext);
 
             // simulates a duplex connection
             var serverPipe = new Pipe();
@@ -2512,12 +3095,12 @@ public class PipeConnectionTests
             // ------------------------------------------------------------
             using var cts = new CancellationTokenSource();
 
-            var serverRun = serverSession.Lifecycle.StartAsync(cts.Token);
-            var clientRun = clientSession.Lifecycle.StartAsync(cts.Token);
+            var serverRun = serverSession.StartAsync(cts.Token);
+            var clientRun = clientSession.StartAsync(cts.Token);
 
             await Task.WhenAll(
-                serverSession.Lifecycle.Ready,
-                clientSession.Lifecycle.Ready);
+                serverSession.WhenReady,
+                clientSession.WhenReady);
 
             // ------------------------------------------------------------
             // Act: send a frame from client to server
@@ -2545,119 +3128,14 @@ public class PipeConnectionTests
         }
 
         [TestMethod]
-        public async Task PipePerfTestBlockingWriteBlockingRead()
-        {
-            const int FrameCount = 100_000;
-
-            var logger = LoggingHelper.CreateTestContextLogger(this.TestContext);
-
-            // create duplex in-memory transport (pipes cross-wired)
-            var clientToServer =new Pipe(new PipeOptions(
-                pauseWriterThreshold: 1024 * 1024 * 50,
-                resumeWriterThreshold: 1024 * 1024 * 50));
-            var serverToClient = new Pipe();
-
-            var clientConnection = new PipeNetworkConnection(
-                reader: serverToClient.Reader,
-                writer: clientToServer.Writer);
-
-            var serverConnection = new PipeNetworkConnection(
-                reader: clientToServer.Reader,
-                writer: serverToClient.Writer);
-
-            // ----------------------------
-            // Build client pipeline
-            // ----------------------------
-            var clientPipeline = new NetworkPipelineBuilder()
-                .AppendFrameCodec(
-                    encoder: new LengthPrefixedFrameEncoder(logger),
-                    decoder: new LengthPrefixedFrameDecoder(logger))
-                .UseConnection(() => clientConnection)
-                .Build();
-
-            var clientAdapter = new NetworkAdapter(
-                clientPipeline.FrameWriter,
-                clientPipeline.FrameReader);
-
-            // ----------------------------
-            // Build server pipeline
-            // ----------------------------
-            var serverPipeline = new NetworkPipelineBuilder()
-                .AppendFrameCodec(
-                    encoder: new LengthPrefixedFrameEncoder(logger),
-                    decoder: new LengthPrefixedFrameDecoder(logger))
-                .UseConnection(() => serverConnection)
-                .Build();
-
-            var serverAdapter = new NetworkAdapter(
-                serverPipeline.FrameWriter,
-                serverPipeline.FrameReader);
-
-            var payload = new ReadOnlyMemory<byte>([0x01, 0x02, 0x03]);
-
-            var globalStopwatch = new Stopwatch();
-
-            // Writer task
-            var writerStopwatch = new Stopwatch();
-            var writer = Task.Run(async () =>
-            {
-                globalStopwatch.Start();
-                writerStopwatch.Start();
-                for (int i = 0; i < FrameCount; i++)
-                {
-                    var frame = new NetworkFrame(
-                        kind: NetworkFrameKind.Request,
-                        eventType: null,
-                        requestId: (uint)(i + 1),
-                        streamId: null,
-                        payload: payload);
-                    await clientAdapter.WriteFrameAsync(frame, TestContext.CancellationToken);
-                }
-                writerStopwatch.Stop();
-                await clientToServer.Writer.CompleteAsync();
-            }, TestContext.CancellationToken);
-            await writer;
-
-            // Reader task
-            var readerStopwatch = new Stopwatch();
-            var reader = Task.Run(async () =>
-            {
-                readerStopwatch.Start();
-                for (int i = 0; i < FrameCount; i++)
-                {
-                    var frame = await serverAdapter.ReadFrameAsync(TestContext.CancellationToken);
-                    // Optional correctness checks (cheap and safe)
-                    Assert.AreEqual(NetworkFrameKind.Request, frame.Kind);
-                    Assert.AreEqual((uint)(i + 1), frame.RequestId);
-                    Assert.AreEqual(payload.Length, frame.Payload.Length);
-                }
-                readerStopwatch.Stop();
-                globalStopwatch.Stop();
-            }, TestContext.CancellationToken);
-            await reader;
-
-            await Task.WhenAll(writer, reader);
-
-            TestContext.WriteLine(
-                $"Wrote {FrameCount} frames in {writerStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
-                $"({FrameCount / writerStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
-
-            TestContext.WriteLine(
-                $"Read {FrameCount} frames in {readerStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
-                $"({FrameCount / readerStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
-
-            TestContext.WriteLine(
-                $"Processed {FrameCount} frames in {globalStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
-                $"({FrameCount / globalStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
-        }
-
-        [TestMethod]
         public async Task Layer1_Framing_PipePerfTest_NonBlocking()
         {
             const int FrameCount = 100_000;
 
             var logger = NullLogger.Instance;
-            //var logger = LoggingHelper.CreateTestContextLogger(this.TestContext);
+            //var (logger, loggerFactory) = DebugLoggerFactory.CreateLogger();
+
+            using var loggerScope = logger.EnterMethod(this);
 
             // create duplex in-memory transport (pipes cross-wired)
             var clientToServer = new Pipe(new PipeOptions(
@@ -2683,6 +3161,7 @@ public class PipeConnectionTests
                 .UseConnection(() => clientConnection)
                 .Build();
             var clientAdapter = new NetworkAdapter(
+                logger,
                 clientPipeline.FrameWriter,
                 clientPipeline.FrameReader);
 
@@ -2696,15 +3175,16 @@ public class PipeConnectionTests
                 .UseConnection(() => serverConnection)
                 .Build();
             var serverAdapter = new NetworkAdapter(
+                logger,
                 serverPipeline.FrameWriter,
                 serverPipeline.FrameReader);
 
             var payload = new ReadOnlyMemory<byte>([0x01, 0x02, 0x03]);
 
-            var globalStopwatch = new Stopwatch();
+            var globalStopwatch = Stopwatch.StartNew();
 
             // Writer task
-            var writerStopwatch = new Stopwatch();
+            var writerStopwatch = Stopwatch.StartNew();
             var writer = Task.Run(async () =>
             {
                 globalStopwatch.Start();
@@ -2724,12 +3204,12 @@ public class PipeConnectionTests
             }, TestContext.CancellationToken);
 
             // Reader task
-            var readerStopwatch = new Stopwatch();
+            var readerStopwatch = Stopwatch.StartNew();
             var buffer = new byte[64 * 1024];
             while (true)
             {
                 var bytesRead =
-                    await serverConnection.ReadAsync(buffer);
+                    await serverConnection.ReadAsync(buffer, TestContext.CancellationToken);
 
                 if (bytesRead == 0)
                 {
@@ -2739,7 +3219,8 @@ public class PipeConnectionTests
                 await serverPipeline.RootDecoder
                     .DecodeFrameAsync(
                         new ReadOnlySequence<byte>(buffer, 0, bytesRead),
-                        serverPipeline.FrameReader);
+                        serverPipeline.FrameReader,
+                        TestContext.CancellationToken);
             }
             readerStopwatch.Stop();
 
@@ -2756,113 +3237,139 @@ public class PipeConnectionTests
                 $"({FrameCount / globalStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
         }
 
+        /// <remarks>
+        /// This is identical to Layer2_Protocol_SendBeforeStart_IsDeliveredAfterStart,
+        /// just wth 100_000 events as a performance test rather than 3 events for a
+        /// correctness test. We could probably make the number of frames a test input
+        /// and run both tests with the same code.
+        /// </remarks>
         [TestMethod]
-        public async Task Layer3_Protocol_PipePerfTest_NonBlocking()
+        public async Task Layer2_Protocol_PipePerfTest_NonBlocking()
         {
             const int FrameCount = 100_000;
 
-            var logger = LoggingHelper.CreateTestContextLogger(this.TestContext);
+            //var (logger, _) = DebugLoggerFactory.CreateLogger();
+            var logger = NullLogger.Instance;
 
-            // create duplex in-memory transport (pipes cross-wired)
-            var clientToServer = new Pipe(new PipeOptions(
-                pauseWriterThreshold: 1024 * 1024 * 50,
-                resumeWriterThreshold: 1024 * 1024 * 50));
+            // -------------------------------------------------
+            // Transport (in-memory pipes)
+            // -------------------------------------------------
+            var clientToServer = new Pipe();
             var serverToClient = new Pipe();
 
-            // ----------------------------
-            // Build client session
-            // ----------------------------
             var clientConnection = new PipeNetworkConnection(
                 reader: serverToClient.Reader,
                 writer: clientToServer.Writer);
 
+            var serverConnection = new PipeNetworkConnection(
+                reader: clientToServer.Reader,
+                writer: serverToClient.Writer);
+
+            // -------------------------------------------------
+            // Build sessions (NOT started yet)
+            // -------------------------------------------------
             var clientSession = new ProtocolSessionBuilder()
                 .WithLogger(logger)
                 .UseEvenStreamIds()
                 .ConfigurePipeline(p =>
                 {
                     p.AppendFrameCodec(
-                         new LengthPrefixedFrameEncoder(logger),
-                         new LengthPrefixedFrameDecoder(logger))
+                        new LengthPrefixedFrameEncoder(logger),
+                        new LengthPrefixedFrameDecoder(logger))
                      .UseConnection(() => clientConnection);
                 })
                 .Build();
 
-            // ----------------------------
-            // Build server session
-            // ----------------------------
-            var serverConnection = new PipeNetworkConnection(
-                reader: clientToServer.Reader,
-                writer: serverToClient.Writer);
+            // used in observer.EventReceived
+            var received = 0;
+            var allReceived = new TaskCompletionSource(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var readerStopwatch = (Stopwatch?)null;
 
             var serverSession = new ProtocolSessionBuilder()
                 .WithLogger(logger)
                 .UseOddStreamIds()
-                .ConfigurePipeline(p =>
+                .ConfigurePipeline(pipeline =>
                 {
-                    p.AppendFrameCodec(
-                         new LengthPrefixedFrameEncoder(logger),
-                         new LengthPrefixedFrameDecoder(logger))
-                     .UseConnection(() => serverConnection);
+                    pipeline
+                        .AppendFrameCodec(
+                            new LengthPrefixedFrameEncoder(logger),
+                            new LengthPrefixedFrameDecoder(logger))
+                        .UseConnection(() => serverConnection);
                 })
+                .ConfigureObservers(
+                    observers =>
+                    {
+                        observers.EventReceived = (_, _) =>
+                        {
+                            readerStopwatch ??= Stopwatch.StartNew();
+                            if (Interlocked.Increment(ref received) == FrameCount)
+                            {
+                                allReceived.TrySetResult();
+                            }
+                        };
+                    }
+                )
                 .Build();
 
-            var payload = new ReadOnlyMemory<byte>([0x01, 0x02, 0x03]);
+            var payload = new ReadOnlyMemory<byte>(new byte[] { 1, 2, 3 });
 
+            // =================================================
+            // PHASE 1: ENQUEUE (non‑blocking)
+            // =================================================
             var globalStopwatch = new Stopwatch();
-
-            // Count frames received on server
-            var receivedCount = 0;
-            var allReceived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            serverSession.Observer.RequestReceived += (request, receivedPayload) =>
-            {
-                if (Interlocked.Increment(ref receivedCount) == FrameCount)
-                {
-                    allReceived.TrySetResult();
-                }
-            };
-
-            // Start both sessions
-            using var cts = new CancellationTokenSource();
-            var serverRun = serverSession.Lifecycle.StartAsync(cts.Token);
-            var clientRun = clientSession.Lifecycle.StartAsync(cts.Token);
-
-            await Task.WhenAll(
-                serverSession.Lifecycle.Ready,
-                clientSession.Lifecycle.Ready);
-
-            // Writer task
             var writerStopwatch = new Stopwatch();
-            var writer = Task.Run(() =>
+            for (var i = 0; i < FrameCount; i++)
             {
-                globalStopwatch.Start();
-                writerStopwatch.Start();
-                for (int i = 0; i < FrameCount; i++)
-                {
-                    clientSession.Commands.SendRequest(payload);
-                }
-                writerStopwatch.Stop();
-            }, TestContext.CancellationToken);
+                clientSession.Commands.SendEvent(1, payload);
+            }
+            writerStopwatch.Stop();
 
-            // Reader: wait for all frames to arrive on server
-            var readerStopwatch = new Stopwatch();
-            readerStopwatch.Start();
-            await allReceived.Task.WaitAsync(TestContext.CancellationToken);
-            readerStopwatch.Stop();
+            // -------------------------------------------------
+            // PHASE 2: Start sessions
+            // -------------------------------------------------
+
+            // start the protocol loops
+            // (wait within a maximum timeout so the test fails rather than hangs forever)
+            using var lifecycleCts = new CancellationTokenSource();
+            var serverRun = serverSession.StartAsync(lifecycleCts.Token);
+            var clientRun = clientSession.StartAsync(lifecycleCts.Token);
+            await Task
+                .WhenAll(
+                    serverSession.WhenReady,
+                    clientSession.WhenReady)
+                .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
+
+            // -------------------------------------------------
+            // Assert: pre-start messages are delivered
+            // -------------------------------------------------
+            // wait for messages to be dequeued
+            // (wait within a maximum timeout so the test fails rather than hangs forever)
+            await allReceived.Task
+                .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
+            readerStopwatch?.Stop();
             globalStopwatch.Stop();
 
-            await writer;
+            Assert.AreEqual(FrameCount, received);
 
-            cts.Cancel();
-            await Task.WhenAll(serverRun, clientRun);
+            // -------------------------------------------------
+            // Clean shutdown
+            // -------------------------------------------------
+
+            // shut down cleanly
+            // (wait within a maximum timeout so the test fails rather than hangs forever)
+            lifecycleCts.Cancel();
+            await Task
+                .WhenAll(serverRun, clientRun)
+                .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
 
             TestContext.WriteLine(
                 $"Wrote {FrameCount} frames in {writerStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
                 $"({FrameCount / writerStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
 
             TestContext.WriteLine(
-                $"Read {FrameCount} frames in {readerStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
-                $"({FrameCount / readerStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
+                $"Read {FrameCount} frames in {readerStopwatch?.Elapsed.TotalMilliseconds:F2} ms " +
+                $"({FrameCount / readerStopwatch?.Elapsed.TotalSeconds:N0} frames/sec)");
 
             TestContext.WriteLine(
                 $"Processed {FrameCount} frames in {globalStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
@@ -3039,7 +3546,7 @@ public sealed class LogicalConnection :
     {
         ArgumentNullException.ThrowIfNull(connection);
 
-        using var scope = this.Logger.BeginMethodScope(this);
+        using var scope = this.Logger.BeginMethodLoggingScope(this);
 
         var old = this.SwapActiveConnection(connection);
         old?.Dispose();
@@ -3236,7 +3743,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MWB.Networking.Layer0_Transport")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+80453e89e7e0705e1de54c452c167002bf6734b6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+73b311ba67025a3f88378368d17eef81682b7b17")]
 [assembly: System.Reflection.AssemblyProductAttribute("MWB.Networking.Layer0_Transport")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MWB.Networking.Layer0_Transport")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -3333,6 +3840,13 @@ public sealed class AesFrameDecoder : IFrameDecoder
     {
         throw new NotImplementedException();
     }
+
+    public ValueTask CompleteAsync(
+        IFrameDecoderSink output,
+        CancellationToken ct = default)
+    {
+        throw new NotImplementedException();
+    }
 }
 
 
@@ -3410,7 +3924,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MWB.Networking.Layer1_Framing.Encoding.Aes")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+80453e89e7e0705e1de54c452c167002bf6734b6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+73b311ba67025a3f88378368d17eef81682b7b17")]
 [assembly: System.Reflection.AssemblyProductAttribute("MWB.Networking.Layer1_Framing.Encoding.Aes")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MWB.Networking.Layer1_Framing.Encoding.Aes")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -3450,6 +3964,13 @@ public sealed class GzipFrameDecoder : IFrameDecoder
         ReadOnlySequence<byte> input,
         IFrameDecoderSink output,
         CancellationToken ct)
+    {
+        throw new NotImplementedException();
+    }
+
+    public ValueTask CompleteAsync(
+        IFrameDecoderSink output,
+        CancellationToken ct = default)
     {
         throw new NotImplementedException();
     }
@@ -3530,7 +4051,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MWB.Networking.Layer1_Framing.Encoding.Gzip")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+80453e89e7e0705e1de54c452c167002bf6734b6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+73b311ba67025a3f88378368d17eef81682b7b17")]
 [assembly: System.Reflection.AssemblyProductAttribute("MWB.Networking.Layer1_Framing.Encoding.Gzip")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MWB.Networking.Layer1_Framing.Encoding.Gzip")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -3574,6 +4095,7 @@ public sealed class LengthPrefixedFrameDecoder : IFrameDecoder, IDisposable
     private readonly int _maxFrameSize;
 
     private int? _expectedPayloadLength;
+    private bool _completed;
 
     public LengthPrefixedFrameDecoder(ILogger logger, int maxFrameSize = 16 * 1024 * 1024)
     {
@@ -3589,12 +4111,21 @@ public sealed class LengthPrefixedFrameDecoder : IFrameDecoder, IDisposable
         get;
     }
 
-    // should *not* be async
+    // ─────────────────────────────────────────────────────────────
+    // Decode
+    // ─────────────────────────────────────────────────────────────
+    // NOTE: intentionally non-async; returns ValueTask for efficiency
     public ValueTask DecodeFrameAsync(
         ReadOnlySequence<byte> input,
         IFrameDecoderSink output,
         CancellationToken ct)
     {
+        if (_completed)
+        {
+            throw new InvalidOperationException(
+                "DecodeFrameAsync called after decoder completion.");
+        }
+
         // Append all incoming segments into the decoder buffer
         foreach (var segment in input)
         {
@@ -3613,7 +4144,7 @@ public sealed class LengthPrefixedFrameDecoder : IFrameDecoder, IDisposable
             ct.ThrowIfCancellationRequested();
 
             // Step 1: parse length prefix if not already known
-            if (_expectedPayloadLength == null)
+            if (_expectedPayloadLength is null)
             {
                 if (_buffer.Count < 4)
                 {
@@ -3653,15 +4184,14 @@ public sealed class LengthPrefixedFrameDecoder : IFrameDecoder, IDisposable
                 return ValueTask.CompletedTask;
             }
 
-            // Step 3: emit payload as a single decoded frame
+            // Step 3: emit decoded frame
             var payloadLength = _expectedPayloadLength.Value;
             var payloadSpan = _buffer.Span.Slice(0, payloadLength);
 
             // Copy out payload before mutating buffer
             var payload = new ByteSegments(payloadSpan.ToArray());
 
-            // Consume payload *before* emitting
-            _buffer.Consume(_expectedPayloadLength.Value);
+            _buffer.Consume(payloadLength);
             _expectedPayloadLength = null;
 
             // Emit decoded frame
@@ -3670,20 +4200,46 @@ public sealed class LengthPrefixedFrameDecoder : IFrameDecoder, IDisposable
                 "[DECODER] {DecoderType} Emitting decoded frame with payload size {PayloadSize}",
                 nameof(LengthPrefixedFrameDecoder),
                 payloadLength);
-            var task = output.OnFrameDecodedAsync(payload, ct);
+
+            var writeTask = output.OnFrameDecodedAsync(payload, ct);
             this.Logger.LogDebug(
                 "[DECODER] {DecoderType} Sink returned IsCompletedSuccessfully = {Completed}",
                 nameof(LengthPrefixedFrameDecoder),
-                task.IsCompletedSuccessfully);
+                writeTask.IsCompletedSuccessfully);
 
-            // If the sink goes async, stop decoding for now
-            if (!task.IsCompletedSuccessfully)
+            // If the sink goes async, pause decoding
+            if (!writeTask.IsCompletedSuccessfully)
             {
-                return task;
+                return writeTask;
             }
-
-            // otherwise, continue loop and try to decode another frame
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Completion
+    // ─────────────────────────────────────────────────────────────
+    public ValueTask CompleteAsync(
+        IFrameDecoderSink output,
+        CancellationToken ct)
+    {
+        if (_completed)
+        {
+            return ValueTask.CompletedTask;
+        }
+
+        _completed = true;
+
+        ct.ThrowIfCancellationRequested();
+
+        // Any buffered data at EOF is a protocol violation
+        if (_expectedPayloadLength is not null || _buffer.Count > 0)
+        {
+            throw new InvalidDataException(
+                "End-of-stream encountered with incomplete length-prefixed frame.");
+        }
+
+        // Nothing to flush — framing guarantees whole-frame delivery
+        return ValueTask.CompletedTask;
     }
 
     public void Dispose()
@@ -3817,7 +4373,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+80453e89e7e0705e1de54c452c167002bf6734b6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+73b311ba67025a3f88378368d17eef81682b7b17")]
 [assembly: System.Reflection.AssemblyProductAttribute("MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -3877,6 +4433,14 @@ public sealed class NullFrameDecoder : IFrameDecoder
         ReadOnlySequence<byte> input,
         IFrameDecoderSink output,
         CancellationToken ct)
+    {
+        // intentionally emits nothing
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask CompleteAsync(
+        IFrameDecoderSink output,
+        CancellationToken ct = default)
     {
         // intentionally emits nothing
         return ValueTask.CompletedTask;
@@ -4041,15 +4605,14 @@ namespace MWB.Networking.Layer1_Framing.Encoding.Abstractions
             ReadOnlySequence<byte> input,
             IFrameDecoderSink output,
             CancellationToken ct = default);
-    }
     
-    /// <summary>
-    /// Signals that no more input will arrive and the decoder
-    /// should flush any buffered state and emit any final frames.
-    /// </summary>
-    ValueTask CompleteAsync(
-        IFrameDecoderSink output,
-        CancellationToken ct = default);
+        /// <summary>
+        /// Signals that no more input will arrive and the decoder
+        /// should flush any buffered state and emit any final frames.
+        /// </summary>
+        ValueTask CompleteAsync(
+            IFrameDecoderSink output,
+            CancellationToken ct = default);
     }
 }
 
@@ -4131,6 +4694,60 @@ public interface IFrameEncoderSink
     ValueTask OnFrameEncodedAsync(
         ByteSegments encodedFrame,
         CancellationToken ct);
+}
+
+
+
+================================================================================
+FILE: MWB.Networking.Layer1_Framing.Encoding\FrameDecoderBridge.cs
+================================================================================
+
+namespace MWB.Networking.Layer1_Framing.Encoding;
+
+using global::MWB.Networking.Layer1_Framing.Encoding.Abstractions;
+using System.Buffers;
+
+/// <summary>
+/// Bridges the inbound transport byte stream into the frame decoding pipeline.
+///
+/// This type performs no decoding itself; it exists solely as a boundary adapter
+/// between Layer 0 (transport) and Layer 1 (framing), including lifecycle completion.
+/// </summary>
+public sealed class FrameDecoderBridge : IFrameDecoder
+{
+    private readonly IFrameDecoder _decoder;
+    private readonly IFrameDecoderSink _sink;
+
+    public FrameDecoderBridge(
+        IFrameDecoder decoder,
+        IFrameDecoderSink sink)
+    {
+        _decoder = decoder ?? throw new ArgumentNullException(nameof(decoder));
+        _sink = sink ?? throw new ArgumentNullException(nameof(sink));
+    }
+
+    /// <summary>
+    /// Entry point for inbound transport bytes.
+    /// </summary>
+    public ValueTask DecodeFrameAsync(
+        ReadOnlySequence<byte> input,
+        IFrameDecoderSink _,
+        CancellationToken ct = default)
+    {
+        // Always use the internally-wired sink for the pipeline.
+        return _decoder.DecodeFrameAsync(input, _sink, ct);
+    }
+
+    /// <summary>
+    /// Signals end-of-stream to the decoding pipeline.
+    /// </summary>
+    public ValueTask CompleteAsync(
+        IFrameDecoderSink _,
+        CancellationToken ct = default)
+    {
+        // Delegate completion into the pipeline.
+        return _decoder.CompleteAsync(_sink, ct);
+    }
 }
 
 
@@ -4454,7 +5071,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MWB.Networking.Layer1_Framing.Encoding")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+80453e89e7e0705e1de54c452c167002bf6734b6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+73b311ba67025a3f88378368d17eef81682b7b17")]
 [assembly: System.Reflection.AssemblyProductAttribute("MWB.Networking.Layer1_Framing.Encoding")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MWB.Networking.Layer1_Framing.Encoding")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -4607,16 +5224,26 @@ FILE: MWB.Networking.Layer1_Framing\MWB.Networking.Layer1_Framing.csproj
 FILE: MWB.Networking.Layer1_Framing\NetworkAdapter.cs
 ================================================================================
 
+using Microsoft.Extensions.Logging;
+using MWB.Networking.Logging;
+
 namespace MWB.Networking.Layer1_Framing;
 
 public sealed class NetworkAdapter
 {
     public NetworkAdapter(
+        ILogger logger,
         NetworkFrameWriter frameWriter,
         NetworkFrameReader frameReader)
     {
+        this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         this.FrameWriter = frameWriter ?? throw new ArgumentNullException(nameof(frameWriter));
         this.FrameReader = frameReader ?? throw new ArgumentNullException(nameof(frameReader));
+    }
+
+    public ILogger Logger
+    {
+        get;
     }
 
     private NetworkFrameWriter FrameWriter
@@ -4637,8 +5264,17 @@ public sealed class NetworkAdapter
         NetworkFrame frame,
         CancellationToken ct = default)
     {
+        using var loggerScope = this.Logger.EnterMethod(this);
+        this.Logger.LogDebug(
+            "kind: {FrameKind}, eventType: {EventType}, requestId: {RequestId}, streamId: {StreamId}",
+            frame.Kind, frame.EventType, frame.RequestId, frame.StreamId);
+
         ArgumentNullException.ThrowIfNull(frame);
-        return FrameWriter.WriteAsync(frame, ct).AsTask();
+        var writeFrameTask = this.FrameWriter.WriteAsync(frame, ct).AsTask();
+
+        this.Logger.LeaveMethod();
+
+        return writeFrameTask;
     }
 
     /// <summary>
@@ -4648,6 +5284,8 @@ public sealed class NetworkAdapter
     public Task<NetworkFrame> ReadFrameAsync(
         CancellationToken ct = default)
     {
+        using var loggerScope = this.Logger.BeginMethodLoggingScope(this);
+
         return FrameReader.ReadFrameAsync(ct);
     }
 }
@@ -5023,7 +5661,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MWB.Networking.Layer1_Framing")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+80453e89e7e0705e1de54c452c167002bf6734b6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+73b311ba67025a3f88378368d17eef81682b7b17")]
 [assembly: System.Reflection.AssemblyProductAttribute("MWB.Networking.Layer1_Framing")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MWB.Networking.Layer1_Framing")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -5262,9 +5900,12 @@ FILE: MWB.Networking.Layer2_Protocol.UnitTests\MWB.Networking.Layer2_Protocol.Un
 
   <ItemGroup>
     <ProjectReference Include="..\MWB.Networking.Hosting\MWB.Networking.Hosting.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Memory\MWB.Networking.Layer0_Transport.Memory.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.NullConnection\MWB.Networking.Layer0_Transport.NullConnection.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Encoding.NullEncoder\MWB.Networking.Layer1_Framing.Encoding.NullEncoder.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer2_Protocol\MWB.Networking.Layer2_Protocol.csproj" />
+    <ProjectReference Include="..\MWB.Networking.UnitTest.Helpers\MWB.Networking.UnitTest.Helpers.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -5335,7 +5976,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MWB.Networking.Layer2_Protocol.UnitTests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+73b311ba67025a3f88378368d17eef81682b7b17")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8b960980468a8777a9df702230d245bcb50d101d")]
 [assembly: System.Reflection.AssemblyProductAttribute("MWB.Networking.Layer2_Protocol.UnitTests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MWB.Networking.Layer2_Protocol.UnitTests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -5430,6 +6071,176 @@ internal static class ProtocolSessionExtensions
             await Task.Delay(10);
         }
         throw new TimeoutException("No outbound frame arrived within timeout.");
+    }
+}
+
+
+
+================================================================================
+FILE: MWB.Networking.Layer2_Protocol.UnitTests\ProtocolSessionTests_Perf_InMemory.cs
+================================================================================
+
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using MWB.Networking.Hosting;
+using MWB.Networking.Layer0_Transport.Memory;
+using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
+using MWB.Networking.Logging;
+using MWB.Networking.UnitTest.Helpers.Logging;
+using System.Diagnostics;
+
+namespace MWB.Networking.Layer2_Protocol.UnitTests;
+
+public partial class ProtocolSessionTests
+{
+    [TestClass]
+    public partial class InMemoryPerformanceTests
+    {
+
+        public TestContext TestContext
+        {
+            get;
+            set;
+        }
+
+        /// <remarks>
+        /// This is similar to Layer2_Protocol_SendBeforeStart_IsDeliveredAfterStart,
+        /// just wth 100_000 events as a performance test rather than 3 events for a
+        /// correctness test.
+        /// </remarks>
+        [TestMethod]
+        public async Task Layer2_Protocol_SendBeforeStart_PerformanceTest()
+        {
+            const int FrameCount = 100_000;
+
+            //var (logger, loggerFactory) = DebugLoggerFactory.CreateLogger();
+            var logger = NullLogger.Instance;
+
+            using var loggerScope = logger.EnterMethod(this);
+
+            logger.LogDebug("TEST: If you see this, the logger itself works");
+            logger.LogDebug(nameof(Layer2_Protocol_SendBeforeStart_PerformanceTest));
+
+            // -------------------------------------------------
+            // Transport (duplex in-memory)
+            // -------------------------------------------------
+
+            var (providerA, providerB) =
+                InMemoryNetworkConnectionProvider.CreateDuplexProviders();
+
+            var connectionA =
+                await providerA.OpenConnectionAsync(TestContext.CancellationToken);
+
+            var connectionB =
+                await providerB.OpenConnectionAsync(TestContext.CancellationToken);
+
+            // ----------------------------
+            // Build session A (writwe)
+            // ----------------------------
+
+            var sessionA = new ProtocolSessionBuilder()
+                .WithLogger(logger)
+                .UseOddStreamIds()
+                .ConfigurePipeline(
+                    pipeline =>
+                    {
+                        pipeline
+                            .AppendFrameCodec(
+                                new LengthPrefixedFrameEncoder(logger),
+                                new LengthPrefixedFrameDecoder(logger))
+                            .UseConnection(() => connectionA);
+                    }
+                )
+                .Build();
+
+            // ----------------------------
+            // Build session B (reader)
+            // ----------------------------
+
+            var received = 0;
+            var allReceived = new TaskCompletionSource(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            Stopwatch? readerStopwatch = default;
+            var sessionB = new ProtocolSessionBuilder()
+                .WithLogger(logger)
+                .UseEvenStreamIds()
+                .ConfigurePipeline(
+                    pipeline =>
+                    {
+                        pipeline
+                            .AppendFrameCodec(
+                                new LengthPrefixedFrameEncoder(logger),
+                                new LengthPrefixedFrameDecoder(logger))
+                            .UseConnection(() => connectionB);
+                    }
+                )
+                .ConfigureObservers(
+                    observers =>
+                    {
+                        observers.EventReceived = (_, _) =>
+                        {
+                            readerStopwatch ??= Stopwatch.StartNew();
+                            if (Interlocked.Increment(ref received) == FrameCount)
+                            {
+                                allReceived.TrySetResult();
+                            }
+                        };
+                    }
+                )
+                .Build();
+
+            // ---------------------------------------------
+            // PHASE 1: enqueue all outbound events
+            // ---------------------------------------------
+
+            var payload = new ReadOnlyMemory<byte>([0x01, 0x02, 0x03]);
+            var globalStopwatch = Stopwatch.StartNew();
+            var writerStopwatch = Stopwatch.StartNew();
+            for (var i = 0; i < FrameCount; i++)
+            {
+                sessionA.Commands.SendEvent(
+                    eventType: (uint)i,
+                    payload: payload);
+            }
+            writerStopwatch.Stop();
+
+            // ---------------------------------------------
+            // PHASE 2: start sessions (read loops begin)
+            // ---------------------------------------------
+            var lifecycleCts = new CancellationTokenSource();
+            var runA = sessionA.StartAsync(lifecycleCts.Token);
+            var runB = sessionB.StartAsync(lifecycleCts.Token);
+
+            await Task
+                .WhenAll(sessionA.WhenReady, sessionB.WhenReady)
+                .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
+
+            // ---------------------------------------------
+            // PHASE 3: wait for completion
+            // ---------------------------------------------
+
+            await allReceived.Task
+                .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
+            readerStopwatch?.Stop();
+            globalStopwatch.Stop();
+
+            // ---------------------------------------------
+            // PHASE 3: log statistics
+            // ---------------------------------------------
+
+            TestContext.WriteLine(
+            $"Wrote {FrameCount} frames in {writerStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
+            $"({FrameCount / writerStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
+
+            TestContext.WriteLine(
+            $"Read {FrameCount} frames in {readerStopwatch?.Elapsed.TotalMilliseconds:F2} ms " +
+            $"({FrameCount / readerStopwatch?.Elapsed.TotalSeconds:N0} frames/sec)");
+
+            TestContext.WriteLine(
+            $"Processed {FrameCount} frames in {globalStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
+            $"({FrameCount / globalStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
+        }
     }
 }
 
@@ -6532,7 +7343,6 @@ FILE: MWB.Networking.Layer2_Protocol.UnitTests\ProtocolSessionTests_Streams_Requ
 
 using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
-using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
@@ -6756,7 +7566,6 @@ FILE: MWB.Networking.Layer2_Protocol.UnitTests\ProtocolSessionTests.Events.cs
 ================================================================================
 
 using MWB.Networking.Layer2_Protocol.Frames;
-using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
@@ -6887,7 +7696,6 @@ FILE: MWB.Networking.Layer2_Protocol.UnitTests\ProtocolSessionTests.Performance.
 ================================================================================
 
 using MWB.Networking.Layer2_Protocol.Frames;
-using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 using System.Diagnostics;
 
@@ -7044,10 +7852,8 @@ public partial class ProtocolSessionTests
 FILE: MWB.Networking.Layer2_Protocol.UnitTests\ProtocolSessionTests.Session.cs
 ================================================================================
 
-using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
-using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
@@ -7572,27 +8378,27 @@ public sealed class ProtocolDriver : IHasLogger
         get;
     } = new(1, 1);
 
-    private TaskCompletionSource ReadySource
+    private TaskCompletionSource WhenReadySource
     {
         get;
     } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    public Task Ready
-        => this.ReadySource.Task;
+    public Task WhenReady
+        => this.WhenReadySource.Task;
 
     /// <summary>
     /// Runs the protocol driver until cancelled or a fatal error occurs.
     /// </summary>
-    [LogMethod]
+    //[LogMethod]
     public async Task RunAsync(CancellationToken ct)
     {
-        using var scope = this.Logger.BeginMethodScope(this);
+        using var scope = this.Logger.BeginMethodLoggingScope(this);
 
         var readTask = this.RunReadLoopAsync(ct);
         var writeTask = this.RunWriteLoopAsync(ct);
         var consumeTask = this.ConsumeFramesAsync(ct);
 
-        this.ReadySource.TrySetResult();
+        this.WhenReadySource.TrySetResult();
 
         await Task
             .WhenAny(
@@ -7606,10 +8412,10 @@ public sealed class ProtocolDriver : IHasLogger
     /// Drives the transport read loop and feeds bytes into the frame decoder.
     /// Decoded frames are delivered asynchronously via NetworkFrameReader.
     /// </summary>
-    [LogMethod]
+    //[LogMethod]
     private async Task RunReadLoopAsync(CancellationToken ct)
     {
-        using var scope = this.Logger.BeginMethodScope(this);
+        using var scope = this.Logger.BeginMethodLoggingScope(this);
         this.Logger.LogDebug("[DRIVER READ LOOP] entering");
 
         var buffer = ArrayPool<byte>.Shared.Rent(64 * 1024);
@@ -7637,6 +8443,9 @@ public sealed class ProtocolDriver : IHasLogger
                 if (bytesRead == 0)
                 {
                     this.Logger.LogDebug("[DRIVER READ LOOP] EOF");
+                    await this.Decoder
+                        .CompleteAsync(this.FrameReader, ct)
+                        .ConfigureAwait(false);
                     return;
                 }
 
@@ -7661,10 +8470,10 @@ public sealed class ProtocolDriver : IHasLogger
     /// Continuously drains outbound frames from the protocol session
     /// and writes them to the adapter.
     /// </summary>
-    [LogMethod]
+    //[LogMethod]
     private async Task RunWriteLoopAsync(CancellationToken ct)
     {
-        using var scope = this.Logger.BeginMethodScope(this);
+        using var scope = this.Logger.BeginMethodLoggingScope(this);
 
         while (!ct.IsCancellationRequested)
         {
@@ -7716,10 +8525,10 @@ public sealed class ProtocolDriver : IHasLogger
     /// Consumes decoded NetworkFrames from the adapter and feeds them
     /// into the protocol session.
     /// </summary>
-    [LogMethod]
+    //[LogMethod]
     public async Task ConsumeFramesAsync(CancellationToken ct)
     {
-        using var scope = this.Logger.BeginMethodScope(this);
+        using var scope = this.Logger.BeginMethodLoggingScope(this);
 
         while (!ct.IsCancellationRequested)
         {
@@ -8402,7 +9211,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MWB.Networking.Layer2_Protocol")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+80453e89e7e0705e1de54c452c167002bf6734b6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6f5921c6919cb0f073761dd2df816664793ca62c")]
 [assembly: System.Reflection.AssemblyProductAttribute("MWB.Networking.Layer2_Protocol")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MWB.Networking.Layer2_Protocol")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -8437,7 +9246,7 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("MWB.Networking.Layer2_Protocol.UnitTests")]
 [assembly: InternalsVisibleTo("MWB.Networking.Layer3_Runtime.UnitTests")]
 
-[module: LogMethod]
+//[module: LogMethod]
 
 
 
@@ -8793,6 +9602,43 @@ namespace MWB.Networking.Layer2_Protocol.Requests;
 internal sealed partial class RequestManager
 {
     // ------------------------------------------------------------------
+    // IncomingRequest cache - only use methods, don't access the field directly
+    // ------------------------------------------------------------------
+
+    private readonly Dictionary<RequestContext, IncomingRequest>
+        _cachedIncomingRequests = [];
+
+    private void AddCachedIncomingRequest(IncomingRequest request)
+    {
+        _cachedIncomingRequests.Add(request.Context, request);
+    }
+
+    internal IncomingRequest? GetCachedIncomingRequest(RequestContext? context)
+    {
+        // Null means this is a session-scoped stream or operation
+        if (context is null)
+        {
+            return null;
+        }
+
+        // There must be exactly one IncomingRequest per RequestContext.
+        // If this lookup fails, it indicates a protocol or lifecycle bug.
+        if (!_cachedIncomingRequests.TryGetValue(context, out var incomingRequest))
+        {
+            throw new InvalidOperationException(
+                "RequestContext has no associated IncomingRequest. " +
+                "This indicates an internal request lifecycle inconsistency.");
+        }
+
+        return incomingRequest;
+    }
+
+    private void RemoveCachedIncomingRequest(RequestContext context)
+    {
+        _cachedIncomingRequests.Remove(context);
+    }
+
+    // ------------------------------------------------------------------
     // Request handling - Inbound
     // ------------------------------------------------------------------
 
@@ -8805,15 +9651,16 @@ internal sealed partial class RequestManager
 
         var requestId = frame.RequestId.Value;
 
-        if (this.RequestContexts.ContainsKey(requestId))
+        if (this.RequestContextExists(requestId))
         {
             throw ProtocolException.InvalidFrameSequence(frame, "Duplicate RequestId");
         }
 
         var context = new RequestContext(requestId);
-        this.RequestContexts.Add(requestId, context);
+        this.AddRequestContext(context);
 
         var request = new IncomingRequest(this.Session, context);
+        this.AddCachedIncomingRequest(request);
 
         this.Session.OnRequestReceived(request, frame.Payload);
     }
@@ -8825,7 +9672,7 @@ internal sealed partial class RequestManager
             throw ProtocolException.InvalidFrameSequence(frame, "Response frame missing RequestId");
         }
 
-        if (!this.RequestContexts.TryGetValue(frame.RequestId.Value, out var context))
+        if (!this.TryGetRequestContext(frame.RequestId.Value, out var context))
         {
             throw ProtocolException.InvalidFrameSequence(frame, "Unknown or completed RequestId");
         }
@@ -8835,7 +9682,7 @@ internal sealed partial class RequestManager
         context.CloseFromInbound(frame);
 
         // Remove the request (terminal)
-        this.RequestContexts.Remove(frame.RequestId.Value);
+        this.RemoveRequestContext(frame.RequestId.Value);
     }
 }
 
@@ -8853,6 +9700,12 @@ namespace MWB.Networking.Layer2_Protocol.Requests;
 
 internal sealed partial class RequestManager
 {
+    private uint NextRequestId
+    {
+        get;
+        set;
+    } = 1;
+
     // ------------------------------------------------------------------
     // Request handling - Outbound
     // ------------------------------------------------------------------
@@ -8864,7 +9717,7 @@ internal sealed partial class RequestManager
 
         // Create and track request context
         var context = new RequestContext(requestId);
-        this.RequestContexts.Add(requestId, context);
+        this.AddRequestContext(context);
 
         // Emit the protocol request frame to the peer
         this.Session.EnqueueOutboundFrame(ProtocolFrames.Request(requestId, payload));
@@ -8933,19 +9786,39 @@ internal sealed partial class RequestManager : IHasLogger
     }
 
     // ------------------------------------------------------------------
-    // Request handling
+    // Cached request contexts
     // ------------------------------------------------------------------
 
-    private Dictionary<uint, RequestContext> RequestContexts
-    {
-        get;
-    } = [];
+    private readonly Dictionary<uint, RequestContext> _requestContexts = [];
 
-    private uint NextRequestId
+    private void AddRequestContext(RequestContext context)
     {
-        get;
-        set;
-    } = 1;
+        _requestContexts.Add(context.RequestId, context);
+    }
+
+    private bool RequestContextExists(uint requestId)
+    {
+        return _requestContexts.ContainsKey(requestId);
+    }
+
+    internal bool TryGetRequestContext(uint requestId, [NotNullWhen(true)] out RequestContext? result)
+    {
+        return _requestContexts.TryGetValue(requestId, out result);
+    }
+
+    private List<uint> GetRequestContextIds()
+    {
+        return _requestContexts.Keys.ToList();
+    }
+
+    private bool RemoveRequestContext(uint requestId)
+    {
+        return _requestContexts.Remove(requestId);
+    }
+
+    // ------------------------------------------------------------------
+    // Request handling
+    // ------------------------------------------------------------------
 
     internal static bool IsTerminalRequestFrame(ProtocolFrame frame)
     {
@@ -8955,20 +9828,23 @@ internal sealed partial class RequestManager : IHasLogger
 
     internal IEnumerable<uint> GetRequestIds()
     {
-        return this.RequestContexts.Keys;
-    }
-
-    internal bool TryGetRequestContext(uint key, [NotNullWhen(true)] out RequestContext? result)
-    {
-        return this.RequestContexts.TryGetValue(key, out result);
+        return this.GetRequestContextIds();
     }
 
     private void RemoveRequest(uint requestId)
     {
+        // Look up the request context first
+        if (!this.TryGetRequestContext(requestId, out var context))
+        {
+            // not a valid request
+            throw new InvalidOperationException();
+        }
+
         // auto-close streams owned by the request
         this.Session.StreamManager.TearDownRequestStreams(requestId);
 
-        this.RequestContexts.Remove(requestId);
+        this.RemoveCachedIncomingRequest(context);
+        this.RemoveRequestContext(requestId);
     }
 }
 
@@ -9027,7 +9903,7 @@ namespace MWB.Networking.Layer2_Protocol.Session.Api;
 
 public interface IProtocolSessionLifecycle
 {
-    Task Ready
+    Task WhenReady
     {
         get;
     }
@@ -9127,6 +10003,19 @@ public sealed class ProtocolSessionHandle
     {
         get;
     }
+
+
+    /// <summary>
+    /// Starts the protocol session, enabling transport I/O and event delivery.
+    /// This is a convenience forwarder to <c>ProtocolSessionHandle.Lifecycle.StartAsync</c>.
+    /// </summary>
+    public Task StartAsync(CancellationToken ct = default)
+    {
+        return this.Lifecycle.StartAsync(ct);
+    }
+
+    public Task WhenReady
+        => this.Lifecycle.WhenReady;
 }
 
 
@@ -9163,7 +10052,7 @@ internal sealed partial class ProtocolSession : IProtocolSessionCommands
     // Events
     // ------------------------------------------------------------
 
-    [LogMethod]
+    //[LogMethod]
     void IProtocolSessionCommands.SendEvent(uint eventType, ReadOnlyMemory<byte> payload)
     {
         this.EventManager.SendEvent(eventType, payload);
@@ -9223,14 +10112,16 @@ namespace MWB.Networking.Layer2_Protocol.Session;
 
 internal sealed partial class ProtocolSession : IProtocolSessionLifecycle
 {
-    public Task Ready
+    public Task WhenReady
     {
         get
         {
             if (this.ProtocolDriver is null)
-                throw new InvalidOperationException("ProtocolDriver not attached.");
+            {
+                throw new InvalidOperationException("Protocol driver not attached.");
+            }
 
-            return this.ProtocolDriver.Ready;
+            return this.ProtocolDriver.WhenReady;
         }
     }
 
@@ -9473,26 +10364,39 @@ internal sealed partial class ProtocolSession : IHasLogger
 
     public async Task WaitForOutboundFrameAsync(CancellationToken ct)
     {
+        // check if there are any frame on the queue already
+        // (e.g. sent before the write loop started)
+
+        // Fast path: check the predicate under the same lock as enqueue/dequeue
+        using (var lockScope = this.OutboundFramesLock.EnterScope())
+        {
+            if (this.OutboundFrames.Count > 0)
+            {
+                return;
+            }
+        }
+
+        // Slow path: wait for a new frame to be enqueued
         await this.OutboundFrameAvailableSignal
             .WaitAsync(ct)
             .ConfigureAwait(false);
     }
 
-    internal bool TryDequeueOutboundFrame(out ProtocolFrame frame)
-    {
-        using var lockScope = this.OutboundFramesLock.EnterScope();
+    //internal bool TryDequeueOutboundFrame(out ProtocolFrame frame)
+    //{
+    //    using var lockScope = this.OutboundFramesLock.EnterScope();
 
-        if (this.OutboundFrames.Count == 0)
-        {
-            frame = default!;
-            return false;
-        }
+    //    if (this.OutboundFrames.Count == 0)
+    //    {
+    //        frame = default!;
+    //        return false;
+    //    }
 
-        frame = this.OutboundFrames.Dequeue();
-        return true;
-    }
+    //    frame = this.OutboundFrames.Dequeue();
+    //    return true;
+    //}
 
-    [LogMethod]
+    //[LogMethod]
     internal void EnqueueOutboundFrame(ProtocolFrame frame)
     {
         ArgumentNullException.ThrowIfNull(frame);
@@ -9573,7 +10477,7 @@ namespace MWB.Networking.Layer2_Protocol.Session;
 
 public static class ProtocolSessions
 {
-    [LogMethod]
+    //[LogMethod]
     public static ProtocolSessionHandle CreateSession(
         ILogger logger,
         OddEvenStreamIdParity streamIdParity,
@@ -9602,6 +10506,7 @@ public static class ProtocolSessions
 FILE: MWB.Networking.Layer2_Protocol\Streams\Api\IncomingStream.cs
 ================================================================================
 
+using MWB.Networking.Layer2_Protocol.Requests.Api;
 using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
@@ -9609,10 +10514,14 @@ namespace MWB.Networking.Layer2_Protocol.Streams.Api;
 
 public sealed class IncomingStream : IProtocolStream
 {
-    internal IncomingStream(ProtocolSession session, uint streamId)
+    internal IncomingStream(
+        ProtocolSession session,
+        uint streamId,
+        IncomingRequest? owningRequest = null)
     {
         this.Session = session ?? throw new ArgumentNullException(nameof(session));
         this.StreamId = streamId;
+        this.OwningRequest = owningRequest;
     }
 
     private ProtocolSession Session
@@ -9627,6 +10536,15 @@ public sealed class IncomingStream : IProtocolStream
 
     uint IProtocolStream.StreamId
         => this.StreamId;
+
+    /// <summary>
+    /// The request that owns this stream, if any.
+    /// Null indicates a session-scoped stream.
+    /// </summary>
+    public IncomingRequest? OwningRequest
+    {
+        get;
+    }
 
     private IncomingStreamState State
     {
@@ -10040,21 +10958,41 @@ namespace MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
 internal sealed class StreamEntry
 {
-    public StreamEntry(StreamContext context, IncomingStream? incomingStream)
-        : this(context, incomingStream ?? throw new ArgumentNullException(nameof(incomingStream)), null)
+    public StreamEntry(StreamContext context, IncomingStream incomingStream)
+        : this(
+            context,
+            incomingStream ?? throw new ArgumentNullException(nameof(incomingStream)),
+            null)
     {
     }
 
-    public StreamEntry(StreamContext context, OutgoingStream? outgoingStream)
-        : this(context, null, outgoingStream ?? throw new ArgumentNullException(nameof(outgoingStream)))
+    public StreamEntry(StreamContext context, OutgoingStream outgoingStream)
+        : this(
+            context,
+            null,
+            outgoingStream ?? throw new ArgumentNullException(nameof(outgoingStream)))
     {
     }
 
     private StreamEntry(StreamContext context, IncomingStream? incomingStream, OutgoingStream? outgoingStream)
     {
+        // Enforce: exactly one stream must be provided
+        if ((incomingStream is null) == (outgoingStream is null))
+        {
+            throw new ArgumentException(
+                "StreamEntry must have exactly one of IncomingStream or OutgoingStream.");
+        }
+
+        this.StreamId = incomingStream?.StreamId ?? outgoingStream?.StreamId
+            ?? throw new InvalidOperationException();
         this.Context = context;
         this.IncomingStream = incomingStream;
         this.OutgoingStream = outgoingStream;
+    }
+
+    public uint StreamId
+    {
+        get;
     }
 
     public StreamContext Context
@@ -10092,9 +11030,9 @@ FILE: MWB.Networking.Layer2_Protocol\Streams\StreamManager_Inbound.cs
 ================================================================================
 
 using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Requests.Api;
 using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 using MWB.Networking.Layer2_Protocol.Streams.Api;
-using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
 using MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
 namespace MWB.Networking.Layer2_Protocol.Streams;
@@ -10107,7 +11045,7 @@ public sealed partial class StreamManager
 
     internal void AbortIncomingStream(uint streamId)
     {
-        if (!this.StreamEntries.TryGetValue(streamId, out var entry))
+        if (!this.TryGetStreamEntry(streamId, out var entry))
         {
             return;
         }
@@ -10129,7 +11067,7 @@ public sealed partial class StreamManager
         }
 
         var streamId = frame.StreamId.Value;
-        _ = this.StreamEntries.TryGetValue(streamId, out var streamEntry);
+        _ = this.TryGetStreamEntry(streamId, out var streamEntry);
         var incomingStream = streamEntry?.IncomingStream;
 
         if (frame.Kind == ProtocolFrameKind.StreamOpen)
@@ -10148,13 +11086,18 @@ public sealed partial class StreamManager
                 }
             }
 
+            IncomingRequest? incomingRequest =
+                owningRequest is not null
+                    ? new IncomingRequest(this.Session, owningRequest)
+                    : null;
+
             incomingStream = new IncomingStream(this.Session, streamId);
 
             streamEntry = new StreamEntry(
                 new StreamContext(streamId, owningRequest),
                 incomingStream
             );
-            this.StreamEntries.Add(streamId, streamEntry);
+            this.AddStreamEntry(streamEntry);
 
             // Semantic notification
             this.Session.OnStreamOpened(
@@ -10232,8 +11175,7 @@ public sealed partial class StreamManager
         var stream = new OutgoingStream(this.Session, streamId);
 
         // Track stream
-        this.StreamEntries.Add(
-            streamId,
+        this.AddStreamEntry(
             new StreamEntry(context, stream)
         );
 
@@ -10259,8 +11201,7 @@ public sealed partial class StreamManager
 
         var stream = new OutgoingStream(this.Session, streamId);
 
-        this.StreamEntries.Add(
-            streamId,
+        this.AddStreamEntry(
             new StreamEntry(context, stream)
         );
 
@@ -10272,7 +11213,7 @@ public sealed partial class StreamManager
 
     internal void CloseOutgoingStream(uint streamId)
     {
-        if (!this.StreamEntries.TryGetValue(streamId, out var entry))
+        if (!this.TryGetStreamEntry(streamId, out var entry))
         {
             return;
         }
@@ -10287,7 +11228,7 @@ public sealed partial class StreamManager
 
     internal void AbortStream(uint streamId)
     {
-        if (!this.StreamEntries.TryGetValue(streamId, out var entry))
+        if (!this.TryGetStreamEntry(streamId, out var entry))
         {
             return;
         }
@@ -10308,6 +11249,7 @@ FILE: MWB.Networking.Layer2_Protocol\Streams\StreamManager.cs
 ================================================================================
 
 using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
 using MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
@@ -10341,28 +11283,53 @@ public sealed partial class StreamManager : IHasLogger
     }
 
     // ------------------------------------------------------------------
+    // Cached request contexts
+    // ------------------------------------------------------------------
+
+    private readonly Dictionary<uint, StreamEntry> _streamEntries = [];
+
+    private void AddStreamEntry(StreamEntry entry)
+    {
+        _streamEntries.Add(entry.StreamId, entry);
+    }
+
+    private bool StreamEntryExists(uint streamId)
+    {
+        return _streamEntries.ContainsKey(streamId);
+    }
+
+    internal bool TryGetStreamEntry(uint streamId, [NotNullWhen(true)] out StreamEntry? result)
+    {
+        return _streamEntries.TryGetValue(streamId, out result);
+    }
+
+    private List<StreamEntry> GetStreamEntries()
+    {
+        return _streamEntries.Values.ToList();
+    }
+
+    private List<uint> GetStreamEntryIds()
+    {
+        return _streamEntries.Keys.ToList();
+    }
+
+    private bool RemoveStreamEntry(uint streamId)
+    {
+        return _streamEntries.Remove(streamId);
+    }
+    // ------------------------------------------------------------------
     // Stream handling
     // ------------------------------------------------------------------
 
-    private Dictionary<uint, StreamEntry> StreamEntries
-    {
-        get;
-    } = [];
-
     internal IEnumerable<uint> GetStreamIds()
     {
-        return this.StreamEntries.Keys;
-    }
-
-    internal bool TryGetStreamEntry(uint key, [NotNullWhen(true)] out StreamEntry? result)
-    {
-        return this.StreamEntries.TryGetValue(key, out result);
+        return this.GetStreamEntryIds();
     }
 
     private void RemoveStream(uint streamId)
     {
         // no-op if if doesn't exist
-        if (!this.StreamEntries.Remove(streamId))
+        if (!this.RemoveStreamEntry(streamId))
         {
             // already gone, fine
             // this.Logger.Warn($"{nameof(RemoveStream)} called for non-existent stream {streamId}");
@@ -10371,7 +11338,7 @@ public sealed partial class StreamManager : IHasLogger
 
     internal void TearDownStream(uint streamId)
     {
-        if (!this.StreamEntries.TryGetValue(streamId, out var entry))
+        if (!this.TryGetStreamEntry(streamId, out var entry))
         {
             // already gone, fine
             // this.Logger.Warn($"{nameof(TearDownStream)} called for non-existent stream {streamId}");
@@ -10385,14 +11352,14 @@ public sealed partial class StreamManager : IHasLogger
     internal void TearDownRequestStreams(uint requestId)
     {
         // Iterate over a snapshot to avoid modifying during enumeration
-        var snapshot = this.StreamEntries.ToArray();
+        var snapshot = this.GetStreamEntries();
 
-        foreach (var (streamId, entry) in snapshot)
+        foreach (var entry in snapshot)
         {
             if (entry.Context.OwningRequest?.RequestId == requestId)
             {
                 entry.Context.Close();
-                this.TearDownStream(streamId);
+                this.TearDownStream(entry.StreamId);
             }
         }
     }
@@ -10490,7 +11457,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MWB.Networking.Layer3_Runtime.UnitTests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+73b311ba67025a3f88378368d17eef81682b7b17")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8b960980468a8777a9df702230d245bcb50d101d")]
 [assembly: System.Reflection.AssemblyProductAttribute("MWB.Networking.Layer3_Runtime.UnitTests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MWB.Networking.Layer3_Runtime.UnitTests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -10547,6 +11514,161 @@ namespace MWB.Networking.Layer3_Runtime.UnitTests
 
 
 ================================================================================
+FILE: MWB.Networking.Layer3_Runtime.UnitTests\ProtocolDriver.EnqueueTests.cs
+================================================================================
+
+using MWB.Networking.Hosting;
+using MWB.Networking.Layer0_Transport.Pipes;
+using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
+using MWB.Networking.UnitTest.Helpers.Logging;
+using System.Diagnostics;
+using System.IO.Pipelines;
+
+namespace MWB.Networking.Layer3_Runtime.UnitTests;
+
+[TestClass]
+public sealed class ProtocolDriverEnqueueTest
+{
+    public TestContext TestContext
+    {
+        get;
+        set;
+    }
+
+    /// <summary>
+    /// Runtime contract test: verifies that outbound messages sent
+    /// <em>before</em> calling <c>ProtocolSession.Lifecycle.StartAsync</c>
+    /// are not lost and are delivered once the session starts.
+    ///
+    /// This protects the guarantee that pre-start sends are buffered
+    /// and drained by the write loop on startup.
+    /// </summary>
+    /// <remarks>
+    /// Prevents a previous bug where messages enqueued with <c>SendEvent</c>, etc 
+    /// <em>before</em> calling <c>StartAsync</c> were silently dropped instead
+    /// of being drained by the write loop once it was eventually started.
+    /// </remarks>
+    [TestMethod]
+    public async Task Layer2_Protocol_SendBeforeStart_IsDeliveredAfterStart()
+    {
+        const int FrameCount = 3;
+
+        var (logger, _) = DebugLoggerFactory.CreateLogger();
+
+        // -------------------------------------------------
+        // Transport (in-memory pipes)
+        // -------------------------------------------------
+        var clientToServer = new Pipe();
+        var serverToClient = new Pipe();
+
+        var clientConnection = new PipeNetworkConnection(
+            reader: serverToClient.Reader,
+            writer: clientToServer.Writer);
+
+        var serverConnection = new PipeNetworkConnection(
+            reader: clientToServer.Reader,
+            writer: serverToClient.Writer);
+
+        // -------------------------------------------------
+        // Build sessions (NOT started yet)
+        // -------------------------------------------------
+        var clientSession = new ProtocolSessionBuilder()
+            .WithLogger(logger)
+            .UseEvenStreamIds()
+            .ConfigurePipeline(p =>
+            {
+                p.AppendFrameCodec(
+                    new LengthPrefixedFrameEncoder(logger),
+                    new LengthPrefixedFrameDecoder(logger))
+                 .UseConnection(() => clientConnection);
+            })
+            .Build();
+
+        var serverSession = new ProtocolSessionBuilder()
+            .WithLogger(logger)
+            .UseOddStreamIds()
+            .ConfigurePipeline(p =>
+            {
+                p.AppendFrameCodec(
+                    new LengthPrefixedFrameEncoder(logger),
+                    new LengthPrefixedFrameDecoder(logger))
+                 .UseConnection(() => serverConnection);
+            })
+            .Build();
+
+        var payload = new ReadOnlyMemory<byte>(new byte[] { 1, 2, 3 });
+
+        // -------------------------------------------------
+        // PHASE 1: Send BEFORE start
+        // -------------------------------------------------
+        for (int i = 0; i < FrameCount; i++)
+        {
+            clientSession.Commands.SendEvent(1, payload);
+        }
+
+        // -------------------------------------------------
+        // Observe received events
+        // -------------------------------------------------
+        var received = 0;
+        var allReceived = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var readerStopwatch = (Stopwatch?)null;
+        serverSession.Observer.EventReceived += (_, _) =>
+        {
+            readerStopwatch ??= Stopwatch.StartNew();
+            if (Interlocked.Increment(ref received) == FrameCount)
+            {
+                allReceived.TrySetResult();
+            }
+        };
+
+        // -------------------------------------------------
+        // PHASE 2: Start sessions
+        // -------------------------------------------------
+
+        // start the protocol loops
+        // (wait within a maximum timeout so the test fails rather than hangs forever)
+        using var lifecycleCts = new CancellationTokenSource();
+        var serverRun = serverSession.StartAsync(lifecycleCts.Token);
+        var clientRun = clientSession.StartAsync(lifecycleCts.Token);
+        await Task
+            .WhenAll(
+                serverSession.WhenReady,
+                clientSession.WhenReady)
+            .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
+
+        // -------------------------------------------------
+        // Assert: pre-start messages are delivered
+        // -------------------------------------------------
+        // wait for messages to be dequeued
+        // (wait within a maximum timeout so the test fails rather than hangs forever)
+        await allReceived.Task
+            .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
+        readerStopwatch?.Stop();
+
+        Assert.AreEqual(FrameCount, received);
+
+        // -------------------------------------------------
+        // Clean shutdown
+        // -------------------------------------------------
+
+        // shut down cleanly
+        // (wait within a maximum timeout so the test fails rather than hangs forever)
+        lifecycleCts.Cancel();
+        await Task
+            .WhenAll(serverRun, clientRun)
+            .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
+
+        TestContext.WriteLine(
+            $"Read {FrameCount} frames in {readerStopwatch?.Elapsed.TotalMilliseconds:F2} ms " +
+            $"({FrameCount / readerStopwatch?.Elapsed.TotalSeconds:N0} frames/sec)");
+    }
+}
+
+
+
+================================================================================
 FILE: MWB.Networking.Layer3_Runtime.UnitTests\ProtocolDriver.EventRequest.cs
 ================================================================================
 
@@ -10575,7 +11697,7 @@ public sealed class ProtocolDriverEndToEndTests
         // Initialize logging
         // ------------------------------------------------------------
 
-        var logger = LoggingHelper.CreateTestContextLogger(this.TestContext);
+        var (logger, loggerFactory) = TestContextLoggerFactory.CreateLogger(this.TestContext);
 
         // ------------------------------------------------------------
         // Arrange: in-memory duplex transport
@@ -10669,12 +11791,12 @@ public sealed class ProtocolDriverEndToEndTests
         // ------------------------------------------------------------
         using var cts = new CancellationTokenSource();
 
-        var serverRun = serverSession.Lifecycle.StartAsync(cts.Token);
-        var clientRun = clientSession.Lifecycle.StartAsync(cts.Token);
+        var serverRun = serverSession.StartAsync(cts.Token);
+        var clientRun = clientSession.StartAsync(cts.Token);
 
         await Task.WhenAll(
-            serverSession.Lifecycle.Ready,
-            clientSession.Lifecycle.Ready);
+            serverSession.WhenReady,
+            clientSession.WhenReady);
 
         // ------------------------------------------------------------
         // Act: send request from client to server
@@ -11205,6 +12327,150 @@ public sealed class RingBuffer<T>
 
 
 ================================================================================
+FILE: MWB.Networking.Logging\ExecutionScope.cs
+================================================================================
+
+namespace MWB.Networking.Logging;
+
+public sealed class ExecutionScope : IDisposable
+{
+    private readonly Action _onEndScope;
+    private readonly IDisposable? _innerScope;
+    private bool _disposed;
+
+    private ExecutionScope(IDisposable? innerScope, Action onEndScope)
+    {
+        _innerScope = innerScope;
+        _onEndScope = onEndScope;
+    }
+
+    /// <summary>
+    /// Starts a new execution scope by invoking <paramref name="onStartScope"/>
+    /// immediately and executing <paramref name="onEndScope"/> when the scope ends.
+    /// </summary>
+    public static ExecutionScope StartScope(
+        Func<IDisposable?> onStartScope,
+        Action onEndScope)
+    {
+        ArgumentNullException.ThrowIfNull(onStartScope);
+        ArgumentNullException.ThrowIfNull(onEndScope);
+
+        var innerScope = onStartScope();
+        return new ExecutionScope(innerScope, onEndScope);
+    }
+
+    /// <summary>
+    /// Ends the scope explicitly.
+    /// Equivalent to <see cref="Dispose"/>.
+    /// </summary>
+    public void EndScope()
+    {
+        this.Dispose();
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
+        _onEndScope();
+        _innerScope?.Dispose();
+    }
+}
+
+
+
+================================================================================
+FILE: MWB.Networking.Logging\Formatters\MethodConsoleFormatter.cs
+================================================================================
+
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Console;
+
+namespace MWB.Networking.Logging.Formatters;
+
+public sealed class MethodConsoleFormatter : ConsoleFormatter
+{
+    public MethodConsoleFormatter()
+        : base(nameof(MethodConsoleFormatter))
+    {
+    }
+
+    public override void Write<TState>(
+        in LogEntry<TState> logEntry,
+        IExternalScopeProvider? scopeProvider,
+        TextWriter textWriter)
+    {
+        var prefix = MethodPrefixFormatter.FormatFromScope(logEntry.LogLevel, scopeProvider);
+
+        textWriter.Write($"{prefix} {logEntry.Formatter(logEntry.State, logEntry.Exception)}");
+        textWriter.WriteLine();
+    }
+}
+
+
+
+
+================================================================================
+FILE: MWB.Networking.Logging\Formatters\MethodPrefixFormatter.cs
+================================================================================
+
+using Microsoft.Extensions.Logging;
+
+namespace MWB.Networking.Logging.Formatters;
+
+public static class MethodPrefixFormatter
+{
+    public static string FormatFromScope(
+        LogLevel logLevel, 
+        IExternalScopeProvider? scopeProvider
+    )
+    {
+        var className = default(string);
+        var displayName = default(string);
+        var longId = default(string);
+        var shortId = default(string);
+        var methodName = default(string);
+
+        scopeProvider?.ForEachScope(
+            (scope, _) =>
+            {
+                if (scope is IDictionary<string, string> dictionary)
+                {
+                    _ = dictionary.TryGetValue("ClassName", out className);
+                    _ = dictionary.TryGetValue("DisplayName", out displayName);
+                    _ = dictionary.TryGetValue("LongId", out longId);
+                    _ = dictionary.TryGetValue("ShortId", out shortId);
+                    _ = dictionary.TryGetValue("MethodName", out methodName);
+                }
+            },
+            state: (object?)null
+        );
+
+        var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd hh:mm:ss.fff");
+        var levelName = logLevel switch
+        {
+            LogLevel.Information => "INFO",
+            LogLevel.Debug => "DBUG",
+            _ => "????"
+        };
+
+        displayName = displayName ?? shortId;
+
+        var prefix = $"[{timestamp}] {levelName} [{className}:{displayName}:{methodName}]";
+
+        return prefix;
+    }
+}
+
+
+
+================================================================================
 FILE: MWB.Networking.Logging\IHasDisplayName.cs
 ================================================================================
 
@@ -11282,39 +12548,176 @@ public static class ILoggerExtensions
     //    logger.LogDebug("Leaving {ClassName}.{MemberName}", className, memberName);
     //}
 
-    public static IDisposable? BeginMethodScope(this ILogger logger, object obj, [CallerMemberName] string methodName = "")
-    {
-        var hasDisplayName = obj as IHasDisplayName;
-        var hasId = obj as IHasId;
-        return logger.BeginMethodScope(
-            className: obj.GetType().Name,
-            displayName: hasDisplayName?.DisplayName,
-            longId: hasId?.Id.ToString(),
-            shortId: hasId?.ShortId,
-            methodName: methodName);
-    }
+    //public static IDisposable? BeginMethodScope(this ILogger logger, object classInstance, [CallerMemberName] string methodName = "")
+    //{
+    //    var hasDisplayName = classInstance as IHasDisplayName;
+    //    var hasId = classInstance as IHasId;
+    //    return logger.BeginMethodScope(
+    //        className: classInstance.GetType().Name,
+    //        displayName: hasDisplayName?.DisplayName,
+    //        longId: hasId?.Id.ToString(),
+    //        shortId: hasId?.ShortId,
+    //        methodName: methodName);
+    //}
 
-    public static IDisposable? BeginMethodScope(this ILogger logger, string className, string? displayName, string? longId, string? shortId, string methodName)
+    //public static IDisposable? BeginMethodScope(this ILogger logger, string className, string? displayName, string? longId, string? shortId, [CallerMemberName] string methodName = "")
+    //{
+    //    return logger.BeginScope(
+    //        new OrderedDictionary<string, string?>
+    //        {
+    //            ["ClassName"] = className,
+    //            ["DisplayName"] = displayName,
+    //            ["LongId"] = longId,
+    //            ["ShortId"] = shortId,
+    //            ["MethodName"] = methodName
+    //        }
+    //    );
+    //}
+
+    public static ExecutionScope BeginMethodLoggingScope(
+            this ILogger logger,
+            object classInstance,
+            [CallerMemberName] string methodName = "")
     {
-        return logger.BeginScope(
-            new OrderedDictionary<string, string?>
-            {
-                ["ClassName"] = className,
-                ["DisplayName"] = displayName,
-                ["LongId"] = longId,
-                ["ShortId"] = shortId,
-                ["MethodName"] = methodName
-            }
+        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(classInstance);
+
+        return ExecutionScope.StartScope(
+            onStartScope: () => logger.EnterMethod(classInstance, methodName),
+            onEndScope: () => logger.LeaveMethod()
         );
     }
 
-    //[Conditional("DEBUG")]
-    //public static void LogDebug2(this ILogger logger, string format, string? className, string? id, string? method, params object?[] args)
-    //{
-    //    var fullFormat = "[{ClassName}:{Id}:{MethodName}] " + format;
-    //    var fullArgs = new List<object?> { className, id, method }.Concat(args);
-    //    logger.LogDebug(fullFormat, fullArgs);
-    //}
+    public static IDisposable? EnterMethod(this ILogger logger, object classInstance, [CallerMemberName] string methodName = "")
+    {
+        var hasDisplayName = classInstance as IHasDisplayName;
+        var hasId = classInstance as IHasId;
+        var loggerScope = logger.BeginScope(
+            new OrderedDictionary<string, string?>
+            {
+                ["ClassName"] = classInstance.GetType().Name,
+                ["DisplayName"] = hasDisplayName?.DisplayName,
+                ["LongId"] = hasId?.Id.ToString(),
+                ["ShortId"] = hasId?.ShortId,
+                ["MethodName"] = methodName
+            }
+        );
+        logger.LogDebug("Entering method");
+        return loggerScope;
+    }
+
+    public static void LeaveMethod(this ILogger logger)
+    {
+        logger.LogDebug("Leaving method");
+    }
+}
+
+
+
+================================================================================
+FILE: MWB.Networking.Logging\Loggers\DebugLogger.cs
+================================================================================
+
+using Microsoft.Extensions.Logging;
+using MWB.Networking.Logging.Formatters;
+using MWB.Networking.Logging.Scopes;
+using System.Diagnostics;
+using System.Text;
+
+namespace MWB.Networking.Logging.Loggers;
+
+public sealed class DebugLogger : ILogger
+{
+    private readonly string _category;
+    private readonly IExternalScopeProvider? _scopeProvider;
+
+    public DebugLogger(string category, IExternalScopeProvider? scopeProvider)
+    {
+        _category = category;
+        _scopeProvider = scopeProvider;
+    }
+
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull
+        => NullScope.Instance;
+
+    public bool IsEnabled(LogLevel level) => true;
+
+    public void Log<TState>(
+        LogLevel level,
+        EventId eventId,
+        TState state,
+        Exception? exception,
+        Func<TState, Exception?, string> formatter)
+    {
+
+        if (!this.IsEnabled(level))
+        {
+            return;
+        }
+
+        var sb = new StringBuilder();
+
+        // append the prefix
+        var prefix = MethodPrefixFormatter.FormatFromScope(level, _scopeProvider);
+        sb.Append(prefix);
+
+        // append the message
+        var message = formatter(state, exception);
+        if (!string.IsNullOrEmpty(message))
+        {
+            if(!string.IsNullOrEmpty(prefix))
+            {
+                sb.Append(' ');
+            }
+            sb.Append(message);
+        }
+
+        // append the exception (if there is one)
+        if (exception is not null)
+        {
+            sb.AppendLine();
+            sb.Append(exception);
+        }
+
+        var result = sb.ToString();
+        if (result == "Network: Debug: Entering method")
+        {
+            Debugger.Break();
+        }
+
+        Debug.WriteLine(sb.ToString());
+    }
+}
+
+
+
+================================================================================
+FILE: MWB.Networking.Logging\Loggers\DebugLoggerProvider.cs
+================================================================================
+
+using Microsoft.Extensions.Logging;
+
+namespace MWB.Networking.Logging.Loggers;
+
+public sealed class DebugLoggerProvider :
+    ILoggerProvider,
+    ISupportExternalScope
+{
+    private IExternalScopeProvider? _scopeProvider;
+
+    public void SetScopeProvider(IExternalScopeProvider scopeProvider)
+    {
+        _scopeProvider = scopeProvider;
+    }
+
+    public ILogger CreateLogger(string categoryName)
+    {
+        return new DebugLogger(categoryName, _scopeProvider);
+    }
+
+    public void Dispose()
+    {
+    }
 }
 
 
@@ -11445,63 +12848,6 @@ public sealed class LogMethodAttribute : Attribute, IMethodDecorator
 
 
 ================================================================================
-FILE: MWB.Networking.Logging\MethodConsoleFormatter.cs
-================================================================================
-
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Logging.Console;
-
-namespace MWB.Networking.Logging;
-
-public sealed class MethodConsoleFormatter : ConsoleFormatter
-{
-    public MethodConsoleFormatter()
-        : base(nameof(MethodConsoleFormatter))
-    {
-    }
-
-    public override void Write<TState>(
-        in LogEntry<TState> logEntry,
-        IExternalScopeProvider? scopeProvider,
-        TextWriter textWriter)
-    {
-        var className = default(string);
-        var displayName = default(string);
-        var longId = default(string);
-        var shortId = default(string);
-        var methodName = default(string);
-
-        scopeProvider?.ForEachScope((scope, _) =>
-        {
-            if (scope is IDictionary<string, string> dictionary)
-            {
-                _ = dictionary.TryGetValue("ClassName", out className);
-                _ = dictionary.TryGetValue("DisplayName", out displayName);
-                _ = dictionary.TryGetValue("LongId", out longId);
-                _ = dictionary.TryGetValue("ShortId", out shortId);
-                _ = dictionary.TryGetValue("MethodName", out methodName);
-            }
-        }, state: (object?)null);
-
-        var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd hh:mm:ss.fff");
-        var logLevel = logEntry.LogLevel switch
-        {
-            LogLevel.Information => "INFO",
-            LogLevel.Debug => "DBUG",
-            _ => "????"
-        };
-        displayName = displayName ?? shortId;
-
-        textWriter.Write($"[{timestamp}] {logLevel} [{className}:{displayName}:{methodName}] {logEntry.Formatter(logEntry.State, logEntry.Exception)}");
-        textWriter.WriteLine();
-    }
-}
-
-
-
-
-================================================================================
 FILE: MWB.Networking.Logging\MWB.Networking.Logging.csproj
 ================================================================================
 
@@ -11512,6 +12858,10 @@ FILE: MWB.Networking.Logging\MWB.Networking.Logging.csproj
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="LogMethodAttribute.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="MethodDecorator.Fody" Version="1.1.1" />
@@ -11553,7 +12903,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MWB.Networking.Logging")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+80453e89e7e0705e1de54c452c167002bf6734b6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+73b311ba67025a3f88378368d17eef81682b7b17")]
 [assembly: System.Reflection.AssemblyProductAttribute("MWB.Networking.Logging")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MWB.Networking.Logging")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -11575,6 +12925,23 @@ global using System.Linq;
 global using System.Net.Http;
 global using System.Threading;
 global using System.Threading.Tasks;
+
+
+
+================================================================================
+FILE: MWB.Networking.Logging\Scopes\NullScope.cs
+================================================================================
+
+namespace MWB.Networking.Logging.Scopes;
+
+public sealed class NullScope : IDisposable
+{
+    public static readonly NullScope Instance = new();
+
+    public void Dispose()
+    {
+    }
+}
 
 
 
@@ -11631,27 +12998,61 @@ FILE: MWB.Networking.slnx
 
 
 ================================================================================
-FILE: MWB.Networking.UnitTest.Helpers\Logging\LoggerHelper.cs
+FILE: MWB.Networking.UnitTest.Helpers\Logging\ConsoleLoggerFactory.cs
 ================================================================================
 
 using Microsoft.Extensions.Logging;
+using MWB.Networking.Logging.Formatters;
 
 namespace MWB.Networking.UnitTest.Helpers.Logging;
 
-public static class LoggingHelper
+public static class ConsoleLoggerFactory
 {
-    public static ILogger CreateTestContextLogger(TestContext testContext)
+    public static (ILogger, ILoggerFactory) CreateLogger()
     {
-        using var loggerFactory = LoggerFactory.Create(builder =>
-         {
-             builder
-                 .SetMinimumLevel(LogLevel.Trace)
-                 .AddProvider(new TestContextLoggerProvider(testContext));
-         });
+        var loggerFactory = LoggerFactory.Create(builder =>
+        {
+            builder
+                .SetMinimumLevel(LogLevel.Debug)
+                .AddDebug()
+                .AddConsole(options =>
+                {
+                    options.FormatterName = nameof(MethodConsoleFormatter);
+                });
+        });
 
-        var logger = loggerFactory.CreateLogger("ProtocolDriver");
+        var logger = loggerFactory.CreateLogger("Network");
 
-        return logger;
+        return (logger, loggerFactory);
+    }
+}
+
+
+
+================================================================================
+FILE: MWB.Networking.UnitTest.Helpers\Logging\DebugLoggerFactory.cs
+================================================================================
+
+using Microsoft.Extensions.Logging;
+using MWB.Networking.Logging.Loggers;
+
+namespace MWB.Networking.UnitTest.Helpers.Logging;
+
+public static class DebugLoggerFactory
+{
+    public static (ILogger, ILoggerFactory?) CreateLogger()
+    {
+        var loggerFactory = LoggerFactory.Create(builder =>
+        {
+            builder
+                .SetMinimumLevel(LogLevel.Debug)
+                .AddProvider(new DebugLoggerProvider())
+                .AddDebug();
+        });
+
+        var logger = loggerFactory.CreateLogger("Network");
+
+        return (logger, loggerFactory);
     }
 }
 
@@ -11662,6 +13063,7 @@ FILE: MWB.Networking.UnitTest.Helpers\Logging\TestContextLogger.cs
 ================================================================================
 
 using Microsoft.Extensions.Logging;
+using MWB.Networking.Logging.Scopes;
 
 namespace MWB.Networking.UnitTest.Helpers.Logging;
 
@@ -11676,7 +13078,8 @@ internal sealed class TestContextLogger : ILogger
         _category = category;
     }
 
-    public IDisposable? BeginScope<TState>(TState state) => NullScope.Instance;
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull
+        => NullScope.Instance;
 
     public bool IsEnabled(LogLevel logLevel) => true;
 
@@ -11696,10 +13099,33 @@ internal sealed class TestContextLogger : ILogger
         }
     }
 
-    private sealed class NullScope : IDisposable
+ 
+}
+
+
+
+================================================================================
+FILE: MWB.Networking.UnitTest.Helpers\Logging\TestContextLoggerFactory.cs
+================================================================================
+
+using Microsoft.Extensions.Logging;
+
+namespace MWB.Networking.UnitTest.Helpers.Logging;
+
+public static class TestContextLoggerFactory
+{
+    public static (ILogger, ILoggerFactory) CreateLogger(TestContext testContext)
     {
-        public static readonly NullScope Instance = new();
-        public void Dispose() { }
+        var loggerFactory = LoggerFactory.Create(builder =>
+         {
+             builder
+                 .SetMinimumLevel(LogLevel.Trace)
+                 .AddProvider(new TestContextLoggerProvider(testContext));
+         });
+
+        var logger = loggerFactory.CreateLogger("ProtocolDriver");
+
+        return (logger, loggerFactory);
     }
 }
 
@@ -11747,7 +13173,13 @@ FILE: MWB.Networking.UnitTest.Helpers\MWB.Networking.UnitTest.Helpers.csproj
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.6" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.6" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.6" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.6" />
     <PackageReference Include="MSTest.TestFramework" Version="4.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MWB.Networking.Logging\MWB.Networking.Logging.csproj" />
   </ItemGroup>
 
 </Project>
@@ -11785,7 +13217,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MWB.Networking.UnitTest.Helpers")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+80453e89e7e0705e1de54c452c167002bf6734b6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+73b311ba67025a3f88378368d17eef81682b7b17")]
 [assembly: System.Reflection.AssemblyProductAttribute("MWB.Networking.UnitTest.Helpers")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MWB.Networking.UnitTest.Helpers")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

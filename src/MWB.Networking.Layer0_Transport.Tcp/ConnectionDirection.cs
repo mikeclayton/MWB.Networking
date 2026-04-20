@@ -1,6 +1,6 @@
 ﻿namespace MWB.Networking.Layer0_Transport.Tcp;
 
-internal enum ConnectionDirection
+public enum ConnectionDirection
 {
     Inbound,
     Outbound

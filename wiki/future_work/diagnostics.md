@@ -23,3 +23,5 @@ via:
 FrameConverter.ToNetworkFrame(...)
 FrameConverter.ToProtocolFrame(...)
 ```
+
+This would allow measuring transit time across the network by correlating "send" timestamps in the sender's diagnostic payload with the local receive time (assuming time is closely synchronised on both machines).
