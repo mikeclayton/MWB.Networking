@@ -54,13 +54,13 @@ These are some goals to help focus research, and avoid features being built "jus
 #### Core Functionality
 
 * ✅ **Layer 0 frame transport**
-  * Write a Layer 0 unit test that transmits network frames between
+  * Write a *working* Layer 0 unit test that transmits network frames between
     in-memory writer and reader endpoints
   * Requires encoding and decoding of network frames
   * Requires a Layer 0 (transport) write loop and read loop
 
 * ✅ **Layer 1 protocol encoding**
-  * Write a Layer 1 unit test that invokes protocol commands (e.g. `SendEvent`)
+  * Write a *working* Layer 1 unit test that invokes protocol commands (e.g. `SendEvent`)
     on a sender session and raises corresponding events (e.g. `EventReceived`)
     on a receiver session
   * Requires protocol session and driver implementations
@@ -82,7 +82,7 @@ These are some goals to help focus research, and avoid features being built "jus
   * Exercises the Event lifecycle model (SendEvent, EventReceived)
   * Exercises TCP network connections
 
-* **Two‑way console app sample** with Pipes
+* ✅ **Two‑way console app sample** with Pipes
   * Proves bi‑directional communication
   * Exercises the request‑response model
   * Tests Pipes provider and connections
@@ -94,7 +94,7 @@ These are some goals to help focus research, and avoid features being built "jus
   * Tests TCP provider and connections
   * **Does** test connection arbitration
 
-### Mouse Without Borders Prerequisites
+#### Mouse Without Borders Prerequisites
 
 * **Layer-0 Transport encryption**
   * Transparently Protects transport / network frames
