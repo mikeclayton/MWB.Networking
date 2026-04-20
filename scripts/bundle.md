@@ -5,5 +5,5 @@ pwsh .\extract.ps1 -sourceroot "C:\src\github\mikeclayton\MWB.Networking\src" -d
 ```
 
 ```
-pwsh .\concat.ps1 -sourceroot "C:\src\github\mikeclayton\MWB.Networking\scripts\bundle" -outputfile "C:\src\github\mikeclayton\MWB.Networking\scripts\concat.txt"
+pwsh .\concat.ps1 -sourceroot "C:\src\github\mikeclayton\MWB.Networking\src" -outputfile "C:\src\github\mikeclayton\MWB.Networking\scripts\concat.txt"
 ```
