@@ -84,7 +84,7 @@ public partial class ProtocolSessionTests
             var data = new byte[] { 0xDE, 0xAD };
 
             // Open a session-scoped stream
-            var stream = session.Commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
+            var stream = session.Commands.OpenSessionStream();
 
             // Discard StreamOpen
             runtime.DrainOutboundFrames();
@@ -107,7 +107,7 @@ public partial class ProtocolSessionTests
             var runtime = session.Runtime;
 
             // Open a session-scoped stream
-            var stream = session.Commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
+            var stream = session.Commands.OpenSessionStream();
 
             // Discard the StreamOpen frame
             runtime.DrainOutboundFrames();

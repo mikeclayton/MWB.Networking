@@ -53,6 +53,6 @@ internal sealed partial class ProtocolSession : IProtocolSessionObserver
 
     public OutgoingStream OpenSessionStream(ReadOnlyMemory<byte> metadata)
     {
-        return this.StreamManager.OpenSessionStream(metadata);
+        return this.StreamManager.OpenSessionStream(metadata: metadata);
     }
 }

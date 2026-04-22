@@ -185,11 +185,8 @@ public class PipeConnectionTests
                 writerStopwatch.Start();
                 for (int i = 0; i < FrameCount; i++)
                 {
-                    var frame = new NetworkFrame(
-                        kind: NetworkFrameKind.Request,
-                        eventType: null,
+                    var frame = NetworkFrames.Request(
                         requestId: (uint)(i + 1),
-                        streamId: null,
                         payload: payload);
                     await clientAdapter.WriteFrameAsync(frame, TestContext.CancellationToken);
                 }

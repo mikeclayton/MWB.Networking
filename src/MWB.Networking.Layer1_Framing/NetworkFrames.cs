@@ -1,8 +1,6 @@
-﻿using MWB.Networking.Layer1_Framing;
+﻿namespace MWB.Networking.Layer1_Framing;
 
-namespace MWB.Networking.Layer2_Protocol.Frames;
-
-internal static class ProtocolFrames
+public static class NetworkFrames
 {
     // ============================================================
     // Semantic factory methods (enforce invariants)
@@ -12,12 +10,12 @@ internal static class ProtocolFrames
     // Event
     // -----------------------------
 
-    public static ProtocolFrame Event(
-        uint? eventType = null,
+    public static NetworkFrame Event(
+        uint? eventType,
         ReadOnlyMemory<byte> payload = default)
     {
-        return new ProtocolFrame(
-            kind: ProtocolFrameKind.Event,
+        return new NetworkFrame(
+            kind: NetworkFrameKind.Event,
             eventType: eventType,
             requestId: null,
             requestType: null,
@@ -30,13 +28,13 @@ internal static class ProtocolFrames
     // Request
     // -----------------------------
 
-    public static ProtocolFrame Request(
+    public static NetworkFrame Request(
         uint requestId,
         uint? requestType = null,
         ReadOnlyMemory<byte> payload = default)
     {
-        return new ProtocolFrame(
-            kind: ProtocolFrameKind.Request,
+        return new NetworkFrame(
+            kind: NetworkFrameKind.Request,
             eventType: null,
             requestId: requestId,
             requestType: requestType,
@@ -49,28 +47,12 @@ internal static class ProtocolFrames
     // Response
     // -----------------------------
 
-    public static ProtocolFrame Response(
+    public static NetworkFrame Response(
         uint requestId,
-        ReadOnlyMemory<byte> payload = default)
+        ReadOnlyMemory<byte> payload)
     {
-        return new ProtocolFrame(
-            kind: ProtocolFrameKind.Response,
-            eventType: null,
-            requestId: requestId,
-            requestType: null,
-            streamId: null,
-            streamType: null,
-            payload: payload);
-    }
-
-    // -----------------------------
-    // Error
-    // -----------------------------
-
-    public static ProtocolFrame Error(uint requestId, ReadOnlyMemory<byte> payload = default)
-    {
-        return new ProtocolFrame(
-            kind: ProtocolFrameKind.Error,
+        return new NetworkFrame(
+            kind: NetworkFrameKind.Response,
             eventType: null,
             requestId: requestId,
             requestType: null,
@@ -83,14 +65,14 @@ internal static class ProtocolFrames
     // Stream Open
     // -----------------------------
 
-    public static ProtocolFrame StreamOpen(
+    public static NetworkFrame StreamOpen(
         uint streamId,
         uint? streamType = null,
-        uint? requestId = null,
+        uint? requestId = null, 
         ReadOnlyMemory<byte> metadata = default)
     {
-        return new ProtocolFrame(
-            kind: ProtocolFrameKind.StreamOpen,
+        return new NetworkFrame(
+            kind: NetworkFrameKind.StreamOpen,
             eventType: null,
             requestId: requestId,
             requestType: null,
@@ -103,12 +85,12 @@ internal static class ProtocolFrames
     // Stream Data
     // -----------------------------
 
-    public static ProtocolFrame StreamData(
+    public static NetworkFrame StreamData(
         uint streamId,
         ReadOnlyMemory<byte> payload = default)
     {
-        return new ProtocolFrame(
-            kind: ProtocolFrameKind.StreamData,
+        return new NetworkFrame(
+            kind: NetworkFrameKind.StreamData,
             eventType: null,
             requestId: null,
             requestType: null,
@@ -121,30 +103,12 @@ internal static class ProtocolFrames
     // Stream Close
     // -----------------------------
 
-    public static ProtocolFrame StreamClose(
+    public static NetworkFrame StreamClose(
         uint streamId,
         ReadOnlyMemory<byte> metadata = default)
     {
-        return new ProtocolFrame(
-            kind: ProtocolFrameKind.StreamClose,
-            eventType: null,
-            requestId: null,
-            requestType: null,
-            streamId: streamId,
-            streamType: null,
-            payload: metadata);
-    }
-
-    // -----------------------------
-    // Stream Abort
-    // -----------------------------
-
-    public static ProtocolFrame StreamAbort(
-        uint streamId,
-        ReadOnlyMemory<byte> metadata = default)
-    {
-        return new ProtocolFrame(
-            kind: ProtocolFrameKind.StreamClose,
+        return new NetworkFrame(
+            kind: NetworkFrameKind.StreamClose,
             eventType: null,
             requestId: null,
             requestType: null,

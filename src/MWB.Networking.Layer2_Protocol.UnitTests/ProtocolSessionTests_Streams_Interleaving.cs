@@ -30,8 +30,8 @@ public partial class ProtocolSessionTests
             var runtime = session.Runtime;
 
             // Open two session-scoped streams
-            var stream1 = session.Commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
-            var stream2 = session.Commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
+            var stream1 = session.Commands.OpenSessionStream();
+            var stream2 = session.Commands.OpenSessionStream();
 
             // Interleave data writes
             stream1.SendData(new byte[] { 0x01 });
@@ -64,8 +64,8 @@ public partial class ProtocolSessionTests
             var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
-            var s1 = session.Commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
-            var s2 = session.Commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
+            var s1 = session.Commands.OpenSessionStream();
+            var s2 = session.Commands.OpenSessionStream();
 
             s1.SendData(new byte[] { 0x01 });
             s2.SendData(new byte[] { 0x02 });

@@ -44,7 +44,7 @@ public sealed partial class StreamManager
         return stream;
     }
 
-    internal OutgoingStream OpenSessionStream(ReadOnlyMemory<byte> metadata)
+    internal OutgoingStream OpenSessionStream(uint? streamType = null, ReadOnlyMemory<byte> metadata = default)
     {
         var streamId = this.StreamIdProvider.AllocateOutbound();
 
@@ -60,7 +60,7 @@ public sealed partial class StreamManager
         );
 
         this.Session.EnqueueOutboundFrame(
-            ProtocolFrames.StreamOpen(streamId, metadata));
+            ProtocolFrames.StreamOpen(streamId, metadata: metadata));
 
         return stream;
     }

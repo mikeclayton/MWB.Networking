@@ -1,8 +1,8 @@
 ﻿using System.Text;
 
-namespace KeyboardSharingConsole.Helpers;
+namespace KeyboardSharingConsole.Consumers;
 
-public sealed class KeyboardEventConsumer
+public sealed class KeyboardNotificationEventConsumer
 {
     private int _count;
 

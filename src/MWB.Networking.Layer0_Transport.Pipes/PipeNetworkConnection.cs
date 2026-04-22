@@ -1,6 +1,7 @@
 ﻿using MWB.Networking.Layer0_Transport.Encoding;
 using System.Buffers;
 using System.IO.Pipelines;
+using System.IO.Pipes;
 
 namespace MWB.Networking.Layer0_Transport.Pipes;
 
@@ -77,15 +78,28 @@ public sealed class PipeNetworkConnection : INetworkConnection, IDisposable
 
         var result = await this.Writer.FlushAsync(ct).ConfigureAwait(false);
 
-        if (result.IsCompleted)
+        if (result.IsCompleted && !ct.IsCancellationRequested)
         {
             throw new IOException("Pipe closed during write.");
         }
     }
 
+
     public void Dispose()
     {
-        this.Reader.Complete();
-        this.Writer.Complete();
+        try
+        {
+            // existing dispose logic
+            this.Reader?.Complete();
+            this.Writer?.Complete(new OperationCanceledException());
+        }
+        catch (IOException)
+        {
+            // Peer already disconnected — normal shutdown
+        }
+        catch (ObjectDisposedException)
+        {
+            // Already disposed — normal shutdown
+        }
     }
 }

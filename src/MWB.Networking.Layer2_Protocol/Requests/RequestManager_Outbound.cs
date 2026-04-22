@@ -16,7 +16,7 @@ internal sealed partial class RequestManager
     // Request handling - Outbound
     // ------------------------------------------------------------------
 
-    public OutgoingRequest SendRequest(ReadOnlyMemory<byte> payload)
+    public OutgoingRequest SendRequest(uint? requestType, ReadOnlyMemory<byte> payload)
     {
         // Generate a new unique request ID<br>
         var requestId = this.NextRequestId++;
@@ -26,7 +26,8 @@ internal sealed partial class RequestManager
         this.AddRequestContext(context);
 
         // Emit the protocol request frame to the peer
-        this.Session.EnqueueOutboundFrame(ProtocolFrames.Request(requestId, payload));
+        this.Session.EnqueueOutboundFrame(
+            ProtocolFrames.Request(requestId, requestType, payload));
 
         // Return an application-facing handle
         return new OutgoingRequest(this.Session, context);

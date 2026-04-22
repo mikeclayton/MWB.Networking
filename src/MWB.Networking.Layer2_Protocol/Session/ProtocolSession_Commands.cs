@@ -15,7 +15,7 @@ internal sealed partial class ProtocolSession : IProtocolSessionCommands
     // ------------------------------------------------------------
 
     //[LogMethod]
-    void IProtocolSessionCommands.SendEvent(uint eventType, ReadOnlyMemory<byte> payload)
+    void IProtocolSessionCommands.SendEvent(uint? eventType, ReadOnlyMemory<byte> payload)
     {
         this.EventManager.SendEvent(eventType, payload);
     }
@@ -24,17 +24,17 @@ internal sealed partial class ProtocolSession : IProtocolSessionCommands
     // Requests
     // ------------------------------------------------------------
 
-    OutgoingRequest IProtocolSessionCommands.SendRequest(ReadOnlyMemory<byte> payload)
+    OutgoingRequest IProtocolSessionCommands.SendRequest(uint? requestType, ReadOnlyMemory<byte> payload)
     {
-        return this.RequestManager.SendRequest(payload);
+        return this.RequestManager.SendRequest(requestType, payload);
     }
 
     // ------------------------------------------------------------------
     // Streams
     // ------------------------------------------------------------------
 
-    OutgoingStream IProtocolSessionCommands.OpenSessionStream(ReadOnlyMemory<byte> metadata)
+    OutgoingStream IProtocolSessionCommands.OpenSessionStream(uint? streamType, ReadOnlyMemory<byte> metadata)
     {
-        return this.StreamManager.OpenSessionStream(metadata);
+        return this.StreamManager.OpenSessionStream(streamType, metadata);
     }
 }

@@ -48,7 +48,9 @@ internal static class FrameConverter
             kind: FrameConverter.ToProtocolFrameKind(frame.Kind),
             eventType: frame.EventType,
             requestId: frame.RequestId,
+            requestType: frame.RequestType,
             streamId: frame.StreamId,
+            streamType: frame.StreamType,
             payload: frame.Payload);
     }
 
@@ -60,7 +62,9 @@ internal static class FrameConverter
             kind: FrameConverter.ToNetworkFrameKind(frame.Kind),
             eventType: frame.EventType,
             requestId: frame.RequestId,
+            requestType: frame.RequestType,
             streamId: frame.StreamId,
+            streamType: frame.StreamType,
             payload: frame.Payload);
     }
 }

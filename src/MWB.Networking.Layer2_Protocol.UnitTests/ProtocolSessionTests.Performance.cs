@@ -109,22 +109,22 @@ public partial class ProtocolSessionTests
             var runtime = session.Runtime;
 
             // Reuse stream ID 1: StreamClose removes it so it can be reused.
-            const uint Id = 1;
+            const uint streamId = 1;
 
             for (var i = 0; i < WarmupIterations; i++)
             {
-                runtime.ProcessFrame(ProtocolFrames.StreamOpen(Id));
-                runtime.ProcessFrame(ProtocolFrames.StreamData(Id, FourBytes));
-                runtime.ProcessFrame(ProtocolFrames.StreamClose(Id));
+                runtime.ProcessFrame(ProtocolFrames.StreamOpen(streamId));
+                runtime.ProcessFrame(ProtocolFrames.StreamData(streamId, FourBytes));
+                runtime.ProcessFrame(ProtocolFrames.StreamClose(streamId));
             }
             runtime.DrainOutboundFrames();
 
             var sw = Stopwatch.StartNew();
             for (var i = 0; i < Iterations; i++)
             {
-                runtime.ProcessFrame(ProtocolFrames.StreamOpen(Id));
-                runtime.ProcessFrame(ProtocolFrames.StreamData(Id, FourBytes));
-                runtime.ProcessFrame(ProtocolFrames.StreamClose(Id));
+                runtime.ProcessFrame(ProtocolFrames.StreamOpen(streamId));
+                runtime.ProcessFrame(ProtocolFrames.StreamData(streamId, FourBytes));
+                runtime.ProcessFrame(ProtocolFrames.StreamClose(streamId));
             }
             sw.Stop();
 

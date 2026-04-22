@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Consumers\EventConsumer.cs" />
     <Compile Remove="Helpers\TcpProviderHelper.cs" />
     <Compile Remove="Networking\PeerConnection.cs" />
   </ItemGroup>

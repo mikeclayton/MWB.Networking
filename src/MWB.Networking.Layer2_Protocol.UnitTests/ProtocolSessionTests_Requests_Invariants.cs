@@ -1,6 +1,6 @@
 using MWB.Networking.Layer2_Protocol.Frames;
-using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
+using MWB.Networking.UnitTest.Helpers.Layer2_Protocol;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
@@ -29,7 +29,8 @@ public partial class ProtocolSessionTests
             var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
-            var frame = new ProtocolFrame(ProtocolFrameKind.Request, null, null, null, ProtocolFrames.EmptyPayload);
+            var frame = ProtocolFrameGenerator.CreateInvalidProtocolFrame(
+                ProtocolFrameKind.Request);
 
             Assert.Throws<ProtocolException>(() => runtime.ProcessFrame(frame));
         }
@@ -40,7 +41,8 @@ public partial class ProtocolSessionTests
             var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
-            var frame = new ProtocolFrame(ProtocolFrameKind.Response, null, null, null, ProtocolFrames.EmptyPayload);
+            var frame = ProtocolFrameGenerator.CreateInvalidProtocolFrame(
+                ProtocolFrameKind.Response);
 
             Assert.Throws<ProtocolException>(() => runtime.ProcessFrame(frame));
         }

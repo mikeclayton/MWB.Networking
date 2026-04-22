@@ -96,7 +96,9 @@ internal static class NetworkFrameSerializer
 
         uint? eventType = null;
         uint? requestId = null;
+        uint? requestType = null;
         uint? streamId = null;
+        uint? streamType = null;
 
         // ---- 2. Read optional fields --------------------------------------
 
@@ -114,9 +116,23 @@ internal static class NetworkFrameSerializer
             offset += 4;
         }
 
+        if (flags.HasFlag(NetworkFrameFlags.HasRequestType))
+        {
+            requestType = BinaryPrimitives.ReadUInt32BigEndian(
+                span.Slice(offset, 4));
+            offset += 4;
+        }
+
         if (flags.HasFlag(NetworkFrameFlags.HasStreamId))
         {
             streamId = BinaryPrimitives.ReadUInt32BigEndian(
+                span.Slice(offset, 4));
+            offset += 4;
+        }
+
+        if (flags.HasFlag(NetworkFrameFlags.HasStreamType))
+        {
+            streamType = BinaryPrimitives.ReadUInt32BigEndian(
                 span.Slice(offset, 4));
             offset += 4;
         }
@@ -128,10 +144,6 @@ internal static class NetworkFrameSerializer
             : ReadOnlyMemory<byte>.Empty;
 
         return new NetworkFrame(
-            kind: kind,
-            eventType: eventType,
-            requestId: requestId,
-            streamId: streamId,
-            payload: payload);
+            kind, eventType, requestId, requestType, streamId, streamType, payload);
     }
 }

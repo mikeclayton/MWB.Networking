@@ -1,6 +1,7 @@
 using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
 using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
+using MWB.Networking.UnitTest.Helpers.Layer2_Protocol;
 
 namespace MWB.Networking.Layer2_Protocol.UnitTests;
 
@@ -50,7 +51,7 @@ public partial class ProtocolSessionTests
             };
 
             // First outbound frame
-            runtime.ProcessFrame(ProtocolFrames.Request(1, ProtocolFrames.EmptyPayload));
+            runtime.ProcessFrame(ProtocolFrames.Request(1));
             r1!.Respond(new byte[] { 0x01 });
 
             var first = runtime.DrainOutboundFrames();
@@ -60,7 +61,7 @@ public partial class ProtocolSessionTests
             Assert.IsEmpty(second);
 
             // Prove new outbound frames appear after drain
-            runtime.ProcessFrame(ProtocolFrames.Request(2, ProtocolFrames.EmptyPayload));
+            runtime.ProcessFrame(ProtocolFrames.Request(2));
             r2!.Respond(new byte[] { 0x02 });
 
             var third = runtime.DrainOutboundFrames();
@@ -236,17 +237,25 @@ public partial class ProtocolSessionTests
             Assert.Throws<ArgumentNullException>(() => runtime.ProcessFrame(null!));
         }
 
+
         [TestMethod]
         public void OnInbound_UnknownFrameKind_ThrowsProtocolException_WithUnknownFrameKindError()
         {
             var session = ProtocolSessionHelper.CreateNullSession();
             var runtime = session.Runtime;
 
-            var frame = new ProtocolFrame((ProtocolFrameKind)0xFF, null, null, null, ProtocolFrames.EmptyPayload);
+            // Arrange: intentionally invalid protocol frame
+            var frame = ProtocolFrameGenerator.CreateInvalidProtocolFrame(
+                (ProtocolFrameKind)0xFF);
 
-            var ex = Assert.Throws<ProtocolException>(() => runtime.ProcessFrame(frame));
+            // Act
+            var ex = Assert.Throws<ProtocolException>(
+                () => runtime.ProcessFrame(frame));
 
-            Assert.AreEqual(ProtocolErrorKind.UnknownFrameKind, ex.ErrorKind);
+            // Assert
+            Assert.AreEqual(
+                ProtocolErrorKind.UnknownFrameKind,
+                ex.ErrorKind);
         }
 
         // ---------------------------------------------------------------

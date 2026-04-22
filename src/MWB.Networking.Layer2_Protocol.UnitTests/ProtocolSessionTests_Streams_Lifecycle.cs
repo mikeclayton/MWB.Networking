@@ -29,7 +29,7 @@ public partial class ProtocolSessionTests
             var runtime = session.Runtime;
 
             // Open a session-scoped stream
-            var stream = session.Commands.OpenSessionStream(ProtocolFrames.EmptyPayload);
+            var stream = session.Commands.OpenSessionStream();
 
             // Emit multiple data frames
             stream.SendData(new byte[] { 10 });
