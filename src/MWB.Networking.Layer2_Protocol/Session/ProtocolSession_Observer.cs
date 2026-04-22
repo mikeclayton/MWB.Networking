@@ -40,7 +40,7 @@ internal sealed partial class ProtocolSession : IProtocolSessionObserver
 
     public event Action<IncomingStream, ReadOnlyMemory<byte> /* Payload */>? StreamDataReceived;
 
-    public event Action<IncomingStream>? StreamClosed;
+    public event Action<IncomingStream, StreamMetadata>? StreamClosed;
 
     internal void OnStreamOpened(IncomingStream stream, StreamMetadata metadata)
         => this.StreamOpened?.Invoke(stream, metadata);
@@ -48,8 +48,8 @@ internal sealed partial class ProtocolSession : IProtocolSessionObserver
     internal void OnStreamDataReceived(IncomingStream stream, ReadOnlyMemory<byte> payload)
         => this.StreamDataReceived?.Invoke(stream, payload);
 
-    internal void OnStreamClosed(IncomingStream stream)
-        => this.StreamClosed?.Invoke(stream);
+    internal void OnStreamClosed(IncomingStream stream, StreamMetadata metadata)
+        => this.StreamClosed?.Invoke(stream, metadata);
 
     public OutgoingStream OpenSessionStream(ReadOnlyMemory<byte> metadata)
     {

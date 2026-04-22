@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Memory;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
+using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
 using MWB.Networking.Logging;
 using System.Diagnostics;
 
@@ -56,16 +57,12 @@ public partial class ProtocolSessionTests
             var sessionA = new ProtocolSessionBuilder()
                 .WithLogger(logger)
                 .UseOddStreamIds()
-                .ConfigurePipeline(
-                    pipeline =>
-                    {
-                        pipeline
-                            .AppendFrameCodec(
-                                new LengthPrefixedFrameEncoder(logger),
-                                new LengthPrefixedFrameDecoder(logger))
-                            .UseConnection(() => connectionA);
-                    }
-                )
+                .ConfigurePipeline(pipeline =>
+                {
+                    pipeline
+                        .UseLengthPrefixedCodec(logger)
+                        .UseConnection(() => connectionA);
+                })
                 .Build();
 
             // ----------------------------
@@ -80,27 +77,20 @@ public partial class ProtocolSessionTests
             var sessionB = new ProtocolSessionBuilder()
                 .WithLogger(logger)
                 .UseEvenStreamIds()
-                .ConfigurePipeline(
-                    pipeline =>
+                .ConfigurePipeline(pipeline =>
+                {
+                    pipeline
+                        .UseLengthPrefixedCodec(logger)
+                        .UseConnection(() => connectionB);
+                })
+                .OnEventReceived(
+                    (_, _) =>
                     {
-                        pipeline
-                            .AppendFrameCodec(
-                                new LengthPrefixedFrameEncoder(logger),
-                                new LengthPrefixedFrameDecoder(logger))
-                            .UseConnection(() => connectionB);
-                    }
-                )
-                .ConfigureObservers(
-                    observers =>
-                    {
-                        observers.EventReceived = (_, _) =>
+                        readerStopwatch ??= Stopwatch.StartNew();
+                        if (Interlocked.Increment(ref received) == FrameCount)
                         {
-                            readerStopwatch ??= Stopwatch.StartNew();
-                            if (Interlocked.Increment(ref received) == FrameCount)
-                            {
-                                allReceived.TrySetResult();
-                            }
-                        };
+                            allReceived.TrySetResult();
+                        }
                     }
                 )
                 .Build();

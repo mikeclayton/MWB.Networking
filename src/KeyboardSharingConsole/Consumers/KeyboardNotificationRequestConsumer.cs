@@ -20,6 +20,8 @@ public sealed class KeyboardNotificationRequestConsumer
 
             // Respond explicitly
             request.Respond(acknowledgement.ToPayload());
+
+            _count++;
         }
         catch (Exception ex)
         {

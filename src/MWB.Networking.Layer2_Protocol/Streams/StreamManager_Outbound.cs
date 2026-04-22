@@ -1,7 +1,6 @@
 ﻿using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 using MWB.Networking.Layer2_Protocol.Streams.Api;
-using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
 using MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
 namespace MWB.Networking.Layer2_Protocol.Streams;

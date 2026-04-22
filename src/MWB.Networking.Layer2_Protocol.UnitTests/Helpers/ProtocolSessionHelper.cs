@@ -4,6 +4,7 @@ using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.NullConnection;
 using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer1_Framing.Encoding;
+using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
 using MWB.Networking.Layer1_Framing.Encoding.NullEncoder;
 using MWB.Networking.Layer2_Protocol.Driver;
 using MWB.Networking.Layer2_Protocol.Session;
@@ -33,9 +34,7 @@ internal static class ProtocolSessionHelper
                 .ConfigurePipeline(pipeline =>
                 {
                     pipeline
-                        .AppendFrameCodec(
-                            new NullFrameEncoder(),
-                            new NullFrameDecoder())
+                        .UseLengthPrefixedCodec(logger)
                         .UseConnection(() => new NullNetworkConnection());
                 })
                 // ----------------------------

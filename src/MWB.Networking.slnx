@@ -27,6 +27,7 @@
   <Folder Name="/Layer1_Framing/Encoding/">
     <Project Path="MWB.Networking.Layer1_Framing.Encoding.Aes/MWB.Networking.Layer1_Framing.Encoding.Aes.csproj" Id="c5bd9471-89da-43a3-a729-c612c108eb7b" />
     <Project Path="MWB.Networking.Layer1_Framing.Encoding.Gzip/MWB.Networking.Layer1_Framing.Encoding.Gzip.csproj" Id="4b18d4a8-eeea-4198-9ac6-d190db47bb4c" />
+    <Project Path="MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting/MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting.csproj" Id="79ce122f-4753-4fce-bbf7-f2b1e93e1148" />
     <Project Path="MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed/MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.csproj" Id="a14a7403-e753-4aee-945f-8d1b7e1346c3" />
     <Project Path="MWB.Networking.Layer1_Framing.Encoding.NullEncoder/MWB.Networking.Layer1_Framing.Encoding.NullEncoder.csproj" />
     <Project Path="MWB.Networking.Layer1_Framing.Encoding/MWB.Networking.Layer1_Framing.Encoding.csproj" Id="30741abf-4df6-4519-867d-54cbcfb3c48d" />

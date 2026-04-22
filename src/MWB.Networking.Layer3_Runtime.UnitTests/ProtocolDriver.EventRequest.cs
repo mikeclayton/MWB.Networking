@@ -1,6 +1,7 @@
 ﻿using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
+using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
 using MWB.Networking.UnitTest.Helpers.Logging;
 using System.IO.Pipelines;
@@ -60,9 +61,7 @@ public sealed class ProtocolDriverEndToEndTests
                 .ConfigurePipeline(pipeline =>
                 {
                     pipeline
-                        .AppendFrameCodec(
-                            new LengthPrefixedFrameEncoder(logger),
-                            new LengthPrefixedFrameDecoder(logger))
+                        .UseLengthPrefixedCodec(logger)
                         .UseConnection(() => serverConnection);
                 })
                 // ----------------------------
@@ -90,9 +89,7 @@ public sealed class ProtocolDriverEndToEndTests
                 .ConfigurePipeline(pipeline =>
                 {
                     pipeline
-                        .AppendFrameCodec(
-                            new LengthPrefixedFrameEncoder(logger),
-                            new LengthPrefixedFrameDecoder(logger))
+                        .UseLengthPrefixedCodec(logger)
                         .UseConnection(() => clientConnection);
                 })
                 // ----------------------------

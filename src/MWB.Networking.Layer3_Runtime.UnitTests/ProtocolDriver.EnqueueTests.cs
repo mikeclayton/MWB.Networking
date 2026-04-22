@@ -1,6 +1,7 @@
 ﻿using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
+using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
 using MWB.Networking.UnitTest.Helpers.Logging;
 using System.Diagnostics;
 using System.IO.Pipelines;
@@ -56,24 +57,22 @@ public sealed class ProtocolDriverEnqueueTest
         var clientSession = new ProtocolSessionBuilder()
             .WithLogger(logger)
             .UseEvenStreamIds()
-            .ConfigurePipeline(p =>
+            .ConfigurePipeline(pipeline =>
             {
-                p.AppendFrameCodec(
-                    new LengthPrefixedFrameEncoder(logger),
-                    new LengthPrefixedFrameDecoder(logger))
-                 .UseConnection(() => clientConnection);
+                pipeline
+                    .UseLengthPrefixedCodec(logger)
+                    .UseConnection(() => clientConnection);
             })
             .Build();
 
         var serverSession = new ProtocolSessionBuilder()
             .WithLogger(logger)
             .UseOddStreamIds()
-            .ConfigurePipeline(p =>
+            .ConfigurePipeline(pipeline =>
             {
-                p.AppendFrameCodec(
-                    new LengthPrefixedFrameEncoder(logger),
-                    new LengthPrefixedFrameDecoder(logger))
-                 .UseConnection(() => serverConnection);
+                pipeline
+                    .UseLengthPrefixedCodec(logger)
+                    .UseConnection(() => serverConnection);
             })
             .Build();
 

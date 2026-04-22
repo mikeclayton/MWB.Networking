@@ -3,6 +3,7 @@ using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
+using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
 using MWB.Networking.Logging;
 using MWB.Networking.UnitTest.Helpers.Logging;
@@ -43,12 +44,11 @@ public class PipeConnectionTests
                 new ProtocolSessionBuilder()
                     .WithLogger(logger)
                     .UseOddStreamIds()
-                    .ConfigurePipeline(p =>
+                    .ConfigurePipeline(pipeline =>
                     {
-                        p.AppendFrameCodec(
-                             new LengthPrefixedFrameEncoder(logger),
-                             new LengthPrefixedFrameDecoder(logger))
-                         .UseConnection(() => serverConnection);
+                        pipeline
+                            .UseLengthPrefixedCodec(logger)
+                            .UseConnection(() => serverConnection);
                     })
                     .Build();
 
@@ -63,12 +63,11 @@ public class PipeConnectionTests
                 new ProtocolSessionBuilder()
                     .WithLogger(logger)
                     .UseEvenStreamIds()
-                    .ConfigurePipeline(p =>
+                    .ConfigurePipeline(pipeline =>
                     {
-                        p.AppendFrameCodec(
-                             new LengthPrefixedFrameEncoder(logger),
-                             new LengthPrefixedFrameDecoder(logger))
-                         .UseConnection(() => clientConnection);
+                        pipeline
+                            .UseLengthPrefixedCodec(logger)
+                            .UseConnection(() => clientConnection);
                     })
                     .Build();
 
@@ -149,9 +148,7 @@ public class PipeConnectionTests
             // Build client pipeline
             // ----------------------------
             var clientPipeline = new NetworkPipelineBuilder()
-                .AppendFrameCodec(
-                    encoder: new LengthPrefixedFrameEncoder(logger),
-                    decoder: new LengthPrefixedFrameDecoder(logger))
+                .UseLengthPrefixedCodec(logger)
                 .UseConnection(() => clientConnection)
                 .Build();
             var clientAdapter = new NetworkAdapter(
@@ -163,9 +160,7 @@ public class PipeConnectionTests
             // Build server pipeline
             // ----------------------------
             var serverPipeline = new NetworkPipelineBuilder()
-                .AppendFrameCodec(
-                    encoder: new LengthPrefixedFrameEncoder(logger),
-                    decoder: new LengthPrefixedFrameDecoder(logger))
+                .UseLengthPrefixedCodec(logger)
                 .UseConnection(() => serverConnection)
                 .Build();
             var serverAdapter = new NetworkAdapter(
@@ -262,12 +257,11 @@ public class PipeConnectionTests
             var clientSession = new ProtocolSessionBuilder()
                 .WithLogger(logger)
                 .UseEvenStreamIds()
-                .ConfigurePipeline(p =>
+                .ConfigurePipeline(pipeline =>
                 {
-                    p.AppendFrameCodec(
-                        new LengthPrefixedFrameEncoder(logger),
-                        new LengthPrefixedFrameDecoder(logger))
-                     .UseConnection(() => clientConnection);
+                    pipeline
+                        .UseLengthPrefixedCodec(logger)
+                        .UseConnection(() => clientConnection);
                 })
                 .Build();
 
@@ -283,22 +277,16 @@ public class PipeConnectionTests
                 .ConfigurePipeline(pipeline =>
                 {
                     pipeline
-                        .AppendFrameCodec(
-                            new LengthPrefixedFrameEncoder(logger),
-                            new LengthPrefixedFrameDecoder(logger))
+                        .UseLengthPrefixedCodec(logger)
                         .UseConnection(() => serverConnection);
                 })
-                .ConfigureObservers(
-                    observers =>
+                .OnEventReceived((_, _) =>
                     {
-                        observers.EventReceived = (_, _) =>
+                        readerStopwatch ??= Stopwatch.StartNew();
+                        if (Interlocked.Increment(ref received) == FrameCount)
                         {
-                            readerStopwatch ??= Stopwatch.StartNew();
-                            if (Interlocked.Increment(ref received) == FrameCount)
-                            {
-                                allReceived.TrySetResult();
-                            }
-                        };
+                            allReceived.TrySetResult();
+                        }
                     }
                 )
                 .Build();
