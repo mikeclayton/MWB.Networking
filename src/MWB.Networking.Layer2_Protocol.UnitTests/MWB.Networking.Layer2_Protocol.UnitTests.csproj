@@ -8,6 +8,20 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="ProtocolSessionTests.Events.cs" />
+    <Compile Remove="ProtocolSessionTests_Requests_Inbound.cs" />
+    <Compile Remove="ProtocolSessionTests_Requests_Invariants.cs" />
+    <Compile Remove="ProtocolSessionTests_Requests_Outbound.cs" />
+    <Compile Remove="ProtocolSessionTests_Requests_Violations.cs" />
+    <Compile Remove="ProtocolSessionTests_Streams_Inbound.cs" />
+    <Compile Remove="ProtocolSessionTests_Streams_Interleaving.cs" />
+    <Compile Remove="ProtocolSessionTests_Streams_Invariants.cs" />
+    <Compile Remove="ProtocolSessionTests_Streams_Lifecycle.cs" />
+    <Compile Remove="ProtocolSessionTests_Streams_RequestScoped.cs" />
+    <Compile Remove="ProtocolSessionTests_Streams_SessionScoped.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\MWB.Networking.Hosting\MWB.Networking.Hosting.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Memory\MWB.Networking.Layer0_Transport.Memory.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.NullConnection\MWB.Networking.Layer0_Transport.NullConnection.csproj" />
@@ -20,6 +34,11 @@
 
   <ItemGroup>
     <PackageReference Update="Microsoft.Testing.Extensions.CodeCoverage" Version="18.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Helpers\" />
+    <Folder Include="ProtocolSession\Lifecycle\" />
   </ItemGroup>
 
 </Project>

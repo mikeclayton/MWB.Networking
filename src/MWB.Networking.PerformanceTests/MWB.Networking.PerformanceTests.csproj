@@ -1,0 +1,18 @@
+﻿<Project Sdk="MSTest.Sdk/4.2.1">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MWB.Networking.Hosting\MWB.Networking.Hosting.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Memory\MWB.Networking.Layer0_Transport.Memory.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Logging\MWB.Networking.Logging.csproj" />
+    <ProjectReference Include="..\MWB.Networking.UnitTest.Helpers\MWB.Networking.UnitTest.Helpers.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,7 +1,7 @@
 ﻿using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Session.Api;
 
-namespace MWB.Networking.Layer2_Protocol.UnitTests;
+namespace MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 
 internal static class ProtocolSessionExtensions
 {
@@ -17,21 +17,5 @@ internal static class ProtocolSessionExtensions
             frames.Add(frame);
         }
         return frames;
-    }
-
-    public static async Task<ProtocolFrame> AwaitOutboundAsync(
-          this IProtocolSessionRuntime sessionRuntime,
-          TimeSpan timeout)
-    {
-        var deadline = DateTime.UtcNow + timeout;
-        while (DateTime.UtcNow < deadline)
-        {
-            if (sessionRuntime.TryDequeueOutboundFrame(out var frame))
-            {
-                return frame;
-            }
-            await Task.Delay(10);
-        }
-        throw new TimeoutException("No outbound frame arrived within timeout.");
     }
 }

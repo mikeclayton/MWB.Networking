@@ -4,10 +4,10 @@ using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
 using MWB.Networking.Layer2_Protocol.Session.Api;
 using MWB.Networking.UnitTest.Helpers.Logging;
 
-namespace MWB.Networking.Layer2_Protocol.UnitTests;
+namespace ProtocolSession;
 
 [TestClass]
-public partial class ProtocolSessionTests
+public partial class StreamContext_Lifecycle
 {
     public TestContext TestContext
     {

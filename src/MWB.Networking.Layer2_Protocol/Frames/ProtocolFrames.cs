@@ -1,6 +1,4 @@
-﻿using MWB.Networking.Layer1_Framing;
-
-namespace MWB.Networking.Layer2_Protocol.Frames;
+﻿namespace MWB.Networking.Layer2_Protocol.Frames;
 
 internal static class ProtocolFrames
 {
