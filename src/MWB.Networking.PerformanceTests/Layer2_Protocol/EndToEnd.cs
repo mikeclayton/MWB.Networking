@@ -6,10 +6,10 @@ using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
 using MWB.Networking.Logging;
 using System.Diagnostics;
 
-namespace ProtocolSession;
+namespace Performance;
 
 [TestClass]
-public partial class Performance_EndToENd
+public partial class Layer2_Protocol_EndToEnd
 {
 
     public TestContext TestContext

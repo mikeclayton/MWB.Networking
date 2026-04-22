@@ -164,7 +164,7 @@ public sealed partial class Session
     {
         var session = ProtocolSessionHelper.CreateNullSession();
         var runtime = session.Runtime;
-            
+
         runtime.ProcessFrame(ProtocolFrames.Request(1));
         runtime.ProcessFrame(ProtocolFrames.StreamOpen(10));
 

@@ -18,7 +18,7 @@ public partial class StreamContext_Lifecycle
     /// <summary>
     /// Regression test for a real-world lifecycle bug where multiple teardown paths
     /// attempted to close the same StreamContext more than once.
-    /// 
+    ///
     /// Stream termination must be idempotent: invoking Close multiple times during
     /// normal protocol teardown (e.g. request completion, stream cleanup, or session
     /// shutdown) must not throw and must not change observable behavior after the

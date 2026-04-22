@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace ProtocolSession;
+namespace Performance;
 
 /// <summary>
 /// Throughput tests that measure wall-clock time for high-volume frame processing.
@@ -9,7 +9,7 @@ namespace ProtocolSession;
 /// after the run to ensure no frames were silently dropped.
 /// </summary>
 [TestClass]
-public sealed partial class Performance
+public sealed partial class Layer2_Protocol_Performance
 {
     public TestContext TestContext
     {
