@@ -59,20 +59,10 @@ internal sealed partial class ProtocolSession : IHasLogger
         get;
     }
 
-    internal SemaphoreSlim OutboundFrameAvailableSignal
-    {
-        get;
-    } = new(initialCount: 0);
-
     /// <summary>
     /// Deliberately not threadsafe - coordinate access in higher layers.
     /// </summary>
-    private Queue<ProtocolFrame> OutboundFrames
-    {
-        get;
-    } = [];
-
-    private Lock OutboundFramesLock
+    private OutboundFrameQueue OutboundFrames
     {
         get;
     } = new();
@@ -86,24 +76,9 @@ internal sealed partial class ProtocolSession : IHasLogger
     // Outbound queue coordination
     // ------------------------------------------------------------------
 
-    public async Task WaitForOutboundFrameAsync(CancellationToken ct)
+    public Task WaitForOutboundFrameAsync(CancellationToken ct)
     {
-        // check if there are any frame on the queue already
-        // (e.g. sent before the write loop started)
-
-        // Fast path: check the predicate under the same lock as enqueue/dequeue
-        using (var lockScope = this.OutboundFramesLock.EnterScope())
-        {
-            if (this.OutboundFrames.Count > 0)
-            {
-                return;
-            }
-        }
-
-        // Slow path: wait for a new frame to be enqueued
-        await this.OutboundFrameAvailableSignal
-            .WaitAsync(ct)
-            .ConfigureAwait(false);
+        return this.OutboundFrames.WaitForFrameAsync(ct);
     }
 
     //internal bool TryDequeueOutboundFrame(out ProtocolFrame frame)
@@ -176,11 +151,6 @@ internal sealed partial class ProtocolSession : IHasLogger
             Stopwatch.GetTimestamp();
 #endif
 
-        using (var lockScope = this.OutboundFramesLock.EnterScope())
-        {
-            this.OutboundFrames.Enqueue(frame);
-        }
-
-        this.OutboundFrameAvailableSignal.Release();
+        this.OutboundFrames.Enqueue(frame);
     }
 }

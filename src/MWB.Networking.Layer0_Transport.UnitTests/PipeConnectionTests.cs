@@ -125,8 +125,8 @@ public class PipeConnectionTests
         {
             const int FrameCount = 100_000;
 
-            //var logger = NullLogger.Instance;
-            var (logger, loggerFactory) = DebugLoggerFactory.CreateLogger();
+            var logger = NullLogger.Instance;
+            //var (logger, loggerFactory) = DebugLoggerFactory.CreateLogger();
 
             using var loggerScope = logger.BeginMethodLoggingScope(this);
 
