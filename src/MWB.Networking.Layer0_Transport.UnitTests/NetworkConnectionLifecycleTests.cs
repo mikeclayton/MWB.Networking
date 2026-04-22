@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Test;
-using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
+using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
 using MWB.Networking.Logging;
 using MWB.Networking.UnitTest.Helpers.Logging;
 
@@ -52,15 +52,14 @@ public sealed class NetworkConnectionLifecycleTests
             new ProtocolSessionBuilder()
                 .WithLogger(logger)
                 .UseEvenStreamIds()
-                .ConfigurePipeline(p =>
+                .ConfigurePipeline(pipeline =>
                 {
                     // Real frame codec pipeline, exactly as in production.
-                    p.AppendFrameCodec(
-                        new LengthPrefixedFrameEncoder(logger),
-                        new LengthPrefixedFrameDecoder(logger))
-                     // IMPORTANT: bind to the logical connection, not a
-                     // specific physical network connection.
-                     .UseConnection(() => manualTestProvider.Handle.Connection);
+                    pipeline
+                        .UseLengthPrefixedCodec(logger)
+                        // IMPORTANT: bind to the logical connection, not a
+                        // specific physical network connection.
+                        .UseConnection(() => manualTestProvider.Handle.Connection);
                 })
                 .Build();
 
@@ -121,12 +120,11 @@ public sealed class NetworkConnectionLifecycleTests
                 new ProtocolSessionBuilder()
                     .WithLogger(logger)
                     .UseEvenStreamIds()
-                    .ConfigurePipeline(p =>
+                    .ConfigurePipeline(pipeline =>
                     {
-                        p.AppendFrameCodec(
-                                new LengthPrefixedFrameEncoder(logger),
-                                new LengthPrefixedFrameDecoder(logger))
-                         .UseConnection(() => manualTestProvider.Handle.Connection);
+                        pipeline
+                            .UseLengthPrefixedCodec(logger)
+                            .UseConnection(() => manualTestProvider.Handle.Connection);
                     })
                     .Build();
 

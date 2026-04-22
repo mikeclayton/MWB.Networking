@@ -3,6 +3,7 @@ using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Memory;
 using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
+using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
 using System.Diagnostics;
 
 namespace MWB.Networking.Layer0_Transport.UnitTests;
@@ -48,9 +49,7 @@ public class MemoryConnectionTests
             // Build framing pipeline on top of the in-memory connection
             var pipeline =
                 new NetworkPipelineBuilder()
-                    .AppendFrameCodec(
-                        new LengthPrefixedFrameEncoder(logger),
-                        new LengthPrefixedFrameDecoder(logger))
+                    .UseLengthPrefixedCodec(logger)
                     .UseConnection(() => connectionA)
                     .Build();
 
@@ -70,11 +69,8 @@ public class MemoryConnectionTests
             var stopwatch = Stopwatch.StartNew();
             for (int i = 0; i < FrameCount; i++)
             {
-                var frame = new NetworkFrame(
-                    kind: NetworkFrameKind.Request,
-                    eventType: null,
+                var frame = NetworkFrames.Request(
                     requestId: (uint)(i + 1),
-                    streamId: null,
                     payload: payload);
 
                 await adapter.WriteFrameAsync(

@@ -1,8 +1,12 @@
 ﻿using KeyboardSharingConsole.CommandLine;
+using KeyboardSharingConsole.Consumers;
 using KeyboardSharingConsole.Helpers;
+using KeyboardSharingConsole.Models;
+using KeyboardSharingConsole.Producers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Tcp;
+using System.Collections.Concurrent;
 
 Console.WriteLine("Hello, World!");
 
@@ -63,33 +67,63 @@ var connectionHandle =
 // Layer 2: Protocol session (builder owns wiring)
 // ------------------------------------------------------------
 Console.WriteLine("creating protocol session");
-var keyboardEventConsumer = new KeyboardEventConsumer();
+
+// create and start the producer (events will be buffered until the session is started)
+var keyboardNotificationQueue = new ConcurrentQueue<KeyPressedNotification>();
+var keyboardNotificationEventConsumer = new KeyboardNotificationEventConsumer();
+var keyboardNotificationRequestConsumer = new KeyboardNotificationRequestConsumer();
+
 var session = ProtocolSessionHelper.CreateSession(
-    logger, isPeerA, connectionHandle.Connection, keyboardEventConsumer.OnEventReceived);
+    logger, isPeerA, connectionHandle.Connection,
+    keyboardNotificationEventConsumer.OnEventReceived,
+    keyboardNotificationRequestConsumer.OnRequestReceived);
 
 // ------------------------------------------------------------
 // Start protocol runtime
 // ------------------------------------------------------------
 Console.WriteLine("starting protocol session");
-var runTask = session.StartAsync(cts.Token);
+var sessionTask = session.StartAsync(cts.Token);
+
+//// ------------------------------------------------------------
+//// Start event pump
+//// ------------------------------------------------------------
+//Console.WriteLine("starting event pump");
+//var pumpTask =
+//    KeyboardNotificationEventPump.RunEventPumpAsync(
+//        keyboardNotificationQueue,
+//        session,
+//        cts.Token);
 
 // ------------------------------------------------------------
-// Send events
+// Start request pump
 // ------------------------------------------------------------
-await KeyboardProducerLoop.RunAsync(
-    session,
-    cts.Token,
-    eventType: 1);
+Console.WriteLine("starting event pump");
+var pumpTask =
+    KeyboardNotificationRequestPump.RunRequestPumpAsync(
+        keyboardNotificationQueue,
+        session,
+        cts.Token);
 
 // ------------------------------------------------------------
-// Shutdown
+// Start the keyboard notification generator
+// ------------------------------------------------------------
+var producer =
+    new KeyboardNotificationProducer(keyboardNotificationQueue);
+
+var producerTask = producer.RunAsync(cts.Token);
+
+// ------------------------------------------------------------
+// Wait for shutdown
 // ------------------------------------------------------------
 Console.WriteLine("Press Enter to exit...");
 Console.ReadLine();
 cts.Cancel();
 try
 {
-    await runTask;
+    await Task.WhenAll(
+        producerTask,
+        pumpTask,
+        sessionTask);
 }
 catch (OperationCanceledException)
 {

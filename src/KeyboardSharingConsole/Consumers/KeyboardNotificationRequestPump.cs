@@ -1,0 +1,62 @@
+﻿using KeyboardSharingConsole.Models;
+using MWB.Networking.Layer2_Protocol.Session.Api;
+using System.Collections.Concurrent;
+
+namespace KeyboardSharingConsole.Producers;
+
+internal static class KeyboardNotificationRequestPump
+{
+    public static async Task RunRequestPumpAsync(
+        ConcurrentQueue<KeyPressedNotification> queue,
+        ProtocolSessionHandle session,
+        CancellationToken ct,
+        uint requestType = 1)
+    {
+        ArgumentNullException.ThrowIfNull(queue);
+        ArgumentNullException.ThrowIfNull(session);
+
+        // Pump owns protocol readiness
+        await session.WhenReady.ConfigureAwait(false);
+
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                if (queue.TryDequeue(out var notification))
+                {
+                    var payload = notification.ToPayload();
+
+                    var request = session.Commands.SendRequest(
+                        requestType: requestType,
+                        payload: payload);
+
+                    var responseFrame = await request.Response
+                        .WaitAsync(ct)
+                        .ConfigureAwait(false);
+
+                    var acknowledgement = KeyPressedAcknowledgement.FromPayload(
+                            responseFrame.Payload);
+
+                    if (acknowledgement.Key != notification.Key)
+                    {
+                        Console.WriteLine(
+                            $"[WARN] Remote echoed '{acknowledgement.Key}', expected '{notification.Key}'");
+                    }
+                }
+                else
+                {
+                    // Prevent hot spinning
+                    await Task.Yield();
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Normal shutdown path
+        }
+        catch (IOException)
+        {
+            // other peer closed the pipe
+        }
+    }
+}

@@ -9,17 +9,21 @@
 /// </summary>
 public sealed class ProtocolFrame
 {
-    public ProtocolFrame(
+    internal ProtocolFrame(
         ProtocolFrameKind kind,
         uint? eventType,
         uint? requestId,
+        uint? requestType,
         uint? streamId,
+        uint? streamType,
         ReadOnlyMemory<byte> payload)
     {
         this.Kind = kind;
         this.EventType = eventType;
         this.RequestId = requestId;
+        this.RequestType = requestType;
         this.StreamId = streamId;
+        this.StreamType = streamType;
         this.Payload = payload;
     }
 
@@ -79,6 +83,11 @@ public sealed class ProtocolFrame
         get;
     }
 
+    public uint? RequestType
+    {
+        get;
+    }
+
     /// <summary>
     /// Identifies the Stream this frame belongs to.
     /// </summary>
@@ -98,6 +107,11 @@ public sealed class ProtocolFrame
     /// Bidirectional communication can be modeled using multiple separate streams.
     /// </remarks>
     public uint? StreamId
+    {
+        get;
+    }
+
+    public uint? StreamType
     {
         get;
     }

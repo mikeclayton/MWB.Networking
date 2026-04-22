@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MWB.Networking.Hosting\MWB.Networking.Hosting.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.csproj" />
+  </ItemGroup>
+
+</Project>

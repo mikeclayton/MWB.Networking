@@ -62,9 +62,7 @@ internal sealed class StreamContext
     {
         if (this.State == StreamState.Closed)
         {
-            throw new ProtocolException(
-                ProtocolErrorKind.InvalidFrameSequence,
-                $"Stream {StreamId} already closed");
+            return;
         }
         this.State = StreamState.Closed;
     }

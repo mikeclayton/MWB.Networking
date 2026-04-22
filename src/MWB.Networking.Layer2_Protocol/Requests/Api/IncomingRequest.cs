@@ -27,7 +27,7 @@ public sealed class IncomingRequest
     /// <summary>
     /// Sends the Response for this Request and closes the Requet.
     /// </summary>
-    public void Respond(ReadOnlyMemory<byte> payload)
+    public void Respond(ReadOnlyMemory<byte> payload = default)
     {
         this.Session.RequestManager.CloseRequestWithResponse(this.Context, payload);
     }
@@ -35,7 +35,7 @@ public sealed class IncomingRequest
     /// <summary>
     /// Sends an error Response for this Request and closes the Request.
     /// </summary>
-    public void Error(ReadOnlyMemory<byte> payload)
+    public void Error(ReadOnlyMemory<byte> payload = default)
     {
         this.Session.RequestManager.CloseRequestWithError(this.Context, payload);
     }

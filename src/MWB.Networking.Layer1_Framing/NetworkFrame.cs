@@ -2,19 +2,31 @@
 
 public sealed class NetworkFrame
 {
+    // ============================================================
+    // Raw constructor (for decoding and low-level plumbing only)
+    // ============================================================
+
     public NetworkFrame(
         NetworkFrameKind kind,
         uint? eventType,
-        uint? requestId = null,
-        uint? streamId = null,
-        ReadOnlyMemory<byte> payload = default)
+        uint? requestId,
+        uint? requestType,
+        uint? streamId,
+        uint? streamType,
+        ReadOnlyMemory<byte> payload)
     {
         this.Kind = kind;
         this.EventType = eventType;
         this.RequestId = requestId;
+        this.RequestType = requestType;
         this.StreamId = streamId;
+        this.StreamType = streamType;
         this.Payload = payload;
     }
+
+    // ============================================================
+    // Frame fields
+    // ============================================================
 
     // Structural discriminator
     public NetworkFrameKind Kind
@@ -22,7 +34,7 @@ public sealed class NetworkFrame
         get;
     }
 
-    // Correlation (opaque at Layer 0)
+    // Application metadata (opaque at Layer 0)
     public uint? EventType
     {
         get;
@@ -34,8 +46,20 @@ public sealed class NetworkFrame
         get;
     }
 
+    // Application metadata (opaque at Layer 0)
+    public uint? RequestType
+    {
+        get;
+    }
+
     // Stream multiplexing (opaque at Layer 0)
     public uint? StreamId
+    {
+        get;
+    }
+
+    // Application metadata (opaque at Layer 0)
+    public uint? StreamType
     {
         get;
     }

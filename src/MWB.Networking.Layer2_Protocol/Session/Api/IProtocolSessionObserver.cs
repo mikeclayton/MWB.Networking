@@ -13,5 +13,5 @@ public interface IProtocolSessionObserver
 
     event Action<IncomingStream, StreamMetadata>? StreamOpened;
     event Action<IncomingStream, ReadOnlyMemory<byte> /* Payload */>? StreamDataReceived;
-    event Action<IncomingStream>? StreamClosed;
+    event Action<IncomingStream, StreamMetadata>? StreamClosed;
 }

@@ -97,7 +97,7 @@ public sealed partial class StreamManager
                 streamEntry.Context.Close();
                 // Mark IncomingStream as closed by peer
                 incomingStream.Close();
-                this.Session.OnStreamClosed(incomingStream);
+                this.Session.OnStreamClosed(incomingStream, new StreamMetadata(frame.Payload));
                 this.RemoveStream(streamId);
                 break;
 

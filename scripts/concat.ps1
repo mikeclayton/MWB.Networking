@@ -6,9 +6,12 @@ param (
     [string]$OutputFile
 )
 
+$ErrorActionPreference = "Stop"
+Set-StrictMode -Version "Latest"
+
 # Normalize paths
 $SourceRoot = (Resolve-Path $SourceRoot).Path
-$OutputFile = Resolve-Path -Path $OutputFile
+#$OutputFile = Resolve-Path -Path $OutputFile
 
 # Extensions to include
 $includeExtensions = @(

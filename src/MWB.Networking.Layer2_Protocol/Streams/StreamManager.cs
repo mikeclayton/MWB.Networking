@@ -33,41 +33,6 @@ public sealed partial class StreamManager : IHasLogger
     }
 
     // ------------------------------------------------------------------
-    // Cached request contexts
-    // ------------------------------------------------------------------
-
-    private readonly Dictionary<uint, StreamEntry> _streamEntries = [];
-
-    private void AddStreamEntry(StreamEntry entry)
-    {
-        _streamEntries.Add(entry.StreamId, entry);
-    }
-
-    private bool StreamEntryExists(uint streamId)
-    {
-        return _streamEntries.ContainsKey(streamId);
-    }
-
-    internal bool TryGetStreamEntry(uint streamId, [NotNullWhen(true)] out StreamEntry? result)
-    {
-        return _streamEntries.TryGetValue(streamId, out result);
-    }
-
-    private List<StreamEntry> GetStreamEntries()
-    {
-        return _streamEntries.Values.ToList();
-    }
-
-    private List<uint> GetStreamEntryIds()
-    {
-        return _streamEntries.Keys.ToList();
-    }
-
-    private bool RemoveStreamEntry(uint streamId)
-    {
-        return _streamEntries.Remove(streamId);
-    }
-    // ------------------------------------------------------------------
     // Stream handling
     // ------------------------------------------------------------------
 

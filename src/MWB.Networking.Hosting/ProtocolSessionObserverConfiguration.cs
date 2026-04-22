@@ -57,7 +57,7 @@ public sealed class ProtocolSessionObserverConfiguration
     /// <summary>
     /// Invoked when a stream is closed.
     /// </summary>
-    public Action<IncomingStream>? StreamClosed
+    public Action<IncomingStream, StreamMetadata>? StreamClosed
     {
         get;
         set;
