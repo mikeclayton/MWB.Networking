@@ -1,8 +1,8 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer2_Protocol.Frames;
-using MWB.Networking.Layer2_Protocol.UnitTests;
 using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 
-namespace ProtocolSession;
+namespace _ProtocolSession;
 
 /// <summary>
 /// Tests for the request lifecycle: Request → Response* → Complete | Error | Cancel.
@@ -24,7 +24,8 @@ public sealed partial class Streams_Lifecycle
     [TestMethod]
     public void MultipleStreamData_EmittedInOrder()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         // Open a session-scoped stream

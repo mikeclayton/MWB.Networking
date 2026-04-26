@@ -1,5 +1,6 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer2_Protocol.Frames;
-using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
+using MWB.Networking.PerformanceTests.Helpers;
 using System.Diagnostics;
 
 namespace Performance;
@@ -31,7 +32,8 @@ public sealed partial class Layer2_Protocol_Events
     [TestMethod]
     public void Layer2_Protocol_Performance_Events_10000()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         // Warm up the JIT and dictionary internals before timing.
@@ -66,7 +68,8 @@ public sealed partial class Layer2_Protocol_Events
     [TestMethod]
     public void Layer2_Protocol_Performance_Requests_10000()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         // Reuse a single request ID per iteration: Complete removes it so it
@@ -103,7 +106,8 @@ public sealed partial class Layer2_Protocol_Events
     [TestMethod]
     public void Layer2_Protocol_Performance_Streams_OpenSendClose_10000()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         // Reuse stream ID 1: StreamClose removes it so it can be reused.

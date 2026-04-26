@@ -1,8 +1,8 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
-using MWB.Networking.UnitTest.Helpers.Layer2_Protocol;
 
-namespace ProtocolSession;
+namespace _ProtocolSession;
 
 /// <summary>
 /// Tests for the request lifecycle: Request → Response* → Complete | Error | Cancel.
@@ -24,7 +24,8 @@ public sealed partial class Requests_Invariants
     [TestMethod]
     public void Request_MissingRequestId_ThrowsProtocolException()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         var frame = ProtocolFrameGenerator.CreateInvalidProtocolFrame(
@@ -36,8 +37,8 @@ public sealed partial class Requests_Invariants
     [TestMethod]
     public void Response_MissingRequestId_ThrowsProtocolException()
     {
-        // Cancel is always routed through request handling; a null RequestId always throws.
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         var frame = ProtocolFrameGenerator.CreateInvalidProtocolFrame(
@@ -49,8 +50,8 @@ public sealed partial class Requests_Invariants
     [TestMethod]
     public void Error_MissingRequestId_ThrowsProtocolException()
     {
-        // Cancel is always routed through request handling; a null RequestId always throws.
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         var frame = ProtocolFrameGenerator.CreateInvalidProtocolFrame(
@@ -62,7 +63,8 @@ public sealed partial class Requests_Invariants
     [TestMethod]
     public void DuplicateRequestId_ThrowsProtocolException()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -74,7 +76,8 @@ public sealed partial class Requests_Invariants
     [TestMethod]
     public void Response_UnknownRequestId_ThrowsProtocolException()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         Assert.Throws<ProtocolException>(
@@ -84,7 +87,8 @@ public sealed partial class Requests_Invariants
     [TestMethod]
     public void Error_UnknownRequestId_ThrowsProtocolException()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         Assert.Throws<ProtocolException>(
@@ -94,7 +98,8 @@ public sealed partial class Requests_Invariants
     [TestMethod]
     public void Cancel_UnknownRequestId_ThrowsProtocolException()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         Assert.Throws<ProtocolException>(
@@ -104,8 +109,8 @@ public sealed partial class Requests_Invariants
     [TestMethod]
     public void Response_AfterCompleteRequest_ThrowsProtocolException()
     {
-        // Complete removes the context; the same RequestId is now unknown.
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -118,7 +123,8 @@ public sealed partial class Requests_Invariants
     [TestMethod]
     public void CompleteRequest_Twice_ThrowsProtocolException()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.Request(1));

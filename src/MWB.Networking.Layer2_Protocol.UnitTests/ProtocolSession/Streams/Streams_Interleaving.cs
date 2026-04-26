@@ -1,9 +1,8 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer2_Protocol.Frames;
-using MWB.Networking.Layer2_Protocol.Session;
-using MWB.Networking.Layer2_Protocol.UnitTests;
 using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 
-namespace ProtocolSession;
+namespace _ProtocolSession;
 
 /// <summary>
 /// Tests for the request lifecycle: Request → Response* → Complete | Error | Cancel.
@@ -25,7 +24,8 @@ public sealed partial class Streams_Interleaving
     [TestMethod]
     public void InterleavedSessionStreams_FramesEmittedInOrder()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         // Open two session-scoped streams
@@ -60,7 +60,8 @@ public sealed partial class Streams_Interleaving
     [TestMethod]
     public void LocalSessionStreams_MayInterleaveOutboundFrames()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         var s1 = session.Commands.OpenSessionStream();

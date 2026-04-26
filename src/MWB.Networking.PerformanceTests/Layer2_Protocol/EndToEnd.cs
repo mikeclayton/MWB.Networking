@@ -1,8 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Memory;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
+using MWB.Networking.Layer3_Hosting.Configuration;
 using MWB.Networking.Logging;
 using System.Diagnostics;
 
@@ -39,26 +39,20 @@ public partial class Layer2_Protocol_EndToEnd
         // -------------------------------------------------
 
         var (providerA, providerB) =
-            InMemoryNetworkConnectionProvider.CreateDuplexProviders();
-
-        var connectionA =
-            await providerA.OpenConnectionAsync(TestContext.CancellationToken);
-
-        var connectionB =
-            await providerB.OpenConnectionAsync(TestContext.CancellationToken);
+            InMemoryNetworkConnectionProvider.CreateDuplexProviders(logger);
 
         // ----------------------------
         // Build session A (ritwe)
         // ----------------------------
 
-        var sessionA = new ProtocolSessionBuilder()
+        var sessionA = new SessionHostBuilder()
             .WithLogger(logger)
             .UseOddStreamIds()
             .ConfigurePipeline(pipeline =>
             {
                 pipeline
                     .UseLengthPrefixedCodec(logger)
-                    .UseConnection(() => connectionA);
+                    .UseConnectionProvider(providerA);
             })
             .Build();
 
@@ -71,14 +65,14 @@ public partial class Layer2_Protocol_EndToEnd
             TaskCreationOptions.RunContinuationsAsynchronously);
 
         Stopwatch? readerStopwatch = default;
-        var sessionB = new ProtocolSessionBuilder()
+        var sessionB = new SessionHostBuilder()
             .WithLogger(logger)
             .UseEvenStreamIds()
             .ConfigurePipeline(pipeline =>
             {
                 pipeline
                     .UseLengthPrefixedCodec(logger)
-                    .UseConnection(() => connectionB);
+                    .UseConnectionProvider(providerB);
             })
             .OnEventReceived(
                 (_, _) =>

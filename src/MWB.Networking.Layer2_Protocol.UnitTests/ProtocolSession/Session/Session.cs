@@ -1,10 +1,9 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
-using MWB.Networking.Layer2_Protocol.UnitTests;
 using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
-using MWB.Networking.UnitTest.Helpers.Layer2_Protocol;
 
-namespace ProtocolSession;
+namespace _ProtocolSession;
 
 /// <summary>
 /// Cross-cutting tests: DrainOutbound semantics, Snapshot accuracy,
@@ -26,7 +25,8 @@ public sealed partial class Session
     [TestMethod]
     public void DrainOutbound_IsEmptyAtStart()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         var outbound = runtime.DrainOutboundFrames();
@@ -37,7 +37,8 @@ public sealed partial class Session
     [TestMethod]
     public void DrainOutbound_ClearsQueueAfterFirstCall()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         IncomingRequest? r1 = null;
@@ -74,7 +75,8 @@ public sealed partial class Session
 
     public void DrainOutbound_AccumulatesAcrossMultipleOutboundEmits()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         IncomingRequest? request1 = null;
@@ -110,7 +112,8 @@ public sealed partial class Session
     [TestMethod]
     public void DrainOutbound_AfterPartialDrain_ContainsOnlyNewOutboundFrames()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         IncomingRequest? r1 = null;
@@ -151,7 +154,9 @@ public sealed partial class Session
     [TestMethod]
     public void Snapshot_InitiallyEmpty()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
+        var runtime = session.Runtime;
 
         var snap = session.Diagnostics.GetSnapshot();
 
@@ -162,7 +167,8 @@ public sealed partial class Session
     [TestMethod]
     public void Snapshot_IsNonDestructive()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -178,7 +184,8 @@ public sealed partial class Session
     [TestMethod]
     public void Snapshot_AllClosed_ShowsEmpty()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -195,7 +202,8 @@ public sealed partial class Session
     [TestMethod]
     public void Snapshot_RequestsAndStreams_AreIndependentIdNamespaces()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         // The same numeric ID may be in use simultaneously as both a request and a stream.
@@ -211,7 +219,8 @@ public sealed partial class Session
     [TestMethod]
     public void Snapshot_DoesNotContainStreamIdsInRequestsOrViceVersa()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -230,7 +239,8 @@ public sealed partial class Session
     [TestMethod]
     public void OnInbound_NullFrame_ThrowsArgumentNullException()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         Assert.Throws<ArgumentNullException>(() => runtime.ProcessFrame(null!));
@@ -240,7 +250,8 @@ public sealed partial class Session
     [TestMethod]
     public void OnInbound_UnknownFrameKind_ThrowsProtocolException_WithUnknownFrameKindError()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         // Arrange: intentionally invalid protocol frame
@@ -264,7 +275,8 @@ public sealed partial class Session
     [TestMethod]
     public void MixedRequestsAndStreams_TrackedIndependently()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -281,7 +293,8 @@ public sealed partial class Session
     [TestMethod]
     public void ClosingRequest_DoesNotAffectOpenStreams()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -298,7 +311,8 @@ public sealed partial class Session
     [TestMethod]
     public void ClosingStream_DoesNotAffectOpenRequests()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -315,7 +329,8 @@ public sealed partial class Session
     [TestMethod]
     public void Inbound_ResponseFrame_IsAccepted()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -332,7 +347,8 @@ public sealed partial class Session
     [TestMethod]
     public void FullMixedLifecycle_SnapshotAccurateAtEachStep()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         // Open two requests and two streams.

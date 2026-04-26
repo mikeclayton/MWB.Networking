@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="NetworkPipelineBuilder.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Hosting\MWB.Networking.Layer1_Framing.Hosting.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer1_Framing\MWB.Networking.Layer1_Framing.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer2_Protocol.Hosting\MWB.Networking.Layer2_Protocol.Hosting.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer2_Protocol\MWB.Networking.Layer2_Protocol.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer3_Hosting.Runtime\MWB.Networking.Layer3_Hosting.Runtime.csproj" />
+  </ItemGroup>
+
+</Project>

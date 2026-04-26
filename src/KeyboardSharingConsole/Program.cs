@@ -59,9 +59,9 @@ Console.WriteLine(
 using var provider = await NamedPipeHelper.CreateNamedPipeConnectionProviderAsync(
     logger, options.LocalPeerName, options.RemotePeerName, cts.Token);
 
-Console.WriteLine("opening logical connection");
-var connectionHandle =
-    await provider.OpenConnectionAsync(cts.Token);
+//Console.WriteLine("opening logical connection");
+//var connectionHandle =
+//    await provider.OpenConnectionAsync(cts.Token);
 
 // ------------------------------------------------------------
 // Layer 2: Protocol session (builder owns wiring)
@@ -73,8 +73,10 @@ var keyboardNotificationQueue = new ConcurrentQueue<KeyPressedNotification>();
 var keyboardNotificationEventConsumer = new KeyboardNotificationEventConsumer();
 var keyboardNotificationRequestConsumer = new KeyboardNotificationRequestConsumer();
 
-var session = ProtocolSessionHelper.CreateSession(
-    logger, isPeerA, connectionHandle.Connection,
+var sessionHost = SessionHostHelper.CreateSessionHost(
+    logger,
+    isPeerA,
+    provider,
     keyboardNotificationEventConsumer.OnEventReceived,
     keyboardNotificationRequestConsumer.OnRequestReceived);
 
@@ -82,7 +84,7 @@ var session = ProtocolSessionHelper.CreateSession(
 // Start protocol runtime
 // ------------------------------------------------------------
 Console.WriteLine("starting protocol session");
-var sessionTask = session.StartAsync(cts.Token);
+var sessionTask = sessionHost.StartAsync(cts.Token);
 
 //// ------------------------------------------------------------
 //// Start event pump
@@ -101,7 +103,7 @@ Console.WriteLine("starting event pump");
 var pumpTask =
     KeyboardNotificationRequestPump.RunRequestPumpAsync(
         keyboardNotificationQueue,
-        session,
+        sessionHost,
         cts.Token);
 
 // ------------------------------------------------------------

@@ -8,11 +8,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MWB.Networking.Hosting\MWB.Networking.Hosting.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Memory\MWB.Networking.Layer0_Transport.Memory.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer3_Hosting.Configuration\MWB.Networking.Layer3_Hosting.Configuration.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer3_Hosting.Runtime\MWB.Networking.Layer3_Hosting.Runtime.csproj" />
     <ProjectReference Include="..\MWB.Networking.Logging\MWB.Networking.Logging.csproj" />
-    <ProjectReference Include="..\MWB.Networking.UnitTest.Helpers\MWB.Networking.UnitTest.Helpers.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="Microsoft.Testing.Extensions.CodeCoverage" Version="18.6.2" />
   </ItemGroup>
 
 </Project>

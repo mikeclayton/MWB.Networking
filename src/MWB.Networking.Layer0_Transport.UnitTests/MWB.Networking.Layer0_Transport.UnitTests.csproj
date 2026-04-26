@@ -8,15 +8,16 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MWB.Networking.Hosting\MWB.Networking.Hosting.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Manual\MWB.Networking.Layer0_Transport.Manual.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Memory\MWB.Networking.Layer0_Transport.Memory.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Pipes\MWB.Networking.Layer0_Transport.Pipes.csproj" />
-    <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Test\MWB.Networking.Layer0_Transport.Test.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport\MWB.Networking.Layer0_Transport.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting.csproj" />
-    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Hosting.Manual\MWB.Networking.Layer1_Framing.Hosting.Manual.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Hosting\MWB.Networking.Layer1_Framing.Hosting.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing\MWB.Networking.Layer1_Framing.csproj" />
-    <ProjectReference Include="..\MWB.Networking.UnitTest.Helpers\MWB.Networking.UnitTest.Helpers.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer2_Protocol\MWB.Networking.Layer2_Protocol.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer3_Hosting.Configuration\MWB.Networking.Layer3_Hosting.Configuration.csproj" />
   </ItemGroup>
 
   <ItemGroup>

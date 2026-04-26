@@ -2,10 +2,12 @@
 
 public interface IProtocolSessionLifecycle
 {
+    //void AttachProtocolDriver(ProtocolDriver driver);
+
+    Task StartAsync(CancellationToken ct);
+
     Task WhenReady
     {
         get;
     }
-
-    Task StartAsync(CancellationToken ct);
 }

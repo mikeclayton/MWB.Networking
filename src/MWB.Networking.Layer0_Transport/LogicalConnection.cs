@@ -8,12 +8,12 @@ namespace MWB.Networking.Layer0_Transport;
 /// Provides a concrete implementation of a logical, full‑duplex network connection.
 /// </summary>
 /// <remarks>
-/// <see cref="LogicalConnection"/> is a stable, long‑lived connection
-/// implementation of <see cref="ILogicalConnection"/> that is exposed to higher
-/// layers, while allowing the underlying <see cref="INetworkConnection"/>
-/// to be attached, replaced, or disposed transparently by infrastructure components.
+/// <see cref="LogicalConnection"/> is a stable, long‑lived connection implementation
+/// of <see cref="ILogicalConnection"/> that is exposed to higher layers, while allowing
+/// the underlying <see cref="INetworkConnection"/> to be attached, replaced, or disposed
+/// transparently by infrastructure components.
 /// </remarks>
-public sealed class LogicalConnection :
+public sealed partial class LogicalConnection :
     ILogicalConnection,
     ILogicalConnectionControl,
     IDisposable
@@ -28,6 +28,10 @@ public sealed class LogicalConnection :
         get;
     }
 
+    // ---------------------------------------------------------------------
+    // Backing connection ownership
+    // ---------------------------------------------------------------------
+
     private volatile INetworkConnection? _activeConnection;
 
     private INetworkConnection ActiveConnection =>
@@ -38,14 +42,15 @@ public sealed class LogicalConnection :
     private INetworkConnection? SwapActiveConnection(INetworkConnection? value) =>
         Interlocked.Exchange(ref _activeConnection, value);
 
-    private volatile TaskCompletionSource _ready =
-        new(TaskCreationOptions.RunContinuationsAsynchronously);
+    // ---------------------------------------------------------------------
+    // Attachment lifecycle gate
+    // ---------------------------------------------------------------------
 
-    private TaskCompletionSource Ready => _ready;
+    private readonly AttachmentGate _attachmentGate = new();
 
-    private TaskCompletionSource SwapReady(TaskCompletionSource value)
-        => Interlocked.Exchange(ref _ready, value);
-
+    /// <summary>
+    /// Attaches a backing <see cref="INetworkConnection"/> to this logical connection.
+    /// </summary>
     void ILogicalConnectionControl.Attach(INetworkConnection connection)
     {
         ArgumentNullException.ThrowIfNull(connection);
@@ -55,11 +60,18 @@ public sealed class LogicalConnection :
         var old = this.SwapActiveConnection(connection);
         old?.Dispose();
 
-        this.Ready.TrySetResult();
+        _attachmentGate.SignalAttached();
     }
 
-    public Task WhenReadyAsync(CancellationToken ct) =>
-        this.Ready.Task.WaitAsync(ct);
+    /// <summary>
+    /// Awaits until a backing network connection has been attached.
+    /// </summary>
+    public Task WhenConnectedAsync(CancellationToken ct) =>
+        _attachmentGate.WhenAttachedAsync(ct);
+
+    // ---------------------------------------------------------------------
+    // I/O surface
+    // ---------------------------------------------------------------------
 
     /// <summary>
     /// Reads raw bytes from the active network connection.
@@ -69,7 +81,7 @@ public sealed class LogicalConnection :
         Memory<byte> buffer,
         CancellationToken ct)
     {
-        await this.WhenReadyAsync(ct).ConfigureAwait(false);
+        await this.WhenConnectedAsync(ct).ConfigureAwait(false);
         return await this.ActiveConnection.ReadAsync(buffer, ct)
             .ConfigureAwait(false);
     }
@@ -81,18 +93,20 @@ public sealed class LogicalConnection :
         ByteSegments segments,
         CancellationToken ct)
     {
-        await this.WhenReadyAsync(ct).ConfigureAwait(false);
+        await this.WhenConnectedAsync(ct).ConfigureAwait(false);
         await this.ActiveConnection.WriteAsync(segments, ct)
             .ConfigureAwait(false);
     }
+
+    // ---------------------------------------------------------------------
+    // Disposal
+    // ---------------------------------------------------------------------
 
     public void Dispose()
     {
         var old = this.SwapActiveConnection(null);
         old?.Dispose();
 
-        this.SwapReady(new TaskCompletionSource(
-            TaskCreationOptions.RunContinuationsAsynchronously))
-            .TrySetCanceled();
+        _attachmentGate.Reset();
     }
 }

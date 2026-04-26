@@ -1,8 +1,8 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer2_Protocol.Frames;
-using MWB.Networking.Layer2_Protocol.UnitTests;
 using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 
-namespace ProtocolSession;
+namespace _ProtocolSession;
 
 /// <summary>
 /// Tests for the Event frame kind:
@@ -20,15 +20,17 @@ public sealed partial class Events
     [TestMethod]
     public void Event_DoesNotAffectSnapshot()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
-        var runtime = session.Runtime;
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
 
-        session.Observer.EventReceived += (_, _) => { };
+        var eventCount = 0;
+        session.Observer.EventReceived += (_, _) => eventCount++;
 
-        runtime.ProcessFrame(ProtocolFrames.Event(1, new([0xFF])));
+        session.Runtime.ProcessFrame(ProtocolFrames.Event(1, new([0xFF])));
 
         var snap = session.Diagnostics.GetSnapshot();
 
+        Assert.AreEqual(1, eventCount);
         Assert.IsEmpty(snap.OpenRequests);
         Assert.IsEmpty(snap.OpenStreams);
     }
@@ -36,7 +38,8 @@ public sealed partial class Events
     [TestMethod]
     public void Event_DoesNotProduceOutboundFrames()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         session.Observer.EventReceived += (_, _) => { };
@@ -49,7 +52,8 @@ public sealed partial class Events
     [TestMethod]
     public void Event_WithEmptyPayload_IsRaisedCorrectly()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         var callCount = 0;
@@ -72,7 +76,8 @@ public sealed partial class Events
     [TestMethod]
     public void MultipleEvents_AreRaisedInOrder()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         var received = new List<byte>();
@@ -94,7 +99,8 @@ public sealed partial class Events
     [TestMethod]
     public void SingleEvent_IsRaisedToApplication_AndNotEmittedOutbound()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         uint? receivedType = null;

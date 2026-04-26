@@ -1,8 +1,8 @@
-﻿using MWB.Networking.Layer2_Protocol.Frames;
-using MWB.Networking.Layer2_Protocol.UnitTests;
+﻿using Microsoft.Extensions.Logging.Abstractions;
+using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 
-namespace ProtocolSession;
+namespace _ProtocolSession;
 
 /// <summary>
 /// Tests for the request lifecycle: Request → Response* → Complete | Error | Cancel.
@@ -24,7 +24,8 @@ public sealed partial class Requests_Inbound
     [TestMethod]
     public void NewRequest_AppearsInSnapshot()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -39,7 +40,8 @@ public sealed partial class Requests_Inbound
     [TestMethod]
     public void Inbound_Response_ClosesRequest()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -51,7 +53,8 @@ public sealed partial class Requests_Inbound
     [TestMethod]
     public void Inbound_RequestError_ClosesRequest()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -63,7 +66,8 @@ public sealed partial class Requests_Inbound
     [TestMethod]
     public void MultipleConcurrentRequests_AllTrackedInSnapshot()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.Request(10));
@@ -81,7 +85,8 @@ public sealed partial class Requests_Inbound
     [TestMethod]
     public void MultipleRequests_CloseIndependently()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -98,7 +103,8 @@ public sealed partial class Requests_Inbound
     [TestMethod]
     public void RequestId_ReusableAfterClose()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -117,7 +123,8 @@ public sealed partial class Requests_Inbound
     [TestMethod]
     public void Inbound_ResponseFrame_IsAccepted()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -133,7 +140,8 @@ public sealed partial class Requests_Inbound
     [TestMethod]
     public void Inbound_Response_DoesNotEmitOutbound()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.Request(1));
@@ -148,7 +156,8 @@ public sealed partial class Requests_Inbound
     [TestMethod]
     public void Inbound_Error_DoesNotEmitOutbound()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.Request(1));

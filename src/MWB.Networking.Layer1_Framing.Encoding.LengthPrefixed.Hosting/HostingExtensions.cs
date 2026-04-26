@@ -1,13 +1,13 @@
 ﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Hosting;
+using MWB.Networking.Layer1_Framing.Hosting;
 
 namespace MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
 
 public static class HostingExtensions
 {
-    public static NetworkPipelineBuilder UseLengthPrefixedCodec(this NetworkPipelineBuilder builder, ILogger logger)
+    public static NetworkPipelineFactory UseLengthPrefixedCodec(this NetworkPipelineFactory factory, ILogger logger)
     {
-        return builder.AppendFrameCodec(
+        return factory.AppendFrameCodec(
             encoder: new LengthPrefixedFrameEncoder(logger),
             decoder: new LengthPrefixedFrameDecoder(logger)
         );

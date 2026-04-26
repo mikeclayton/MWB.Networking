@@ -1,8 +1,8 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer2_Protocol.Frames;
-using MWB.Networking.Layer2_Protocol.UnitTests;
 using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 
-namespace ProtocolSession;
+namespace _ProtocolSession;
 
 /// <summary>
 /// Tests for the request lifecycle: Request → Response* → Complete | Error | Cancel.
@@ -24,7 +24,8 @@ public sealed partial class Streams_Inbound
     [TestMethod]
     public void StreamOpen_AppearsInSnapshot()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.StreamOpen(1));
@@ -35,7 +36,8 @@ public sealed partial class Streams_Inbound
     [TestMethod]
     public void StreamData_DoesNotCloseStream()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.StreamOpen(1));
@@ -47,7 +49,8 @@ public sealed partial class Streams_Inbound
     [TestMethod]
     public void StreamData_MultipleFrames_StreamRemainsOpen()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.StreamOpen(1));
@@ -61,7 +64,8 @@ public sealed partial class Streams_Inbound
     [TestMethod]
     public void StreamClose_RemovesStreamFromSnapshot()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.StreamOpen(1));
@@ -73,7 +77,8 @@ public sealed partial class Streams_Inbound
     [TestMethod]
     public void MultipleConcurrentStreams_AllTrackedInSnapshot()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.StreamOpen(10));
@@ -91,7 +96,8 @@ public sealed partial class Streams_Inbound
     [TestMethod]
     public void MultipleStreams_CloseIndependently()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.StreamOpen(1));
@@ -108,7 +114,8 @@ public sealed partial class Streams_Inbound
     [TestMethod]
     public void StreamId_ReusableAfterClose()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.StreamOpen(1));
@@ -123,7 +130,8 @@ public sealed partial class Streams_Inbound
     [TestMethod]
     public void InboundStreamData_DoesNotEmitOutbound()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.StreamOpen(1));
@@ -137,7 +145,8 @@ public sealed partial class Streams_Inbound
     [TestMethod]
     public void InboundStreamFrames_DoNotEmitOutbound()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.StreamOpen(1));

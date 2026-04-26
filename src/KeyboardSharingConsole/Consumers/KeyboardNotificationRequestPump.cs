@@ -1,5 +1,5 @@
 ﻿using KeyboardSharingConsole.Models;
-using MWB.Networking.Layer2_Protocol.Session.Api;
+using MWB.Networking.Layer3_Hosting.Runtime;
 using System.Collections.Concurrent;
 
 namespace KeyboardSharingConsole.Producers;
@@ -8,7 +8,7 @@ internal static class KeyboardNotificationRequestPump
 {
     public static async Task RunRequestPumpAsync(
         ConcurrentQueue<KeyPressedNotification> queue,
-        ProtocolSessionHandle session,
+        SessionHost session,
         CancellationToken ct,
         uint requestType = 1)
     {

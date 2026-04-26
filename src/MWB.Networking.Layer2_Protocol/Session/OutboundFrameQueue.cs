@@ -35,7 +35,7 @@ namespace MWB.Networking.Layer2_Protocol.Session;
 /// </remarks>
 internal sealed class OutboundFrameQueue
 {
-    private readonly object _gate = new();
+    private readonly object _queueGate = new();
     private readonly Queue<ProtocolFrame> _queue = new();
     private readonly SemaphoreSlim _availableSignal = new(0);
 
@@ -47,7 +47,7 @@ internal sealed class OutboundFrameQueue
     {
         ArgumentNullException.ThrowIfNull(frame);
 
-        lock (_gate)
+        lock (_queueGate)
         {
             _queue.Enqueue(frame);
         }
@@ -74,7 +74,7 @@ internal sealed class OutboundFrameQueue
     /// </summary>
     public bool TryDequeue(out ProtocolFrame frame)
     {
-        lock (_gate)
+        lock (_queueGate)
         {
             if (_queue.Count == 0)
             {
@@ -94,7 +94,7 @@ internal sealed class OutboundFrameQueue
     /// </summary>
     public void Clear()
     {
-        lock (_gate)
+        lock (_queueGate)
         {
             _queue.Clear();
         }

@@ -1,10 +1,9 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
-using MWB.Networking.Layer2_Protocol.Session;
-using MWB.Networking.Layer2_Protocol.UnitTests;
 using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 
-namespace ProtocolSession;
+namespace _ProtocolSession;
 
 /// <summary>
 /// Tests for the request lifecycle: Request → Response* → Complete | Error | Cancel.
@@ -26,7 +25,8 @@ public sealed partial class Streams_SessionScoped
     [TestMethod]
     public void StreamsMayBeOpenedIndependentlyOfRequests()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         IncomingRequest? request = null;
@@ -58,7 +58,8 @@ public sealed partial class Streams_SessionScoped
     [TestMethod]
     public void StreamOpen_IsEmittedToOutbound()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         var metadata = new byte[] { 0x01, 0x02 };
@@ -77,7 +78,8 @@ public sealed partial class Streams_SessionScoped
     [TestMethod]
     public void StreamData_IsEmittedToOutbound()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         var data = new byte[] { 0xDE, 0xAD };
@@ -102,7 +104,8 @@ public sealed partial class Streams_SessionScoped
     [TestMethod]
     public void StreamClose_IsEmittedToOutbound()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         // Open a session-scoped stream

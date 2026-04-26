@@ -1,9 +1,9 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
-using MWB.Networking.Layer2_Protocol.UnitTests;
 using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 
-namespace ProtocolSession;
+namespace _ProtocolSession;
 
 /// <summary>
 /// Tests for the request lifecycle: Request → Response* → Complete | Error | Cancel.
@@ -25,7 +25,8 @@ public sealed partial class Requests_Outbound
     [TestMethod]
     public void Request_IsRaisedToApplication_AndNotEmittedOutbound()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         IncomingRequest? received = null;
@@ -48,7 +49,8 @@ public sealed partial class Requests_Outbound
     [TestMethod]
     public void Respond_EmitsResponseToOutbound()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         IncomingRequest? request = null;
@@ -78,7 +80,8 @@ public sealed partial class Requests_Outbound
 
     public void Request_AllowsOnlyOneResponse_SecondRespondThrows()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         IncomingRequest? request = null;
@@ -110,7 +113,8 @@ public sealed partial class Requests_Outbound
     [TestMethod]
     public void TwoConcurrentRequests_ResponsesEmittedInOrder()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         IncomingRequest? req1 = null;
@@ -149,7 +153,8 @@ public sealed partial class Requests_Outbound
     [TestMethod]
     public void Request_IsClosedAfterSingleResponse()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         IncomingRequest? request = null;
@@ -170,7 +175,8 @@ public sealed partial class Requests_Outbound
     [TestMethod]
     public void Request_SecondResponse_IsRejected()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         IncomingRequest? request = null;

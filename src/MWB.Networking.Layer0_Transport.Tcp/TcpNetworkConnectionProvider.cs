@@ -95,7 +95,7 @@ public sealed class TcpNetworkConnectionProvider
         }
 
         var handle = this.LogicalConnection;
-        await handle.Connection.WhenReadyAsync(ct);
+        await handle.Connection.WhenConnectedAsync(ct);
 
         return handle;
     }

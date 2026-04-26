@@ -1,12 +1,13 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
-using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer1_Framing;
-using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
+using MWB.Networking.Layer1_Framing.Hosting;
+using MWB.Networking.Layer1_Framing.Hosting.Manual;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
+using MWB.Networking.Layer3_Hosting.Configuration;
 using MWB.Networking.Logging;
-using MWB.Networking.UnitTest.Helpers.Logging;
+using MWB.Networking.Logging.Loggers;
 using System.Buffers;
 using System.Diagnostics;
 using System.IO.Pipelines;
@@ -27,7 +28,7 @@ public class PipeConnectionTests
         [TestMethod]
         public async Task BasicRequestPayloadRoundtrip()
         {
-            var (logger, loggerFactory) = TestContextLoggerFactory.CreateLogger(this.TestContext);
+            var (logger, loggerFactory) = DebugLoggerFactory.Create();
 
             // simulates a duplex connection
             var serverPipe = new Pipe();
@@ -41,15 +42,17 @@ public class PipeConnectionTests
                 writer: clientPipe.Writer);
 
             var serverSession =
-                new ProtocolSessionBuilder()
+                new SessionHostBuilder()
                     .WithLogger(logger)
                     .UseOddStreamIds()
-                    .ConfigurePipeline(pipeline =>
-                    {
-                        pipeline
-                            .UseLengthPrefixedCodec(logger)
-                            .UseConnection(() => serverConnection);
-                    })
+                    .ConfigurePipeline(
+                        pipeline =>
+                        {
+                            pipeline
+                                .UseLengthPrefixedCodec(logger)
+                                .WrapConnectionAsProvider(logger, serverConnection);
+                        }
+                    )
                     .Build();
 
             // ------------------------------------------------------------
@@ -60,14 +63,14 @@ public class PipeConnectionTests
                 writer: serverPipe.Writer);
 
             var clientSession =
-                new ProtocolSessionBuilder()
+                new SessionHostBuilder()
                     .WithLogger(logger)
                     .UseEvenStreamIds()
                     .ConfigurePipeline(pipeline =>
                     {
                         pipeline
                             .UseLengthPrefixedCodec(logger)
-                            .UseConnection(() => clientConnection);
+                            .WrapConnectionAsProvider(logger, clientConnection);
                     })
                     .Build();
 
@@ -78,7 +81,7 @@ public class PipeConnectionTests
                 new TaskCompletionSource<(IncomingRequest Request, ReadOnlyMemory<byte> Payload)>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
 
-            serverSession.Observer.RequestReceived += (request, payload) =>
+            serverSession.Observers.RequestReceived += (request, payload) =>
             {
                 requestTcs.TrySetResult((request, payload));
             };
@@ -117,7 +120,6 @@ public class PipeConnectionTests
             // ------------------------------------------------------------
             cts.Cancel();
             await Task.WhenAll(serverRun, clientRun);
-
         }
 
         [TestMethod]
@@ -147,10 +149,10 @@ public class PipeConnectionTests
             // ----------------------------
             // Build client pipeline
             // ----------------------------
-            var clientPipeline = new NetworkPipelineBuilder()
+            var clientPipeline = await new NetworkPipelineFactory()
                 .UseLengthPrefixedCodec(logger)
-                .UseConnection(() => clientConnection)
-                .Build();
+                .WrapConnectionAsProvider(logger, clientConnection)
+                .CreatePipelineAsync(TestContext.CancellationToken);
             var clientAdapter = new NetworkAdapter(
                 logger,
                 clientPipeline.FrameWriter,
@@ -159,10 +161,10 @@ public class PipeConnectionTests
             // ----------------------------
             // Build server pipeline
             // ----------------------------
-            var serverPipeline = new NetworkPipelineBuilder()
+            var serverPipeline = await new NetworkPipelineFactory()
                 .UseLengthPrefixedCodec(logger)
-                .UseConnection(() => serverConnection)
-                .Build();
+                .WrapConnectionAsProvider(logger, serverConnection)
+                .CreatePipelineAsync(TestContext.CancellationToken);
             var serverAdapter = new NetworkAdapter(
                 logger,
                 serverPipeline.FrameWriter,
@@ -254,14 +256,14 @@ public class PipeConnectionTests
             // -------------------------------------------------
             // Build sessions (NOT started yet)
             // -------------------------------------------------
-            var clientSession = new ProtocolSessionBuilder()
+            var clientSession = new SessionHostBuilder()
                 .WithLogger(logger)
                 .UseEvenStreamIds()
                 .ConfigurePipeline(pipeline =>
                 {
                     pipeline
                         .UseLengthPrefixedCodec(logger)
-                        .UseConnection(() => clientConnection);
+                        .WrapConnectionAsProvider(logger, clientConnection);
                 })
                 .Build();
 
@@ -271,14 +273,14 @@ public class PipeConnectionTests
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var readerStopwatch = (Stopwatch?)null;
 
-            var serverSession = new ProtocolSessionBuilder()
+            var serverSession = new SessionHostBuilder()
                 .WithLogger(logger)
                 .UseOddStreamIds()
                 .ConfigurePipeline(pipeline =>
                 {
                     pipeline
                         .UseLengthPrefixedCodec(logger)
-                        .UseConnection(() => serverConnection);
+                        .WrapConnectionAsProvider(logger, serverConnection);
                 })
                 .OnEventReceived((_, _) =>
                     {

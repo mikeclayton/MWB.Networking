@@ -1,9 +1,8 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer2_Protocol.Frames;
-using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
-using MWB.Networking.UnitTest.Helpers.Layer2_Protocol;
 
-namespace ProtocolSession;
+namespace _ProtocolSession;
 
 /// <summary>
 /// Tests for the request lifecycle: Request → Response* → Complete | Error | Cancel.
@@ -25,7 +24,8 @@ public sealed partial class Streams_Invariants
     [TestMethod]
     public void StreamOpen_MissingStreamId_ThrowsProtocolException()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         var frame = ProtocolFrameGenerator.CreateInvalidProtocolFrame(
@@ -37,7 +37,8 @@ public sealed partial class Streams_Invariants
     [TestMethod]
     public void DuplicateStreamId_ThrowsProtocolException()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.StreamOpen(1));
@@ -49,7 +50,8 @@ public sealed partial class Streams_Invariants
     [TestMethod]
     public void StreamData_UnknownStreamId_ThrowsProtocolException()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         Assert.Throws<ProtocolException>(
@@ -59,7 +61,8 @@ public sealed partial class Streams_Invariants
     [TestMethod]
     public void StreamClose_UnknownStreamId_ThrowsProtocolException()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         Assert.Throws<ProtocolException>(
@@ -69,7 +72,8 @@ public sealed partial class Streams_Invariants
     [TestMethod]
     public void StreamData_MissingStreamId_ThrowsProtocolException()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         var frame = ProtocolFrameGenerator.CreateInvalidProtocolFrame(
@@ -81,8 +85,8 @@ public sealed partial class Streams_Invariants
     [TestMethod]
     public void StreamData_AfterClose_ThrowsProtocolException()
     {
-        // StreamClose removes the context; the same StreamId is now unknown.
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.StreamOpen(1));
@@ -95,7 +99,8 @@ public sealed partial class Streams_Invariants
     [TestMethod]
     public void StreamClose_Twice_ThrowsProtocolException()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         runtime.ProcessFrame(ProtocolFrames.StreamOpen(1));

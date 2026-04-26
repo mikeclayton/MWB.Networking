@@ -4,12 +4,17 @@ public sealed class ProtocolSessionHandle
 {
     internal ProtocolSessionHandle(ProtocolSession session)
     {
-        ArgumentNullException.ThrowIfNull(session);
+        this.Session = session ?? throw new ArgumentNullException(nameof(session));
         this.Commands = session;
         this.Diagnostics = session;
         this.Lifecycle = session;
         this.Observer = session;
         this.Runtime = session;
+    }
+
+    internal ProtocolSession Session
+    {
+        get;
     }
 
     public IProtocolSessionCommands Commands
@@ -36,7 +41,6 @@ public sealed class ProtocolSessionHandle
     {
         get;
     }
-
 
     /// <summary>
     /// Starts the protocol session, enabling transport I/O and event delivery.

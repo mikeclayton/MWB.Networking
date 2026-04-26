@@ -17,5 +17,5 @@ public interface ILogicalConnection : INetworkConnection
     /// The underlying physical transport may be arbitrated,
     /// connected, disconnected, or replaced transparently.
     /// </summary>
-    Task WhenReadyAsync(CancellationToken ct);
+    Task WhenConnectedAsync(CancellationToken ct);
 }

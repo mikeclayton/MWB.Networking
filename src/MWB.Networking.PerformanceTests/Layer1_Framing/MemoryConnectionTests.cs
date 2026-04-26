@@ -1,8 +1,8 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
-using MWB.Networking.Hosting;
 using MWB.Networking.Layer0_Transport.Memory;
 using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
+using MWB.Networking.Layer1_Framing.Hosting;
 using System.Diagnostics;
 
 namespace Performance;
@@ -36,19 +36,16 @@ public class Layer0_Transport_Framing
         // Arrange: duplex in-memory transport + framing pipeline
         // ------------------------------------------------------------
 
-        var (providerA, providerB) =
-            InMemoryNetworkConnectionProvider.CreateDuplexProviders();
-
         // We'll write frames from A; B is unused in this test
-        var connectionA =
-            await providerA.OpenConnectionAsync(TestContext.CancellationToken);
+        var (providerA, providerB) =
+            InMemoryNetworkConnectionProvider.CreateDuplexProviders(logger);
 
         // Build framing pipeline on top of the in-memory connection
         var pipeline =
-            new NetworkPipelineBuilder()
+            await new NetworkPipelineFactory()
                 .UseLengthPrefixedCodec(logger)
-                .UseConnection(() => connectionA)
-                .Build();
+                .UseConnectionProvider(providerA)
+                .CreatePipelineAsync();
 
         var adapter =
             new NetworkAdapter(

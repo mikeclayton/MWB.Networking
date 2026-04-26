@@ -1,9 +1,9 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
-using MWB.Networking.Layer2_Protocol.UnitTests;
 using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 
-namespace ProtocolSession;
+namespace _ProtocolSession;
 
 /// <summary>
 /// Tests for the request lifecycle: Request → Response* → Complete | Error | Cancel.
@@ -25,7 +25,8 @@ public sealed partial class Streams_RequestScoped
     [TestMethod]
     public void FullRequestScopedStreamLifecycle_AllFramesEmittedInOrder()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         IncomingRequest? request = null;
@@ -57,7 +58,8 @@ public sealed partial class Streams_RequestScoped
     [TestMethod]
     public void CannotOpenRequestScopedStream_AfterResponse()
     {
-        var session = ProtocolSessionHelper.CreateNullSession();
+        var logger = NullLogger.Instance;
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var runtime = session.Runtime;
 
         IncomingRequest? request = null;

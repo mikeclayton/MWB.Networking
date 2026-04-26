@@ -8,28 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="ProtocolSessionTests.Events.cs" />
-    <Compile Remove="ProtocolSessionTests_Requests_Inbound.cs" />
-    <Compile Remove="ProtocolSessionTests_Requests_Invariants.cs" />
-    <Compile Remove="ProtocolSessionTests_Requests_Outbound.cs" />
-    <Compile Remove="ProtocolSessionTests_Requests_Violations.cs" />
-    <Compile Remove="ProtocolSessionTests_Streams_Inbound.cs" />
-    <Compile Remove="ProtocolSessionTests_Streams_Interleaving.cs" />
-    <Compile Remove="ProtocolSessionTests_Streams_Invariants.cs" />
-    <Compile Remove="ProtocolSessionTests_Streams_Lifecycle.cs" />
-    <Compile Remove="ProtocolSessionTests_Streams_RequestScoped.cs" />
-    <Compile Remove="ProtocolSessionTests_Streams_SessionScoped.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\MWB.Networking.Hosting\MWB.Networking.Hosting.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Memory\MWB.Networking.Layer0_Transport.Memory.csproj" />
-    <ProjectReference Include="..\MWB.Networking.Layer0_Transport.NullConnection\MWB.Networking.Layer0_Transport.NullConnection.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Pipes\MWB.Networking.Layer0_Transport.Pipes.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Encoding.NullEncoder\MWB.Networking.Layer1_Framing.Encoding.NullEncoder.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Hosting.Manual\MWB.Networking.Layer1_Framing.Hosting.Manual.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer2_Protocol\MWB.Networking.Layer2_Protocol.csproj" />
-    <ProjectReference Include="..\MWB.Networking.UnitTest.Helpers\MWB.Networking.UnitTest.Helpers.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -37,7 +22,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Helpers\" />
     <Folder Include="ProtocolSession\Lifecycle\" />
   </ItemGroup>
 

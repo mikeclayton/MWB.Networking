@@ -5,7 +5,6 @@ using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Requests;
 using MWB.Networking.Layer2_Protocol.Session.Api;
 using MWB.Networking.Layer2_Protocol.Streams;
-using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
 using MWB.Networking.Logging;
 using System.Diagnostics;
 
@@ -24,14 +23,12 @@ internal sealed partial class ProtocolSession : IHasLogger
 {
     internal ProtocolSession(
         ILogger logger,
-        OddEvenStreamIdProvider outboundStreamIdProvider,
-        ProtocolDriverOptions driverOptions)
+        ProtocolSessionConfig config)
     {
         this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         this.EventManager = new EventManager(logger, this);
         this.RequestManager = new RequestManager(logger, this);
-        this.StreamManager = new StreamManager(logger, this, outboundStreamIdProvider);
-        this.ProtocolDriver = new ProtocolDriver(logger, this, driverOptions);
+        this.StreamManager = new StreamManager(logger, this, config.OutboundStreamIdProvider);
     }
 
     public ILogger Logger
@@ -67,9 +64,25 @@ internal sealed partial class ProtocolSession : IHasLogger
         get;
     } = new();
 
+    // ------------------------------------------------------------------
+    // Protocol driver
+    // ------------------------------------------------------------------
+
+    private ProtocolDriver? _protocolDriver;
+
     private ProtocolDriver ProtocolDriver
+        => _protocolDriver ?? throw new InvalidOperationException(
+            "A ProtocolDriver has not been attached to the ProtocolSession.");
+
+    internal void AttachProtocolDriver(ProtocolDriver protocolDriver)
     {
-        get;
+        ArgumentNullException.ThrowIfNull(protocolDriver);
+        if (_protocolDriver is not null)
+        {
+            throw new InvalidOperationException(
+            "A ProtocolDriver has already been attached to the ProtocolSession.");
+        }
+        _protocolDriver = protocolDriver;
     }
 
     // ------------------------------------------------------------------
@@ -81,21 +94,6 @@ internal sealed partial class ProtocolSession : IHasLogger
         return this.OutboundFrames.WaitForFrameAsync(ct);
     }
 
-    //internal bool TryDequeueOutboundFrame(out ProtocolFrame frame)
-    //{
-    //    using var lockScope = this.OutboundFramesLock.EnterScope();
-
-    //    if (this.OutboundFrames.Count == 0)
-    //    {
-    //        frame = default!;
-    //        return false;
-    //    }
-
-    //    frame = this.OutboundFrames.Dequeue();
-    //    return true;
-    //}
-
-    //[LogMethod]
     internal void EnqueueOutboundFrame(ProtocolFrame frame)
     {
         ArgumentNullException.ThrowIfNull(frame);
