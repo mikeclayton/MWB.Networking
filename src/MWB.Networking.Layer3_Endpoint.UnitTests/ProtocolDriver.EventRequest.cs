@@ -50,6 +50,7 @@ public sealed partial class EndToEnd
                     pipeline =>
                     {
                         pipeline
+                            .UseLogger(logger)
                             .UseLengthPrefixedCodec(logger)
                             .WrapConnectionAsProvider(logger, serverConnection);
                     }
@@ -74,6 +75,7 @@ public sealed partial class EndToEnd
                     pipeline =>
                     {
                         pipeline
+                            .UseLogger(logger)
                             .UseLengthPrefixedCodec(logger)
                             .WrapConnectionAsProvider(logger, clientConnection);
                     }
@@ -88,7 +90,9 @@ public sealed partial class EndToEnd
         var serverRun = serverEndpoint.StartAsync(cts.Token);
         var clientRun = clientEndpoint.StartAsync(cts.Token);
 
-        await Task.WhenAll(serverRun, clientRun);
+        await Task
+            .WhenAll(serverRun, clientRun)
+            .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
 
         // ------------------------------------------------------------
         // Act: send request from client to server
@@ -112,6 +116,8 @@ public sealed partial class EndToEnd
         // Cleanup
         // ------------------------------------------------------------
         cts.Cancel();
-        await Task.WhenAll(serverRun, clientRun);
+        await Task
+            .WhenAll(serverRun, clientRun)
+            .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
     }
 }

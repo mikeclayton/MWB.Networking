@@ -21,7 +21,8 @@ public sealed class FrameSerializerTests
             payload: new byte[] { 0xAA, 0xBB, 0xCC });
 
         // Act
-        var buffer = NetworkFrameSerializer.SerializeFrame(originalFrame);
+        var segments = NetworkFrameSerializer.SerializeFrame(originalFrame);
+        var buffer = segments.Collapse();
         var roundtripFrame = NetworkFrameSerializer.DeserializeFrame(buffer);
 
         // Assert – structural equality only
@@ -32,7 +33,6 @@ public sealed class FrameSerializerTests
         Assert.AreEqual(originalFrame.ResponseType, roundtripFrame.ResponseType);
         Assert.AreEqual(originalFrame.StreamId, roundtripFrame.StreamId);
         Assert.AreEqual(originalFrame.StreamType, roundtripFrame.StreamType);
-
         CollectionAssert.AreEqual(
             originalFrame.Payload.ToArray(),
             roundtripFrame.Payload.ToArray());

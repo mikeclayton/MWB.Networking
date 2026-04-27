@@ -61,6 +61,7 @@ public sealed class NetworkConnectionLifecycleTests
                 {
                     // Real frame codec pipeline, exactly as in production.
                     pipeline
+                        .UseLogger(logger)
                         .UseLengthPrefixedCodec(logger)
                         .UseConnectionProvider(manualTestProvider);
                 })
@@ -125,6 +126,7 @@ public sealed class NetworkConnectionLifecycleTests
                     .ConfigurePipelineWith(pipeline =>
                     {
                         pipeline
+                            .UseLogger(logger)
                             .UseLengthPrefixedCodec(logger)
                             .UseConnectionProvider(manualTestProvider);
                     })

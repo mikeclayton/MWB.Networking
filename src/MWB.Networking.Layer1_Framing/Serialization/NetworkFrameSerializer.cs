@@ -32,6 +32,10 @@ internal static class NetworkFrameSerializer
         {
             flags |= NetworkFrameFlags.HasStreamId;
         }
+        if (frame.StreamType.HasValue)
+        {
+            flags |= NetworkFrameFlags.HasStreamType;
+        }
 
         // ---- 2. Compute frame header size ---------------------------------
 
@@ -42,6 +46,7 @@ internal static class NetworkFrameSerializer
         if (frame.RequestType.HasValue) headerLength += 4;
         if (frame.ResponseType.HasValue) headerLength += 4;
         if (frame.StreamId.HasValue) headerLength += 4;
+        if (frame.StreamType.HasValue) headerLength += 4;
 
         // ---- 4. Write header ------------------------------------------
 
@@ -84,6 +89,13 @@ internal static class NetworkFrameSerializer
         {
             BinaryPrimitives.WriteUInt32BigEndian(
                 span.Slice(offset, 4), frame.StreamId.Value);
+            offset += 4;
+        }
+
+        if (frame.StreamType.HasValue)
+        {
+            BinaryPrimitives.WriteUInt32BigEndian(
+                span.Slice(offset, 4), frame.StreamType.Value);
             offset += 4;
         }
 
@@ -173,7 +185,7 @@ internal static class NetworkFrameSerializer
         // ---- 3. Remaining bytes are payload --------------------------------
 
         var payload = (offset < span.Length)
-            ? memory.Slice(offset)
+            ? memory[offset..]
             : ReadOnlyMemory<byte>.Empty;
 
         return new NetworkFrame(

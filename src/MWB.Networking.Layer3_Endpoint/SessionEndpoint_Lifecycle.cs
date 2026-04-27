@@ -1,5 +1,6 @@
 ﻿using MWB.Networking.Layer1_Framing.Pipeline;
 using MWB.Networking.Layer2_Protocol.Driver;
+using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Session.Api;
 
 namespace MWB.Networking.Layer3_Endpoint;
@@ -38,6 +39,7 @@ public sealed partial class SessionEndpoint : IAsyncDisposable
     // ------------------------------------------------------------
 
     private readonly object _gate = new();
+    private Task? _runTask;
     private bool _started;
 
     /// <summary>
@@ -72,12 +74,12 @@ public sealed partial class SessionEndpoint : IAsyncDisposable
         _activePipeline = pipeline;
 
         // --------------------------------------------------------
-        // Start execution
+        // Start execution (fire-and-forget)
         // --------------------------------------------------------
 
-        await _activeDriver
-            .RunAsync(ct)
-            .ConfigureAwait(false);
+        _runTask = Task.Run(
+            () => _activeDriver.RunAsync(ct),
+            CancellationToken.None);
     }
 
     /// <summary>
@@ -105,7 +107,7 @@ public sealed partial class SessionEndpoint : IAsyncDisposable
 
         if (session is not null)
         {
-            Observers.UnregisterObservers(session);
+            this.Observers.UnregisterObservers(session);
         }
 
         if (driver is not null)
@@ -113,6 +115,23 @@ public sealed partial class SessionEndpoint : IAsyncDisposable
             await driver
                 .StopAsync()
                 .ConfigureAwait(false);
+        }
+
+        if (_runTask is not null)
+        {
+            try
+            {
+                await _runTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // expected on shutdown
+            }
+            catch (ProtocolException)
+            {
+                // expected if protocol violation occurred
+                // swallow or log as appropriate
+            }
         }
 
         pipeline?.Dispose();

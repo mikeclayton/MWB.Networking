@@ -52,6 +52,7 @@ public partial class Layer2_Protocol_EndToEnd
                 pipeline =>
                 {
                     pipeline
+                        .UseLogger(logger)
                         .UseLengthPrefixedCodec(logger)
                         .UseConnectionProvider(providerA);
                 }
@@ -74,6 +75,7 @@ public partial class Layer2_Protocol_EndToEnd
                 pipeline =>
                 {
                     pipeline
+                        .UseLogger(logger)
                         .UseLengthPrefixedCodec(logger)
                         .UseConnectionProvider(providerB);
                 }
@@ -108,12 +110,14 @@ public partial class Layer2_Protocol_EndToEnd
         // ---------------------------------------------
         // PHASE 2: start sessions (read loops begin)
         // ---------------------------------------------
-        var lifecycleCts = new CancellationTokenSource();
-        var runA = endpointA.StartAsync(lifecycleCts.Token);
-        var runB = endpointB.StartAsync(lifecycleCts.Token);
+        using var lifecycleCts = new CancellationTokenSource();
 
-        await Task
-            .WhenAll(runA, runB)
+        await endpointA
+            .StartAsync(lifecycleCts.Token)
+            .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
+
+        await endpointB
+            .StartAsync(lifecycleCts.Token)
             .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
 
         // ---------------------------------------------
@@ -125,9 +129,20 @@ public partial class Layer2_Protocol_EndToEnd
         readerStopwatch?.Stop();
         globalStopwatch.Stop();
 
-        // ---------------------------------------------
-        // PHASE 3: log statistics
-        // ---------------------------------------------
+        // ------------------------------------------------------------
+        // Clean shutdown
+        // ------------------------------------------------------------
+        lifecycleCts.Cancel();
+
+        await Task
+            .WhenAll(
+                endpointA.DisposeAsync().AsTask(),
+                endpointB.DisposeAsync().AsTask())
+            .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
+
+        // ------------------------------------------------------------
+        // Log statistics
+        // ------------------------------------------------------------
 
         TestContext.WriteLine(
         $"Wrote {FrameCount} frames in {writerStopwatch.Elapsed.TotalMilliseconds:F2} ms " +

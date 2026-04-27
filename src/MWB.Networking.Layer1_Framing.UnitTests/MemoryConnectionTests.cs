@@ -48,6 +48,7 @@ public sealed class MemoryConnectionTests
 
             // Build framing pipeline on top of the in-memory connection
             var pipeline = await new NetworkPipelineBuilder()
+                .UseLogger(logger)
                 .UseLengthPrefixedCodec(logger)
                 .UseConnectionProvider(providerA)
                 .CreatePipelineAsync(TestContext.CancellationToken);

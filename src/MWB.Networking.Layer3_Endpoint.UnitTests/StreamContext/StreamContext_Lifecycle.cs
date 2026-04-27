@@ -54,6 +54,7 @@ public partial class StreamContext_Lifecycle
                 pipeline =>
                 {
                     pipeline
+                        .UseLogger(logger)
                         .UseLengthPrefixedCodec(logger)
                         .UseConnectionProvider(providerB);
                 }
@@ -80,6 +81,7 @@ public partial class StreamContext_Lifecycle
                 pipeline =>
                 {
                     pipeline
+                        .UseLogger(logger)
                         .UseLengthPrefixedCodec(logger)
                         .UseConnectionProvider(providerA);
                 }

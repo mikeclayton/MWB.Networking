@@ -61,6 +61,7 @@ public sealed partial class EndToEnd
                 pipeline =>
                 {
                     pipeline
+                        .UseLogger(logger)
                         .UseLengthPrefixedCodec(logger)
                         .UseManualNetworkConnectionProvider(logger, clientConnection);
                 }
@@ -79,6 +80,7 @@ public sealed partial class EndToEnd
                 pipeline =>
                 {
                     pipeline
+                        .UseLogger(logger)
                         .UseLengthPrefixedCodec(logger)
                         .UseManualNetworkConnectionProvider(logger, serverConnection);
                 }

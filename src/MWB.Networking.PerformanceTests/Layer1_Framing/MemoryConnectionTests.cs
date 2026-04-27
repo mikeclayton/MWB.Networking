@@ -44,6 +44,7 @@ public class Layer0_Transport_Framing
         // Build framing pipeline on top of the in-memory connection
         var pipeline =
             await new NetworkPipelineBuilder()
+                .UseLogger(logger)
                 .UseLengthPrefixedCodec(logger)
                 .UseConnectionProvider(providerA)
                 .CreatePipelineAsync(TestContext.CancellationToken);

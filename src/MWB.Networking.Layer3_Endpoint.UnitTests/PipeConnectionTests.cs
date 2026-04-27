@@ -12,6 +12,7 @@ using MWB.Networking.Logging.Loggers;
 using System.Buffers;
 using System.Diagnostics;
 using System.IO.Pipelines;
+using System.Net;
 
 namespace MWB.Networking.Layer3_Endpoint.UnitTests;
 
@@ -54,6 +55,7 @@ public class PipeConnectionTests
                         pipeline =>
                         {
                             pipeline
+                                .UseLogger(logger)
                                 .UseLengthPrefixedCodec(logger)
                                 .WrapConnectionAsProvider(logger, serverConnection);
                         }
@@ -81,6 +83,7 @@ public class PipeConnectionTests
                         pipeline =>
                         {
                             pipeline
+                                .UseLogger(logger)
                                 .UseLengthPrefixedCodec(logger)
                                 .WrapConnectionAsProvider(logger, clientConnection);
                         }
@@ -95,7 +98,9 @@ public class PipeConnectionTests
             var serverRun = serverEndpoint.StartAsync(cts.Token);
             var clientRun = clientEndpoint.StartAsync(cts.Token);
 
-            await Task.WhenAll(serverRun, clientRun);
+            await Task
+                .WhenAll(serverRun, clientRun)
+                .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
 
             // ------------------------------------------------------------
             // Act: send a frame from client to server
@@ -108,7 +113,8 @@ public class PipeConnectionTests
             // Assert: server receives the request
             // ------------------------------------------------------------
             var (receivedRequest, receivedPayload) =
-                await requestTcs.Task.WaitAsync(TestContext.CancellationToken);
+                await requestTcs.Task
+                    .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
 
             // verify the message
             CollectionAssert.AreEqual(payload, receivedPayload.ToArray());
@@ -117,8 +123,9 @@ public class PipeConnectionTests
             // Cleanup
             // ------------------------------------------------------------
             cts.Cancel();
-            await Task.WhenAll(serverRun, clientRun);
-
+            await Task
+                .WhenAll(serverRun, clientRun)
+                .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
         }
 
         [TestMethod]
@@ -149,6 +156,7 @@ public class PipeConnectionTests
             // Build client pipeline
             // ----------------------------
             var clientPipeline = await new NetworkPipelineBuilder()
+                .UseLogger(logger)
                 .UseLengthPrefixedCodec(logger)
                 .WrapConnectionAsProvider(logger, clientConnection)
                 .CreatePipelineAsync(TestContext.CancellationToken);
@@ -157,6 +165,7 @@ public class PipeConnectionTests
             // Build server pipeline
             // ----------------------------
             var serverPipeline = await new NetworkPipelineBuilder()
+                .UseLogger(logger)
                 .UseLengthPrefixedCodec(logger)
                 .WrapConnectionAsProvider(logger, serverConnection)
                 .CreatePipelineAsync(TestContext.CancellationToken);
@@ -253,6 +262,7 @@ public class PipeConnectionTests
                     pipeline =>
                     {
                         pipeline
+                            .UseLogger(logger)
                             .UseLengthPrefixedCodec(logger)
                             .WrapConnectionAsProvider(logger, clientConnection);
                     }
@@ -272,6 +282,7 @@ public class PipeConnectionTests
                     pipeline =>
                     {
                         pipeline
+                            .UseLogger(logger)
                             .UseLengthPrefixedCodec(logger)
                             .WrapConnectionAsProvider(logger, serverConnection);
                     }
@@ -303,14 +314,14 @@ public class PipeConnectionTests
             // -------------------------------------------------
             // PHASE 2: Start sessions
             // -------------------------------------------------
-
-            // start the protocol loops
-            // (wait within a maximum timeout so the test fails rather than hangs forever)
             using var lifecycleCts = new CancellationTokenSource();
-            var serverRun = serverEndpoint.StartAsync(lifecycleCts.Token);
-            var clientRun = clientEndpoint.StartAsync(lifecycleCts.Token);
-            await Task
-                .WhenAll(serverRun, clientRun)
+
+            await serverEndpoint
+                .StartAsync(lifecycleCts.Token)
+                .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
+
+            await clientEndpoint
+                .StartAsync(lifecycleCts.Token)
                 .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
 
             // -------------------------------------------------
@@ -332,9 +343,16 @@ public class PipeConnectionTests
             // shut down cleanly
             // (wait within a maximum timeout so the test fails rather than hangs forever)
             lifecycleCts.Cancel();
+
             await Task
-                .WhenAll(serverRun, clientRun)
+                .WhenAll(
+                    serverEndpoint.DisposeAsync().AsTask(),
+                    clientEndpoint.DisposeAsync().AsTask())
                 .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
+
+            // ------------------------------------------------------------
+            // Log statistics
+            // ------------------------------------------------------------
 
             TestContext.WriteLine(
                 $"Wrote {FrameCount} frames in {writerStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
