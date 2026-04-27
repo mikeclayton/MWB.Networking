@@ -26,12 +26,12 @@ public sealed partial class Requests_Invariants
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         var frame = ProtocolFrameGenerator.CreateInvalidProtocolFrame(
             ProtocolFrameKind.Request);
 
-        Assert.Throws<ProtocolException>(() => runtime.ProcessFrame(frame));
+        Assert.Throws<ProtocolException>(() => processor.ProcessFrame(frame));
     }
 
     [TestMethod]
@@ -39,12 +39,12 @@ public sealed partial class Requests_Invariants
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         var frame = ProtocolFrameGenerator.CreateInvalidProtocolFrame(
             ProtocolFrameKind.Response);
 
-        Assert.Throws<ProtocolException>(() => runtime.ProcessFrame(frame));
+        Assert.Throws<ProtocolException>(() => processor.ProcessFrame(frame));
     }
 
     [TestMethod]
@@ -52,12 +52,12 @@ public sealed partial class Requests_Invariants
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         var frame = ProtocolFrameGenerator.CreateInvalidProtocolFrame(
             ProtocolFrameKind.Error);
 
-        Assert.Throws<ProtocolException>(() => runtime.ProcessFrame(frame));
+        Assert.Throws<ProtocolException>(() => processor.ProcessFrame(frame));
     }
 
     [TestMethod]
@@ -65,12 +65,12 @@ public sealed partial class Requests_Invariants
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
+        processor.ProcessFrame(ProtocolFrames.Request(1));
 
         Assert.Throws<ProtocolException>(
-            () => runtime.ProcessFrame(ProtocolFrames.Request(1)));
+            () => processor.ProcessFrame(ProtocolFrames.Request(1)));
     }
 
     [TestMethod]
@@ -78,10 +78,10 @@ public sealed partial class Requests_Invariants
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         Assert.Throws<ProtocolException>(
-            () => runtime.ProcessFrame(ProtocolFrames.Response(99)));
+            () => processor.ProcessFrame(ProtocolFrames.Response(99)));
     }
 
     [TestMethod]
@@ -89,21 +89,10 @@ public sealed partial class Requests_Invariants
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         Assert.Throws<ProtocolException>(
-            () => runtime.ProcessFrame(ProtocolFrames.Error(99)));
-    }
-
-    [TestMethod]
-    public void Cancel_UnknownRequestId_ThrowsProtocolException()
-    {
-        var logger = NullLogger.Instance;
-        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
-
-        Assert.Throws<ProtocolException>(
-            () => runtime.ProcessFrame(ProtocolFrames.Error(99)));
+            () => processor.ProcessFrame(ProtocolFrames.Error(99)));
     }
 
     [TestMethod]
@@ -111,13 +100,13 @@ public sealed partial class Requests_Invariants
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
-        runtime.ProcessFrame(ProtocolFrames.Response(1));
+        processor.ProcessFrame(ProtocolFrames.Request(1));
+        processor.ProcessFrame(ProtocolFrames.Response(1));
 
         Assert.Throws<ProtocolException>(
-            () => runtime.ProcessFrame(ProtocolFrames.Response(1)));
+            () => processor.ProcessFrame(ProtocolFrames.Response(1)));
     }
 
     [TestMethod]
@@ -125,12 +114,12 @@ public sealed partial class Requests_Invariants
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
-        runtime.ProcessFrame(ProtocolFrames.Response(1));
+        processor.ProcessFrame(ProtocolFrames.Request(1));
+        processor.ProcessFrame(ProtocolFrames.Response(1));
 
         Assert.Throws<ProtocolException>(
-            () => runtime.ProcessFrame(ProtocolFrames.Response(1)));
+            () => processor.ProcessFrame(ProtocolFrames.Response(1)));
     }
 }

@@ -55,13 +55,14 @@ internal sealed partial class RequestManager
         }
 
         var requestId = frame.RequestId.Value;
-
         if (this.RequestContextExists(requestId))
         {
             throw ProtocolException.InvalidFrameSequence(frame, "Duplicate RequestId");
         }
 
-        var context = new RequestContext(requestId);
+        var requestType = frame.RequestType;
+
+        var context = new RequestContext(requestId, requestType);
         this.AddRequestContext(context);
 
         var request = new IncomingRequest(this.Session, context);

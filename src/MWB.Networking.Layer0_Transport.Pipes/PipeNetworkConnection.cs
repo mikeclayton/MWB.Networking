@@ -1,7 +1,6 @@
 ﻿using MWB.Networking.Layer0_Transport.Encoding;
 using System.Buffers;
 using System.IO.Pipelines;
-using System.IO.Pipes;
 
 namespace MWB.Networking.Layer0_Transport.Pipes;
 

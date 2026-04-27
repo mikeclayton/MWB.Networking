@@ -7,12 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Configuration\**" />
-    <Compile Remove="Factory\**" />
-    <EmbeddedResource Remove="Configuration\**" />
-    <EmbeddedResource Remove="Factory\**" />
-    <None Remove="Configuration\**" />
-    <None Remove="Factory\**" />
+    <Compile Remove="Driver\Construction\**" />
+    <Compile Remove="Session\Construction\**" />
+    <EmbeddedResource Remove="Driver\Construction\**" />
+    <EmbeddedResource Remove="Session\Construction\**" />
+    <None Remove="Driver\Construction\**" />
+    <None Remove="Session\Construction\**" />
   </ItemGroup>
 
   <ItemGroup>

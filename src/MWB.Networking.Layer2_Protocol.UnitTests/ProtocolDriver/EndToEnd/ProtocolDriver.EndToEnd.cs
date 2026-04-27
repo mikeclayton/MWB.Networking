@@ -18,11 +18,11 @@ public sealed partial class EndToEnd
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         // Arrange: open a request and a request-scoped stream
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(
+        processor.ProcessFrame(ProtocolFrames.Request(1));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(
             requestId: 1,
             streamId: 1));
 
@@ -31,8 +31,8 @@ public sealed partial class EndToEnd
         Assert.Contains(1u, snapshotBefore.OpenStreams);
 
         // Act: close the stream twice via protocol frames
-        runtime.ProcessFrame(ProtocolFrames.StreamClose(1));
-        runtime.ProcessFrame(ProtocolFrames.StreamClose(1)); // second close
+        processor.ProcessFrame(ProtocolFrames.StreamClose(1));
+        processor.ProcessFrame(ProtocolFrames.StreamClose(1)); // second close
 
         // Assert: no streams remain, no exception, no further mutation
         var snapshotAfter = session.Diagnostics.GetSnapshot();
@@ -44,19 +44,19 @@ public sealed partial class EndToEnd
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         // Arrange: create two requests
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
-        runtime.ProcessFrame(ProtocolFrames.Request(3));
+        processor.ProcessFrame(ProtocolFrames.Request(1));
+        processor.ProcessFrame(ProtocolFrames.Request(3));
 
         // Open a stream scoped to request 1
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(
             requestId: 1,
             streamId: 1));
 
         // Act: close the stream
-        runtime.ProcessFrame(ProtocolFrames.StreamClose(1));
+        processor.ProcessFrame(ProtocolFrames.StreamClose(1));
 
         // Assert: request 3 is still open
         var snap = session.Diagnostics.GetSnapshot();
@@ -68,7 +68,7 @@ public sealed partial class EndToEnd
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         // Arrange: attach observer that records invocation
         var observerInvoked = false;
@@ -79,13 +79,13 @@ public sealed partial class EndToEnd
             // IMPORTANT: observer does nothing protocol-mutating
         };
 
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(
+        processor.ProcessFrame(ProtocolFrames.Request(1));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(
             requestId: 1,
             streamId: 1));
 
         // Act: close the stream
-        runtime.ProcessFrame(ProtocolFrames.StreamClose(1));
+        processor.ProcessFrame(ProtocolFrames.StreamClose(1));
 
         // Assert: observer was invoked
         Assert.IsTrue(observerInvoked);

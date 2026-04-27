@@ -9,7 +9,7 @@ namespace MWB.Networking.Layer2_Protocol.Session;
 /// <remarks>
 /// <para>
 /// <see cref="OutboundFrameQueue"/> exists to solve a subtle but critical concurrency
-/// problem in the protocol runtime: outbound frames may be produced on arbitrary
+/// problem in the protocol processor: outbound frames may be produced on arbitrary
 /// threads and may be enqueued both before and after the outbound processor starts,
 /// while still requiring strict ordering and correct wake-up semantics.
 /// </para>

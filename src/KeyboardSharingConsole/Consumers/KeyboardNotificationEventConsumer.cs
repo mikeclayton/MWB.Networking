@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using MWB.Networking.Layer2_Protocol.Events.Api;
+using System.Text;
 
 namespace KeyboardSharingConsole.Consumers;
 
@@ -8,7 +9,7 @@ public sealed class KeyboardNotificationEventConsumer
 
     public int EventCount => _count;
 
-    public void OnEventReceived(uint eventType, ReadOnlyMemory<byte> payload)
+    public void OnEventReceived(IncomingEvent @event, ReadOnlyMemory<byte> payload)
     {
         var text = Encoding.UTF8.GetString(payload.Span);
         Interlocked.Increment(ref _count);

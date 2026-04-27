@@ -27,7 +27,7 @@ public sealed partial class Streams_SessionScoped
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         IncomingRequest? request = null;
 
@@ -37,14 +37,14 @@ public sealed partial class Streams_SessionScoped
         };
 
         // Open a request
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
+        processor.ProcessFrame(ProtocolFrames.Request(1));
 
         // Respond, closing the request
         Assert.IsNotNull(request);
         request.Respond(new byte[] { 0xAA });
 
         // Open an independent stream (inbound)
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(10));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(10));
 
         var snapshot = session.Diagnostics.GetSnapshot();
 
@@ -60,14 +60,14 @@ public sealed partial class Streams_SessionScoped
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         var metadata = new byte[] { 0x01, 0x02 };
 
         // Open a session-scoped stream via intent-level API
         var stream = session.Commands.OpenSessionStream(metadata);
 
-        var outbound = runtime.DrainOutboundFrames();
+        var outbound = processor.DrainOutboundFrames();
 
         Assert.HasCount(1, outbound);
         Assert.AreEqual(ProtocolFrameKind.StreamOpen, outbound[0].Kind);
@@ -80,7 +80,7 @@ public sealed partial class Streams_SessionScoped
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         var data = new byte[] { 0xDE, 0xAD };
 
@@ -88,12 +88,12 @@ public sealed partial class Streams_SessionScoped
         var stream = session.Commands.OpenSessionStream();
 
         // Discard StreamOpen
-        runtime.DrainOutboundFrames();
+        processor.DrainOutboundFrames();
 
         // Send data via intent-level API
         stream.SendData(data);
 
-        var outbound = runtime.DrainOutboundFrames();
+        var outbound = processor.DrainOutboundFrames();
 
         Assert.HasCount(1, outbound);
         Assert.AreEqual(ProtocolFrameKind.StreamData, outbound[0].Kind);
@@ -106,18 +106,18 @@ public sealed partial class Streams_SessionScoped
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         // Open a session-scoped stream
         var stream = session.Commands.OpenSessionStream();
 
         // Discard the StreamOpen frame
-        runtime.DrainOutboundFrames();
+        processor.DrainOutboundFrames();
 
         // Close the stream via intent-level API
         stream.Close();
 
-        var outbound = runtime.DrainOutboundFrames();
+        var outbound = processor.DrainOutboundFrames();
 
         Assert.HasCount(1, outbound);
         Assert.AreEqual(ProtocolFrameKind.StreamClose, outbound[0].Kind);

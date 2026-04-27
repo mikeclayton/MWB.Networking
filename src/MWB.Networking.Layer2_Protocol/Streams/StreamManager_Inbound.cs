@@ -46,26 +46,30 @@ public sealed partial class StreamManager
                 throw ProtocolException.InvalidFrameSequence(frame, "Duplicate StreamId");
             }
 
-            RequestContext? owningRequest = null;
+            RequestContext? owningRequestContext = null;
             if (frame.RequestId is not null)
             {
-                if (!this.Session.RequestManager.TryGetRequestContext(frame.RequestId.Value, out owningRequest))
+                if (!this.Session.RequestManager.TryGetRequestContext(frame.RequestId.Value, out owningRequestContext))
                 {
                     throw ProtocolException.InvalidFrameSequence(frame, "Unknown RequestId for StreamOpen");
                 }
             }
 
             IncomingRequest? incomingRequest =
-                owningRequest is not null
-                    ? new IncomingRequest(this.Session, owningRequest)
+                owningRequestContext is not null
+                    ? new IncomingRequest(this.Session, owningRequestContext)
                     : null;
 
-            incomingStream = new IncomingStream(this.Session, streamId);
+            var streamType = frame.StreamType;
+            var streamContext = new StreamContext(streamId, streamType, owningRequestContext);
+
+            incomingStream = new IncomingStream(this.Session, streamContext);
 
             streamEntry = new StreamEntry(
-                new StreamContext(streamId, owningRequest),
+                streamContext,
                 incomingStream
             );
+
             this.AddStreamEntry(streamEntry);
 
             // Semantic notification

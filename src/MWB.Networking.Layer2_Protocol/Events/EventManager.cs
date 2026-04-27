@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer2_Protocol.Events.Api;
 using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Logging;
@@ -41,8 +42,12 @@ internal sealed partial class EventManager : IHasLogger
                 "Event frame missing EventType");
         }
 
+        var eventType = frame.EventType;
+        var incomingEvent = new IncomingEvent(this.Session, eventType);
+
         // Layer 2 does not interpret events.
         // Just surface them upward (or store them for a higher layer).
-        this.Session.OnEventReceived(frame.EventType.Value, frame.Payload);
+
+        this.Session.OnEventReceived(incomingEvent, frame.Payload);
     }
 }

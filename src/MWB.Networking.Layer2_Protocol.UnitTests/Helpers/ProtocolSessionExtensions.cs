@@ -9,10 +9,10 @@ internal static class ProtocolSessionExtensions
     /// Drains all currently queued outbound ProtocolFrames from the session.
     /// Intended for unit tests and diagnostics only.
     /// </summary>
-    public static List<ProtocolFrame> DrainOutboundFrames(this IProtocolSessionRuntime sessionRuntime)
+    public static List<ProtocolFrame> DrainOutboundFrames(this IProtocolSessionProcessor processor)
     {
         var frames = new List<ProtocolFrame>();
-        while (sessionRuntime.TryDequeueOutboundFrame(out var frame))
+        while (processor.TryDequeueOutboundFrame(out var frame))
         {
             frames.Add(frame);
         }

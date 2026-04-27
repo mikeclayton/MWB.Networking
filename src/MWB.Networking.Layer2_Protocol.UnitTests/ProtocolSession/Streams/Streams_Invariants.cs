@@ -26,12 +26,12 @@ public sealed partial class Streams_Invariants
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         var frame = ProtocolFrameGenerator.CreateInvalidProtocolFrame(
             ProtocolFrameKind.StreamOpen);
 
-        Assert.Throws<ProtocolException>(() => runtime.ProcessFrame(frame));
+        Assert.Throws<ProtocolException>(() => processor.ProcessFrame(frame));
     }
 
     [TestMethod]
@@ -39,12 +39,12 @@ public sealed partial class Streams_Invariants
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(1));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(1));
 
         Assert.Throws<ProtocolException>(
-            () => runtime.ProcessFrame(ProtocolFrames.StreamOpen(1)));
+            () => processor.ProcessFrame(ProtocolFrames.StreamOpen(1)));
     }
 
     [TestMethod]
@@ -52,10 +52,10 @@ public sealed partial class Streams_Invariants
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         Assert.Throws<ProtocolException>(
-            () => runtime.ProcessFrame(ProtocolFrames.StreamData(99, new byte[] { 1 })));
+            () => processor.ProcessFrame(ProtocolFrames.StreamData(99, new byte[] { 1 })));
     }
 
     [TestMethod]
@@ -63,10 +63,10 @@ public sealed partial class Streams_Invariants
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         Assert.Throws<ProtocolException>(
-            () => runtime.ProcessFrame(ProtocolFrames.StreamClose(99)));
+            () => processor.ProcessFrame(ProtocolFrames.StreamClose(99)));
     }
 
     [TestMethod]
@@ -74,12 +74,12 @@ public sealed partial class Streams_Invariants
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         var frame = ProtocolFrameGenerator.CreateInvalidProtocolFrame(
             ProtocolFrameKind.StreamData);
 
-        Assert.Throws<ProtocolException>(() => runtime.ProcessFrame(frame));
+        Assert.Throws<ProtocolException>(() => processor.ProcessFrame(frame));
     }
 
     [TestMethod]
@@ -87,13 +87,13 @@ public sealed partial class Streams_Invariants
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(1));
-        runtime.ProcessFrame(ProtocolFrames.StreamClose(1));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(1));
+        processor.ProcessFrame(ProtocolFrames.StreamClose(1));
 
         Assert.Throws<ProtocolException>(
-            () => runtime.ProcessFrame(ProtocolFrames.StreamData(1, new byte[] { 1 })));
+            () => processor.ProcessFrame(ProtocolFrames.StreamData(1, new byte[] { 1 })));
     }
 
     [TestMethod]
@@ -101,12 +101,12 @@ public sealed partial class Streams_Invariants
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(1));
-        runtime.ProcessFrame(ProtocolFrames.StreamClose(1));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(1));
+        processor.ProcessFrame(ProtocolFrames.StreamClose(1));
 
         Assert.Throws<ProtocolException>(
-            () => runtime.ProcessFrame(ProtocolFrames.StreamClose(1)));
+            () => processor.ProcessFrame(ProtocolFrames.StreamClose(1)));
     }
 }

@@ -22,7 +22,7 @@ internal sealed partial class RequestManager
         var requestId = this.NextRequestId++;
 
         // Create and track request context
-        var context = new RequestContext(requestId);
+        var context = new RequestContext(requestId, requestType);
         this.AddRequestContext(context);
 
         // Emit the protocol request frame to the peer
@@ -41,7 +41,7 @@ internal sealed partial class RequestManager
         context.Close();
 
         // 2. Emit terminal response frame
-        this.Session.EnqueueOutboundFrame(ProtocolFrames.Response(context.RequestId, payload));
+        this.Session.EnqueueOutboundFrame(ProtocolFrames.Response(context.RequestId, null, payload));
 
         // 3. Remove request + close any request-scoped streams
         this.RemoveRequest(context.RequestId);

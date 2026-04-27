@@ -27,9 +27,9 @@ public sealed partial class Session
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        var outbound = runtime.DrainOutboundFrames();
+        var outbound = processor.DrainOutboundFrames();
 
         Assert.IsEmpty(outbound);
     }
@@ -39,7 +39,7 @@ public sealed partial class Session
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         IncomingRequest? r1 = null;
         IncomingRequest? r2 = null;
@@ -51,20 +51,20 @@ public sealed partial class Session
         };
 
         // First outbound frame
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
+        processor.ProcessFrame(ProtocolFrames.Request(1));
         r1!.Respond(new byte[] { 0x01 });
 
-        var first = runtime.DrainOutboundFrames();
-        var second = runtime.DrainOutboundFrames();
+        var first = processor.DrainOutboundFrames();
+        var second = processor.DrainOutboundFrames();
 
         Assert.HasCount(1, first);
         Assert.IsEmpty(second);
 
         // Prove new outbound frames appear after drain
-        runtime.ProcessFrame(ProtocolFrames.Request(2));
+        processor.ProcessFrame(ProtocolFrames.Request(2));
         r2!.Respond(new byte[] { 0x02 });
 
-        var third = runtime.DrainOutboundFrames();
+        var third = processor.DrainOutboundFrames();
 
         Assert.HasCount(1, third);
         Assert.AreEqual((byte)0x02, third[0].Payload.Span[0]);
@@ -77,7 +77,7 @@ public sealed partial class Session
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         IncomingRequest? request1 = null;
         IncomingRequest? request2 = null;
@@ -94,14 +94,14 @@ public sealed partial class Session
             }
         };
 
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
-        runtime.ProcessFrame(ProtocolFrames.Request(2));
+        processor.ProcessFrame(ProtocolFrames.Request(1));
+        processor.ProcessFrame(ProtocolFrames.Request(2));
 
         // Each request produces exactly one response
         request1!.Respond(new byte[] { 0xA1 });
         request2!.Respond(new byte[] { 0xA2 });
 
-        var outbound = runtime.DrainOutboundFrames();
+        var outbound = processor.DrainOutboundFrames();
 
         Assert.HasCount(2, outbound);
         Assert.AreEqual(ProtocolFrameKind.Response, outbound[0].Kind);
@@ -114,7 +114,7 @@ public sealed partial class Session
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         IncomingRequest? r1 = null;
         IncomingRequest? r2 = null;
@@ -128,19 +128,19 @@ public sealed partial class Session
         };
 
         // First outbound frame
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
+        processor.ProcessFrame(ProtocolFrames.Request(1));
         r1!.Respond(new byte[] { 1 });
 
         // Drain existing outbound frames
-        runtime.DrainOutboundFrames();
+        processor.DrainOutboundFrames();
 
         // Two new outbound frames
-        runtime.ProcessFrame(ProtocolFrames.Request(2));
-        runtime.ProcessFrame(ProtocolFrames.Request(3));
+        processor.ProcessFrame(ProtocolFrames.Request(2));
+        processor.ProcessFrame(ProtocolFrames.Request(3));
         r2!.Respond(new byte[] { 2 });
         r3!.Respond(new byte[] { 3 });
 
-        var outbound = runtime.DrainOutboundFrames();
+        var outbound = processor.DrainOutboundFrames();
 
         Assert.HasCount(2, outbound);
         Assert.AreEqual((byte)2, outbound[0].Payload.Span[0]);
@@ -156,7 +156,6 @@ public sealed partial class Session
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
 
         var snap = session.Diagnostics.GetSnapshot();
 
@@ -169,10 +168,10 @@ public sealed partial class Session
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(10));
+        processor.ProcessFrame(ProtocolFrames.Request(1));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(10));
 
         var snap1 = session.Diagnostics.GetSnapshot();
         var snap2 = session.Diagnostics.GetSnapshot();
@@ -186,12 +185,12 @@ public sealed partial class Session
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(10));
-        runtime.ProcessFrame(ProtocolFrames.Response(1));
-        runtime.ProcessFrame(ProtocolFrames.StreamClose(10));
+        processor.ProcessFrame(ProtocolFrames.Request(1));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(10));
+        processor.ProcessFrame(ProtocolFrames.Response(1));
+        processor.ProcessFrame(ProtocolFrames.StreamClose(10));
 
         var snap = session.Diagnostics.GetSnapshot();
 
@@ -204,11 +203,11 @@ public sealed partial class Session
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         // The same numeric ID may be in use simultaneously as both a request and a stream.
-        runtime.ProcessFrame(ProtocolFrames.Request(42));
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(42));
+        processor.ProcessFrame(ProtocolFrames.Request(42));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(42));
 
         var snap = session.Diagnostics.GetSnapshot();
 
@@ -221,10 +220,10 @@ public sealed partial class Session
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(2));
+        processor.ProcessFrame(ProtocolFrames.Request(1));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(2));
 
         var snap = session.Diagnostics.GetSnapshot();
 
@@ -241,9 +240,9 @@ public sealed partial class Session
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        Assert.Throws<ArgumentNullException>(() => runtime.ProcessFrame(null!));
+        Assert.Throws<ArgumentNullException>(() => processor.ProcessFrame(null!));
     }
 
 
@@ -252,7 +251,7 @@ public sealed partial class Session
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         // Arrange: intentionally invalid protocol frame
         var frame = ProtocolFrameGenerator.CreateInvalidProtocolFrame(
@@ -260,7 +259,7 @@ public sealed partial class Session
 
         // Act
         var ex = Assert.Throws<ProtocolException>(
-            () => runtime.ProcessFrame(frame));
+            () => processor.ProcessFrame(frame));
 
         // Assert
         Assert.AreEqual(
@@ -277,12 +276,12 @@ public sealed partial class Session
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
-        runtime.ProcessFrame(ProtocolFrames.Request(2));
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(10));
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(20));
+        processor.ProcessFrame(ProtocolFrames.Request(1));
+        processor.ProcessFrame(ProtocolFrames.Request(2));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(10));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(20));
 
         var snap = session.Diagnostics.GetSnapshot();
 
@@ -295,11 +294,11 @@ public sealed partial class Session
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(10));
-        runtime.ProcessFrame(ProtocolFrames.Response(1));
+        processor.ProcessFrame(ProtocolFrames.Request(1));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(10));
+        processor.ProcessFrame(ProtocolFrames.Response(1));
 
         var snap = session.Diagnostics.GetSnapshot();
 
@@ -313,11 +312,11 @@ public sealed partial class Session
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(10));
-        runtime.ProcessFrame(ProtocolFrames.StreamClose(10));
+        processor.ProcessFrame(ProtocolFrames.Request(1));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(10));
+        processor.ProcessFrame(ProtocolFrames.StreamClose(10));
 
         var snap = session.Diagnostics.GetSnapshot();
 
@@ -331,15 +330,15 @@ public sealed partial class Session
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
-        runtime.DrainOutboundFrames();
+        processor.ProcessFrame(ProtocolFrames.Request(1));
+        processor.DrainOutboundFrames();
 
         // Should not throw
-        runtime.ProcessFrame(ProtocolFrames.Response(1, new byte[] { 0x01 }));
+        processor.ProcessFrame(ProtocolFrames.Response(1, null, new byte[] { 0x01 }));
 
-        var outbound = runtime.DrainOutboundFrames();
+        var outbound = processor.DrainOutboundFrames();
         Assert.HasCount(0, outbound);
     }
 
@@ -349,25 +348,25 @@ public sealed partial class Session
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         // Open two requests and two streams.
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
-        runtime.ProcessFrame(ProtocolFrames.Request(2));
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(10));
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(20));
+        processor.ProcessFrame(ProtocolFrames.Request(1));
+        processor.ProcessFrame(ProtocolFrames.Request(2));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(10));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(20));
         Assert.HasCount(2, session.Diagnostics.GetSnapshot().OpenRequests);
         Assert.HasCount(2, session.Diagnostics.GetSnapshot().OpenStreams);
 
         // Close one request and one stream.
-        runtime.ProcessFrame(ProtocolFrames.Response(1));
-        runtime.ProcessFrame(ProtocolFrames.StreamClose(10));
+        processor.ProcessFrame(ProtocolFrames.Response(1));
+        processor.ProcessFrame(ProtocolFrames.StreamClose(10));
         Assert.HasCount(1, session.Diagnostics.GetSnapshot().OpenRequests);
         Assert.HasCount(1, session.Diagnostics.GetSnapshot().OpenStreams);
 
         // Close the remaining ones.
-        runtime.ProcessFrame(ProtocolFrames.Error(2));
-        runtime.ProcessFrame(ProtocolFrames.StreamClose(20));
+        processor.ProcessFrame(ProtocolFrames.Error(2));
+        processor.ProcessFrame(ProtocolFrames.StreamClose(20));
         Assert.IsEmpty(session.Diagnostics.GetSnapshot().OpenRequests);
         Assert.IsEmpty(session.Diagnostics.GetSnapshot().OpenStreams);
     }

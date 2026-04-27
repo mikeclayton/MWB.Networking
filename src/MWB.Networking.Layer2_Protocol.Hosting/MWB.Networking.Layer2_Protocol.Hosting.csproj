@@ -7,9 +7,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="IProtocolRuntimeFactory.cs" />
-    <Compile Remove="ProtocolRuntime.cs" />
-    <Compile Remove="ProtocolRuntimeFactory.cs" />
+    <Compile Remove="ProtocolDriverFactoryBuilder.cs" />
+    <Compile Remove="ProtocolDriverFactoryBuilder_Logger.cs" />
+    <Compile Remove="ProtocolDriverFactoryBuilder_Pipeline.cs" />
+    <Compile Remove="ProtocolRuntimFactoryBuilder.cs" />
+    <Compile Remove="ProtocolSessionFactoryBuilder.cs" />
+    <Compile Remove="ProtocolSessionFactoryBuilder_Logger.cs" />
+    <Compile Remove="ProtocolSessionFactoryBuilder_Observer.cs" />
+    <Compile Remove="ProtocolSessionFactoryBuilder_StreamIds.cs" />
+    <Compile Remove="ProtocolSessionObserverConfiguration.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -22,10 +22,12 @@ public sealed partial class ProtocolDriver
     /// </remarks>
     private sealed class DriverLifecycle
     {
+        // ------------------------------------------------------------------
+        // Driver lifecycle helper
+        // ------------------------------------------------------------------
+
         private readonly CancellationTokenSource _cts = new();
         private Task? _runTask;
-
-        public CancellationToken Token => _cts.Token;
 
         public Task Start(Func<CancellationToken, Task> run)
         {

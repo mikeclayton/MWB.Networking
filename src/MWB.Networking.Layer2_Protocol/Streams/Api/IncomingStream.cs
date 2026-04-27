@@ -8,11 +8,11 @@ public sealed class IncomingStream : IProtocolStream
 {
     internal IncomingStream(
         ProtocolSession session,
-        uint streamId,
+        StreamContext context,
         IncomingRequest? owningRequest = null)
     {
         this.Session = session ?? throw new ArgumentNullException(nameof(session));
-        this.StreamId = streamId;
+        this.Context = context ?? throw new ArgumentNullException(nameof(context));
         this.OwningRequest = owningRequest;
     }
 
@@ -21,13 +21,19 @@ public sealed class IncomingStream : IProtocolStream
         get;
     }
 
-    internal uint StreamId
+    private StreamContext Context
     {
         get;
     }
 
+    public uint StreamId
+        => this.Context.StreamId;
+
     uint IProtocolStream.StreamId
         => this.StreamId;
+
+    public uint? StreamType
+        => this.Context.StreamType;
 
     /// <summary>
     /// The request that owns this stream, if any.

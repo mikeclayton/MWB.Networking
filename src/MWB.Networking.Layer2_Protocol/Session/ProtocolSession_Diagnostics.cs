@@ -2,7 +2,7 @@
 
 namespace MWB.Networking.Layer2_Protocol.Session;
 
-internal sealed partial class ProtocolSession : IProtocolSessionDiagnostics
+public sealed partial class ProtocolSession : IProtocolSessionDiagnostics
 {
     private IProtocolSessionDiagnostics AsDiagnostics()
         => this;

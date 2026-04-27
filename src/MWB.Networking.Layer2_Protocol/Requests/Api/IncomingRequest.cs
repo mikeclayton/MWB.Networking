@@ -24,6 +24,12 @@ public sealed class IncomingRequest
         get;
     }
 
+    public uint RequestId
+        => this.Context.RequestId;
+
+    public uint? RequestType
+        => this.Context.RequestType;
+
     /// <summary>
     /// Sends the Response for this Request and closes the Requet.
     /// </summary>
@@ -44,12 +50,12 @@ public sealed class IncomingRequest
     /// Opens the single Request-scoped Stream for this Request.
     /// </summary>
 
-    public OutgoingStream OpenRequestStream()
+    public OutgoingStream OpenRequestStream(uint? streamType)
     {
         // validate request is open
         this.Context.OpenStream();
 
         // delegate to ProtocolSession
-        return this.Session.StreamManager.OpenRequestStream(this.Context);
+        return this.Session.StreamManager.OpenRequestStream(streamType, this.Context);
     }
 }

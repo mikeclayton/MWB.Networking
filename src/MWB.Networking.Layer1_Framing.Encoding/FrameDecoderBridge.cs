@@ -1,7 +1,7 @@
-﻿namespace MWB.Networking.Layer1_Framing.Encoding;
-
-using global::MWB.Networking.Layer1_Framing.Encoding.Abstractions;
+﻿using MWB.Networking.Layer1_Framing.Encoding.Abstractions;
 using System.Buffers;
+
+namespace MWB.Networking.Layer1_Framing.Encoding;
 
 /// <summary>
 /// Bridges the inbound transport byte stream into the frame decoding pipeline.

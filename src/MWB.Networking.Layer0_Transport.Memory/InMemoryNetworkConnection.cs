@@ -1,9 +1,6 @@
-﻿namespace MWB.Networking.Layer0_Transport.Memory;
+﻿using MWB.Networking.Layer0_Transport.Encoding;
 
-using MWB.Networking.Layer0_Transport.Encoding;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+namespace MWB.Networking.Layer0_Transport.Memory;
 
 /// <summary>
 /// Buffered in-process implementation of <see cref="INetworkConnection"/>.

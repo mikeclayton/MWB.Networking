@@ -45,12 +45,12 @@ public sealed class OutgoingRequest
     /// <summary>
     /// Opens the single request-scoped outgoing stream for this request.
     /// </summary>
-    public OutgoingStream OpenRequestStream()
+    public OutgoingStream OpenRequestStream(uint? streamType)
     {
         // Enforce request lifecycle rules
         this.Context.OpenStream();
 
         return this.Session.StreamManager
-            .OpenRequestStream(this.Context);
+            .OpenRequestStream(streamType, this.Context);
     }
 }

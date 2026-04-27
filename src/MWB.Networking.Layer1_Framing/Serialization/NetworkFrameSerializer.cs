@@ -1,4 +1,5 @@
 ﻿using MWB.Networking.Layer0_Transport.Encoding;
+using MWB.Networking.Layer1_Framing.Frames;
 using MWB.Networking.Layer1_Framing.Internal;
 using System.Buffers.Binary;
 
@@ -19,6 +20,14 @@ internal static class NetworkFrameSerializer
         {
             flags |= NetworkFrameFlags.HasRequestId;
         }
+        if (frame.RequestType.HasValue)
+        {
+            flags |= NetworkFrameFlags.HasRequestType;
+        }
+        if (frame.ResponseType.HasValue)
+        {
+            flags |= NetworkFrameFlags.HasResponseType;
+        }
         if (frame.StreamId.HasValue)
         {
             flags |= NetworkFrameFlags.HasStreamId;
@@ -30,6 +39,8 @@ internal static class NetworkFrameSerializer
 
         if (frame.EventType.HasValue) headerLength += 4;
         if (frame.RequestId.HasValue) headerLength += 4;
+        if (frame.RequestType.HasValue) headerLength += 4;
+        if (frame.ResponseType.HasValue) headerLength += 4;
         if (frame.StreamId.HasValue) headerLength += 4;
 
         // ---- 4. Write header ------------------------------------------
@@ -55,6 +66,20 @@ internal static class NetworkFrameSerializer
             offset += 4;
         }
 
+        if (frame.RequestType.HasValue)
+        {
+            BinaryPrimitives.WriteUInt32BigEndian(
+                span.Slice(offset, 4), frame.RequestType.Value);
+            offset += 4;
+        }
+
+        if (frame.ResponseType.HasValue)
+        {
+            BinaryPrimitives.WriteUInt32BigEndian(
+                span.Slice(offset, 4), frame.ResponseType.Value);
+            offset += 4;
+        }
+
         if (frame.StreamId.HasValue)
         {
             BinaryPrimitives.WriteUInt32BigEndian(
@@ -77,7 +102,7 @@ internal static class NetworkFrameSerializer
     /// The input is assumed to represent exactly one complete logical NetworkFrame.
     /// No framing, buffering, or transport concerns are handled here.
     /// </remarks>
-    public static NetworkFrame Deserialize(ByteSegments frame)
+    public static NetworkFrame DeserializeFrame(ByteSegments frame)
     {
         // For now, assume a single contiguous segment.
         // (Can be extended later if needed.)
@@ -97,6 +122,7 @@ internal static class NetworkFrameSerializer
         uint? eventType = null;
         uint? requestId = null;
         uint? requestType = null;
+        uint? responseType = null;
         uint? streamId = null;
         uint? streamType = null;
 
@@ -123,6 +149,13 @@ internal static class NetworkFrameSerializer
             offset += 4;
         }
 
+        if (flags.HasFlag(NetworkFrameFlags.HasResponseType))
+        {
+            responseType = BinaryPrimitives.ReadUInt32BigEndian(
+                span.Slice(offset, 4));
+            offset += 4;
+        }
+
         if (flags.HasFlag(NetworkFrameFlags.HasStreamId))
         {
             streamId = BinaryPrimitives.ReadUInt32BigEndian(
@@ -144,6 +177,6 @@ internal static class NetworkFrameSerializer
             : ReadOnlyMemory<byte>.Empty;
 
         return new NetworkFrame(
-            kind, eventType, requestId, requestType, streamId, streamType, payload);
+            kind, eventType, requestId, requestType, responseType, streamId, streamType, payload);
     }
 }

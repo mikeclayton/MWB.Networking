@@ -16,13 +16,19 @@ internal sealed class StreamContext
         Closed
     }
 
-    public StreamContext(uint streamId, RequestContext? owningRequest)
+    internal StreamContext(uint streamId, uint? streamType, RequestContext? owningRequest)
     {
         this.StreamId = streamId;
+        this.StreamType = streamType;
         this.OwningRequest = owningRequest;
     }
 
-    private uint StreamId
+    internal uint StreamId
+    {
+        get;
+    }
+
+    internal uint? StreamType
     {
         get;
     }

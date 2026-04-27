@@ -26,7 +26,7 @@ public sealed partial class Streams_Interleaving
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         // Open two session-scoped streams
         var stream1 = session.Commands.OpenSessionStream();
@@ -40,7 +40,7 @@ public sealed partial class Streams_Interleaving
         stream1.Close();
         stream2.Close();
 
-        var outbound = runtime.DrainOutboundFrames();
+        var outbound = processor.DrainOutboundFrames();
 
         Assert.HasCount(6, outbound);
 
@@ -62,7 +62,7 @@ public sealed partial class Streams_Interleaving
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         var s1 = session.Commands.OpenSessionStream();
         var s2 = session.Commands.OpenSessionStream();
@@ -75,7 +75,7 @@ public sealed partial class Streams_Interleaving
         s1.Close();
         s2.Close();
 
-        var outbound = runtime.DrainOutboundFrames();
+        var outbound = processor.DrainOutboundFrames();
 
         Assert.HasCount(8, outbound);
 

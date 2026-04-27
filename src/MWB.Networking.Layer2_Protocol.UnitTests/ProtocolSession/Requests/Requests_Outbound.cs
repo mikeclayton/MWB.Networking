@@ -27,7 +27,7 @@ public sealed partial class Requests_Outbound
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         IncomingRequest? received = null;
         int callCount = 0;
@@ -38,11 +38,11 @@ public sealed partial class Requests_Outbound
             callCount++;
         };
 
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
+        processor.ProcessFrame(ProtocolFrames.Request(1));
 
         Assert.AreEqual(1, callCount);
         Assert.IsNotNull(received);
-        Assert.IsEmpty(runtime.DrainOutboundFrames());
+        Assert.IsEmpty(processor.DrainOutboundFrames());
     }
 
 
@@ -51,7 +51,7 @@ public sealed partial class Requests_Outbound
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         IncomingRequest? request = null;
 
@@ -60,15 +60,15 @@ public sealed partial class Requests_Outbound
             request = req;
         };
 
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
-        runtime.DrainOutboundFrames();
+        processor.ProcessFrame(ProtocolFrames.Request(1));
+        processor.DrainOutboundFrames();
 
         var payload = new byte[] { 0xAB, 0xCD };
 
         Assert.IsNotNull(request);
         request.Respond(payload);
 
-        var outbound = runtime.DrainOutboundFrames();
+        var outbound = processor.DrainOutboundFrames();
 
         Assert.HasCount(1, outbound);
         Assert.AreEqual(ProtocolFrameKind.Response, outbound[0].Kind);
@@ -82,7 +82,7 @@ public sealed partial class Requests_Outbound
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         IncomingRequest? request = null;
 
@@ -92,7 +92,7 @@ public sealed partial class Requests_Outbound
         };
 
         // Peer sends request
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
+        processor.ProcessFrame(ProtocolFrames.Request(1));
 
         // First response is allowed
         request!.Respond(new byte[] { 0xA1 });
@@ -103,7 +103,7 @@ public sealed partial class Requests_Outbound
             request.Respond(new byte[] { 0xA2 });
         });
 
-        var outbound = runtime.DrainOutboundFrames();
+        var outbound = processor.DrainOutboundFrames();
 
         Assert.HasCount(1, outbound);
         Assert.AreEqual(ProtocolFrameKind.Response, outbound[0].Kind);
@@ -115,7 +115,7 @@ public sealed partial class Requests_Outbound
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         IncomingRequest? req1 = null;
         IncomingRequest? req2 = null;
@@ -133,9 +133,9 @@ public sealed partial class Requests_Outbound
         };
 
         // Open two requests
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
-        runtime.ProcessFrame(ProtocolFrames.Request(2));
-        runtime.DrainOutboundFrames();
+        processor.ProcessFrame(ProtocolFrames.Request(1));
+        processor.ProcessFrame(ProtocolFrames.Request(2));
+        processor.DrainOutboundFrames();
 
         // Respond to both, in order
         Assert.IsNotNull(req1);
@@ -143,7 +143,7 @@ public sealed partial class Requests_Outbound
         req1.Respond(new byte[] { 0x11 });
         req2.Respond(new byte[] { 0x22 });
 
-        var outbound = runtime.DrainOutboundFrames();
+        var outbound = processor.DrainOutboundFrames();
 
         Assert.HasCount(2, outbound);
         Assert.AreEqual(1u, outbound[0].RequestId);
@@ -155,7 +155,7 @@ public sealed partial class Requests_Outbound
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         IncomingRequest? request = null;
 
@@ -164,7 +164,7 @@ public sealed partial class Requests_Outbound
             request = req;
         };
 
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
+        processor.ProcessFrame(ProtocolFrames.Request(1));
 
         Assert.IsNotNull(request);
         request.Respond(new byte[] { 0xAA });
@@ -177,7 +177,7 @@ public sealed partial class Requests_Outbound
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         IncomingRequest? request = null;
 
@@ -186,7 +186,7 @@ public sealed partial class Requests_Outbound
             request = req;
         };
 
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
+        processor.ProcessFrame(ProtocolFrames.Request(1));
 
         Assert.IsNotNull(request);
         request.Respond(new byte[] { 1 });

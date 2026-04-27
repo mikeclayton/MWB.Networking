@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Memory;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
-using MWB.Networking.Layer3_Hosting.Configuration;
+using MWB.Networking.Layer3_Endpoint.Hosting;
 using MWB.Networking.Logging;
 using System.Diagnostics;
 
@@ -45,15 +45,17 @@ public partial class Layer2_Protocol_EndToEnd
         // Build session A (ritwe)
         // ----------------------------
 
-        var sessionA = new SessionHostBuilder()
-            .WithLogger(logger)
+        var endpointA = new SessionEndpointBuilder()
+            .UseLogger(logger)
             .UseOddStreamIds()
-            .ConfigurePipeline(pipeline =>
-            {
-                pipeline
-                    .UseLengthPrefixedCodec(logger)
-                    .UseConnectionProvider(providerA);
-            })
+            .ConfigurePipelineWith(
+                pipeline =>
+                {
+                    pipeline
+                        .UseLengthPrefixedCodec(logger)
+                        .UseConnectionProvider(providerA);
+                }
+            )
             .Build();
 
         // ----------------------------
@@ -65,15 +67,17 @@ public partial class Layer2_Protocol_EndToEnd
             TaskCreationOptions.RunContinuationsAsynchronously);
 
         Stopwatch? readerStopwatch = default;
-        var sessionB = new SessionHostBuilder()
-            .WithLogger(logger)
+        var endpointB = new SessionEndpointBuilder()
+            .UseLogger(logger)
             .UseEvenStreamIds()
-            .ConfigurePipeline(pipeline =>
-            {
-                pipeline
-                    .UseLengthPrefixedCodec(logger)
-                    .UseConnectionProvider(providerB);
-            })
+            .ConfigurePipelineWith(
+                pipeline =>
+                {
+                    pipeline
+                        .UseLengthPrefixedCodec(logger)
+                        .UseConnectionProvider(providerB);
+                }
+            )
             .OnEventReceived(
                 (_, _) =>
                 {
@@ -95,7 +99,7 @@ public partial class Layer2_Protocol_EndToEnd
         var writerStopwatch = Stopwatch.StartNew();
         for (var i = 0; i < FrameCount; i++)
         {
-            sessionA.Commands.SendEvent(
+            endpointA.SendEvent(
                 eventType: (uint)i,
                 payload: payload);
         }
@@ -105,11 +109,11 @@ public partial class Layer2_Protocol_EndToEnd
         // PHASE 2: start sessions (read loops begin)
         // ---------------------------------------------
         var lifecycleCts = new CancellationTokenSource();
-        var runA = sessionA.StartAsync(lifecycleCts.Token);
-        var runB = sessionB.StartAsync(lifecycleCts.Token);
+        var runA = endpointA.StartAsync(lifecycleCts.Token);
+        var runB = endpointB.StartAsync(lifecycleCts.Token);
 
         await Task
-            .WhenAll(sessionA.WhenReady, sessionB.WhenReady)
+            .WhenAll(runA, runB)
             .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
 
         // ---------------------------------------------

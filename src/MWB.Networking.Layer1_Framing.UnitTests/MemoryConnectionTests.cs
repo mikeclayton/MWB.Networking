@@ -1,14 +1,14 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
-using MWB.Networking.Layer0_Transport;
 using MWB.Networking.Layer0_Transport.Memory;
-using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
+using MWB.Networking.Layer1_Framing.Frames;
 using MWB.Networking.Layer1_Framing.Hosting;
+using MWB.Networking.Layer1_Framing.UnitTests.Helpers;
 using System.Diagnostics;
 
 namespace MWB.Networking.Layer1_Framing.UnitTests;
 
-public class MemoryConnectionTests
+public sealed class MemoryConnectionTests
 {
     [TestClass]
     public sealed class SmokeTests
@@ -47,16 +47,10 @@ public class MemoryConnectionTests
                 await providerA.OpenConnectionAsync(TestContext.CancellationToken);
 
             // Build framing pipeline on top of the in-memory connection
-            var pipeline = await new NetworkPipelineFactory()
+            var pipeline = await new NetworkPipelineBuilder()
                 .UseLengthPrefixedCodec(logger)
-                .UseConnectionProvider((INetworkConnectionProvider)providerA)
+                .UseConnectionProvider(providerA)
                 .CreatePipelineAsync(TestContext.CancellationToken);
-
-            var adapter =
-                new NetworkAdapter(
-                    logger,
-                    pipeline.FrameWriter,
-                    pipeline.FrameReader);
 
             var payload = new ReadOnlyMemory<byte>(
                 new byte[] { 0x01, 0x02, 0x03 });
@@ -72,7 +66,7 @@ public class MemoryConnectionTests
                     requestId: (uint)(i + 1),
                     payload: payload);
 
-                await adapter.WriteFrameAsync(
+                await pipeline.WriteFrameAsync(
                     frame,
                     TestContext.CancellationToken);
             }

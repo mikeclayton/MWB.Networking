@@ -4,7 +4,7 @@ using MWB.Networking.Layer2_Protocol.Streams.Api;
 
 namespace MWB.Networking.Layer2_Protocol.Session;
 
-internal sealed partial class ProtocolSession : IProtocolSessionCommands
+public sealed partial class ProtocolSession : IProtocolSessionCommands
 {
     private IProtocolSessionCommands AsCommands()
         => this;

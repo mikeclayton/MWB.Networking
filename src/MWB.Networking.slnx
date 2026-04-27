@@ -21,31 +21,27 @@
     <Project Path="MWB.Networking.Layer0_Transport.Tcp/MWB.Networking.Layer0_Transport.Tcp.csproj" Id="78981be3-8731-4c50-977e-5e909ccae117" />
   </Folder>
   <Folder Name="/Layer1_Framing/">
+    <Project Path="MWB.Networking.Layer1_Framing.Encoding/MWB.Networking.Layer1_Framing.Encoding.csproj" Id="30741abf-4df6-4519-867d-54cbcfb3c48d" />
+    <Project Path="MWB.Networking.Layer1_Framing.Hosting/MWB.Networking.Layer1_Framing.Hosting.csproj" Id="e86ef206-4680-45d4-abcd-d26fea680357" />
     <Project Path="MWB.Networking.Layer1_Framing/MWB.Networking.Layer1_Framing.csproj" Id="8b879f3a-b934-4559-8297-7fac9bd0ec82" />
   </Folder>
-  <Folder Name="/Layer1_Framing/Encoding/">
-    <Project Path="MWB.Networking.Layer1_Framing.Encoding/MWB.Networking.Layer1_Framing.Encoding.csproj" Id="30741abf-4df6-4519-867d-54cbcfb3c48d" />
-  </Folder>
-  <Folder Name="/Layer1_Framing/Encoding/Implementations/">
+  <Folder Name="/Layer1_Framing/Implementations/" />
+  <Folder Name="/Layer1_Framing/Implementations/Encoding/">
     <Project Path="MWB.Networking.Layer1_Framing.Encoding.Aes/MWB.Networking.Layer1_Framing.Encoding.Aes.csproj" Id="c5bd9471-89da-43a3-a729-c612c108eb7b" />
     <Project Path="MWB.Networking.Layer1_Framing.Encoding.Gzip/MWB.Networking.Layer1_Framing.Encoding.Gzip.csproj" Id="4b18d4a8-eeea-4198-9ac6-d190db47bb4c" />
     <Project Path="MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting/MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting.csproj" Id="79ce122f-4753-4fce-bbf7-f2b1e93e1148" />
     <Project Path="MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed/MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.csproj" Id="a14a7403-e753-4aee-945f-8d1b7e1346c3" />
     <Project Path="MWB.Networking.Layer1_Framing.Encoding.NullEncoder/MWB.Networking.Layer1_Framing.Encoding.NullEncoder.csproj" />
   </Folder>
-  <Folder Name="/Layer1_Framing/Hosting/">
-    <Project Path="MWB.Networking.Layer1_Framing.Hosting/MWB.Networking.Layer1_Framing.Hosting.csproj" Id="e86ef206-4680-45d4-abcd-d26fea680357" />
-  </Folder>
-  <Folder Name="/Layer1_Framing/Hosting/Implementations/">
+  <Folder Name="/Layer1_Framing/Implementations/Hosting/">
     <Project Path="MWB.Networking.Layer1_Framing.Hosting.Manual/MWB.Networking.Layer1_Framing.Hosting.Manual.csproj" Id="69f64cfa-799f-4910-9dc5-61eb0bd0f001" />
   </Folder>
   <Folder Name="/Layer2_Protocol/">
-    <Project Path="MWB.Networking.Layer2_Protocol.Hosting/MWB.Networking.Layer2_Protocol.Hosting.csproj" Id="52ede806-6429-40ad-aa9d-ff5b01f8c232" />
     <Project Path="MWB.Networking.Layer2_Protocol/MWB.Networking.Layer2_Protocol.csproj" Id="defc43f7-f557-4f09-83df-cc2eade268e3" />
   </Folder>
-  <Folder Name="/Layer3_Hosting/">
-    <Project Path="MWB.Networking.Layer3_Hosting.Configuration/MWB.Networking.Layer3_Hosting.Configuration.csproj" />
-    <Project Path="MWB.Networking.Layer3_Hosting.Runtime/MWB.Networking.Layer3_Hosting.Runtime.csproj" Id="f4c79850-fdaa-4da2-9f6a-40093e6cbd41" />
+  <Folder Name="/Layer3_Endpoint/">
+    <Project Path="MWB.Networking.Layer3_Endpoint.Hosting/MWB.Networking.Layer3_Endpoint.Hosting.csproj" />
+    <Project Path="MWB.Networking.Layer3_Endpoint/MWB.Networking.Layer3_Endpoint.csproj" />
   </Folder>
   <Folder Name="/Samples/">
     <Project Path="KeyboardSharingConsole/KeyboardSharingConsole.csproj" Id="643612fb-44e4-4339-8f89-2c204ec2e1fa" />
@@ -54,7 +50,7 @@
     <Project Path="MWB.Networking.Layer0_Transport.UnitTests/MWB.Networking.Layer0_Transport.UnitTests.csproj" />
     <Project Path="MWB.Networking.Layer1_Framing.UnitTests/MWB.Networking.Layer1_Framing.UnitTests.csproj" Id="d0e4430f-7802-47dd-b94c-07881adffd2c" />
     <Project Path="MWB.Networking.Layer2_Protocol.UnitTests/MWB.Networking.Layer2_Protocol.UnitTests.csproj" Id="4474b7c6-afc3-4ed1-bc36-e40945c2c5cf" />
-    <Project Path="MWB.Networking.Layer3_Hosting.UnitTests/MWB.Networking.Layer3_Hosting.UnitTests.csproj" />
+    <Project Path="MWB.Networking.Layer3_Endpoint.UnitTests/MWB.Networking.Layer3_Endpoint.UnitTests.csproj" />
     <Project Path="MWB.Networking.PerformanceTests/MWB.Networking.PerformanceTests.csproj" Id="ed377ad1-6a77-48c9-be1f-19b197955fcc" />
   </Folder>
 </Solution>

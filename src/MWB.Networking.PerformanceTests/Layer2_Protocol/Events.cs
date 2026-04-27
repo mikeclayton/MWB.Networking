@@ -34,24 +34,24 @@ public sealed partial class Layer2_Protocol_Events
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         // Warm up the JIT and dictionary internals before timing.
         for (var i = 0; i < WarmupIterations; i++)
         {
-            runtime.ProcessFrame(ProtocolFrames.Event(1, FourBytes));
+            processor.ProcessFrame(ProtocolFrames.Event(1, FourBytes));
         }
-        runtime.DrainOutboundFrames();
+        processor.DrainOutboundFrames();
 
         var sw = Stopwatch.StartNew();
         for (var i = 0; i < Iterations; i++)
         {
-            runtime.ProcessFrame(ProtocolFrames.Event(1, FourBytes));
+            processor.ProcessFrame(ProtocolFrames.Event(1, FourBytes));
         }
         sw.Stop();
 
         // Drain after timing so outbound allocation doesn't skew the measurement.
-        var outbound = runtime.DrainOutboundFrames();
+        var outbound = processor.DrainOutboundFrames();
 
         // Verify no frames were output for events.
         Assert.HasCount(0, outbound);
@@ -70,7 +70,7 @@ public sealed partial class Layer2_Protocol_Events
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         // Reuse a single request ID per iteration: Complete removes it so it
         // can be reused immediately, keeping dictionary size constant at 0-1.
@@ -78,20 +78,20 @@ public sealed partial class Layer2_Protocol_Events
 
         for (var i = 0; i < WarmupIterations; i++)
         {
-            runtime.ProcessFrame(ProtocolFrames.Request(Id));
-            runtime.ProcessFrame(ProtocolFrames.Response(Id));
+            processor.ProcessFrame(ProtocolFrames.Request(Id));
+            processor.ProcessFrame(ProtocolFrames.Response(Id));
         }
-        runtime.DrainOutboundFrames();
+        processor.DrainOutboundFrames();
 
         var sw = Stopwatch.StartNew();
         for (var i = 0; i < Iterations; i++)
         {
-            runtime.ProcessFrame(ProtocolFrames.Request(Id));
-            runtime.ProcessFrame(ProtocolFrames.Response(Id));
+            processor.ProcessFrame(ProtocolFrames.Request(Id));
+            processor.ProcessFrame(ProtocolFrames.Response(Id));
         }
         sw.Stop();
 
-        runtime.DrainOutboundFrames();
+        processor.DrainOutboundFrames();
 
         // Session should be fully quiesced: no open requests remain.
         Assert.IsEmpty(session.Diagnostics.GetSnapshot().OpenRequests);
@@ -108,29 +108,29 @@ public sealed partial class Layer2_Protocol_Events
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         // Reuse stream ID 1: StreamClose removes it so it can be reused.
         const uint streamId = 1;
 
         for (var i = 0; i < WarmupIterations; i++)
         {
-            runtime.ProcessFrame(ProtocolFrames.StreamOpen(streamId));
-            runtime.ProcessFrame(ProtocolFrames.StreamData(streamId, FourBytes));
-            runtime.ProcessFrame(ProtocolFrames.StreamClose(streamId));
+            processor.ProcessFrame(ProtocolFrames.StreamOpen(streamId));
+            processor.ProcessFrame(ProtocolFrames.StreamData(streamId, FourBytes));
+            processor.ProcessFrame(ProtocolFrames.StreamClose(streamId));
         }
-        runtime.DrainOutboundFrames();
+        processor.DrainOutboundFrames();
 
         var sw = Stopwatch.StartNew();
         for (var i = 0; i < Iterations; i++)
         {
-            runtime.ProcessFrame(ProtocolFrames.StreamOpen(streamId));
-            runtime.ProcessFrame(ProtocolFrames.StreamData(streamId, FourBytes));
-            runtime.ProcessFrame(ProtocolFrames.StreamClose(streamId));
+            processor.ProcessFrame(ProtocolFrames.StreamOpen(streamId));
+            processor.ProcessFrame(ProtocolFrames.StreamData(streamId, FourBytes));
+            processor.ProcessFrame(ProtocolFrames.StreamClose(streamId));
         }
         sw.Stop();
 
-        runtime.DrainOutboundFrames();
+        processor.DrainOutboundFrames();
 
         // Session should be fully quiesced: no open streams remain.
         Assert.IsEmpty(session.Diagnostics.GetSnapshot().OpenStreams);

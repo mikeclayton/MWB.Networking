@@ -27,26 +27,26 @@ public sealed partial class Streams_RequestScoped
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         IncomingRequest? request = null;
 
         session.Observer.RequestReceived += (req, _) => request = req;
 
         // Inbound request
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
-        runtime.DrainOutboundFrames();
+        processor.ProcessFrame(ProtocolFrames.Request(1));
+        processor.DrainOutboundFrames();
 
         Assert.IsNotNull(request);
 
         // Open request-scoped stream
-        var stream = request.OpenRequestStream();
+        var stream = request.OpenRequestStream(1u);
 
         stream.SendData(new byte[] { 0xA1 });
         stream.SendData(new byte[] { 0xA2 });
         stream.Close();
 
-        var outbound = runtime.DrainOutboundFrames();
+        var outbound = processor.DrainOutboundFrames();
 
         Assert.HasCount(4, outbound);
         Assert.AreEqual(ProtocolFrameKind.StreamOpen, outbound[0].Kind);
@@ -60,7 +60,7 @@ public sealed partial class Streams_RequestScoped
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         IncomingRequest? request = null;
 
@@ -70,7 +70,7 @@ public sealed partial class Streams_RequestScoped
         };
 
         // Inbound request
-        runtime.ProcessFrame(ProtocolFrames.Request(1));
+        processor.ProcessFrame(ProtocolFrames.Request(1));
 
         // Respond to the request (closes it)
         Assert.IsNotNull(request);
@@ -79,7 +79,7 @@ public sealed partial class Streams_RequestScoped
         // Attempting to open a request-scoped stream after response is invalid
         Assert.Throws<InvalidOperationException>(() =>
         {
-            request.OpenRequestStream();
+            request.OpenRequestStream(1u);
         });
     }
 }

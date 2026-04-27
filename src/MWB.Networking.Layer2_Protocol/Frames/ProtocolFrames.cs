@@ -19,6 +19,7 @@ internal static class ProtocolFrames
             eventType: eventType,
             requestId: null,
             requestType: null,
+            responseType: null,
             streamId: null,
             streamType: null,
             payload: payload);
@@ -38,6 +39,7 @@ internal static class ProtocolFrames
             eventType: null,
             requestId: requestId,
             requestType: requestType,
+            responseType: null,
             streamId: null,
             streamType: null,
             payload: payload);
@@ -49,6 +51,7 @@ internal static class ProtocolFrames
 
     public static ProtocolFrame Response(
         uint requestId,
+        uint? responseType = null,
         ReadOnlyMemory<byte> payload = default)
     {
         return new ProtocolFrame(
@@ -56,6 +59,7 @@ internal static class ProtocolFrames
             eventType: null,
             requestId: requestId,
             requestType: null,
+            responseType: responseType,
             streamId: null,
             streamType: null,
             payload: payload);
@@ -72,6 +76,7 @@ internal static class ProtocolFrames
             eventType: null,
             requestId: requestId,
             requestType: null,
+            responseType: null,
             streamId: null,
             streamType: null,
             payload: payload);
@@ -92,6 +97,7 @@ internal static class ProtocolFrames
             eventType: null,
             requestId: requestId,
             requestType: null,
+            responseType: null,
             streamId: streamId,
             streamType: streamType,
             payload: metadata);
@@ -110,6 +116,7 @@ internal static class ProtocolFrames
             eventType: null,
             requestId: null,
             requestType: null,
+            responseType: null,
             streamId: streamId,
             streamType: null,
             payload: payload);
@@ -128,6 +135,7 @@ internal static class ProtocolFrames
             eventType: null,
             requestId: null,
             requestType: null,
+            responseType: null,
             streamId: streamId,
             streamType: null,
             payload: metadata);
@@ -146,6 +154,7 @@ internal static class ProtocolFrames
             eventType: null,
             requestId: null,
             requestType: null,
+            responseType: null,
             streamId: streamId,
             streamType: null,
             payload: metadata);

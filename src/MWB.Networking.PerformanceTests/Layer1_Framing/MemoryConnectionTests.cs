@@ -1,8 +1,9 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Memory;
-using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
+using MWB.Networking.Layer1_Framing.Frames;
 using MWB.Networking.Layer1_Framing.Hosting;
+using MWB.Networking.PerformanceTests;
 using System.Diagnostics;
 
 namespace Performance;
@@ -42,16 +43,10 @@ public class Layer0_Transport_Framing
 
         // Build framing pipeline on top of the in-memory connection
         var pipeline =
-            await new NetworkPipelineFactory()
+            await new NetworkPipelineBuilder()
                 .UseLengthPrefixedCodec(logger)
                 .UseConnectionProvider(providerA)
-                .CreatePipelineAsync();
-
-        var adapter =
-            new NetworkAdapter(
-                logger,
-                pipeline.FrameWriter,
-                pipeline.FrameReader);
+                .CreatePipelineAsync(TestContext.CancellationToken);
 
         var payload = new ReadOnlyMemory<byte>(
             new byte[] { 0x01, 0x02, 0x03 });
@@ -67,9 +62,10 @@ public class Layer0_Transport_Framing
                 requestId: (uint)(i + 1),
                 payload: payload);
 
-            await adapter.WriteFrameAsync(
-                frame,
-                TestContext.CancellationToken);
+            await pipeline
+                .WriteFrameAsync(
+                    frame,
+                    TestContext.CancellationToken);
         }
         stopwatch.Stop();
 

@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer0_Transport;
-using MWB.Networking.Layer0_Transport.Test;
+using MWB.Networking.Layer0_Transport.Manual;
 
 namespace MWB.Networking.Layer1_Framing.Hosting.Manual;
 
@@ -14,15 +14,15 @@ public static class ManualConnectionExtensions
     /// intended to make test pipeline setup read in terms of intent rather than
     /// provider mechanics.
     /// </summary>
-    public static NetworkPipelineFactory WrapConnectionAsProvider(
-        this NetworkPipelineFactory pipeline,
+    public static NetworkPipelineBuilder WrapConnectionAsProvider(
+        this NetworkPipelineBuilder pipeline,
         ILogger logger, INetworkConnection connection)
     {
         return pipeline.UseManualNetworkConnectionProvider(logger, connection);
     }
 
-    public static NetworkPipelineFactory UseManualNetworkConnectionProvider(
-        this NetworkPipelineFactory pipeline,
+    public static NetworkPipelineBuilder UseManualNetworkConnectionProvider(
+        this NetworkPipelineBuilder pipeline,
         ILogger logger, INetworkConnection connection)
     {
         ArgumentNullException.ThrowIfNull(logger);

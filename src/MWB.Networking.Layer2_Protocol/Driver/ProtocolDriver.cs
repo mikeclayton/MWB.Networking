@@ -1,24 +1,22 @@
 ﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using MWB.Networking.Layer0_Transport;
-using MWB.Networking.Layer1_Framing;
-using MWB.Networking.Layer1_Framing.Encoding.Abstractions;
+using MWB.Networking.Layer1_Framing.Pipeline;
 using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Session.Api;
 using MWB.Networking.Logging;
 using System.Buffers;
 using System.Diagnostics;
-using System.Text;
 
 namespace MWB.Networking.Layer2_Protocol.Driver;
 
 /// <summary>
-/// Drives a protocol session by executing transport I/O loops and
-/// coordinating frame decoding and delivery.
+/// Drivers a protocol session over a transport by running
+/// read / write / consume loops.
 ///
-/// Owns execution, concurrency, scheduling, and cooperative shutdown.
-/// Contains no protocol semantics and no transport logic beyond driving
-/// the byte-to-frame pipeline.
+/// Layer 2.5:
+/// - Knows protocol internals
+/// - Owns execution, concurrency, and shutdown
+/// - Does NOT own lifecycle policy
+/// - Does NOT define protocol semantics
 /// </summary>
 public sealed partial class ProtocolDriver
 {
@@ -28,18 +26,12 @@ public sealed partial class ProtocolDriver
 
     internal ProtocolDriver(
         ILogger logger,
-        IProtocolSessionRuntime sessionRuntime,
-        INetworkConnection connection,
-        IFrameDecoder decoder,
-        NetworkFrameReader frameReader,
-        NetworkAdapter adapter)
+        IProtocolSessionProcessor processor,
+        NetworkPipeline pipeline)
     {
         this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        this.SessionRuntime = sessionRuntime ?? throw new ArgumentNullException(nameof(sessionRuntime));
-        this.Connection = connection ?? throw new ArgumentNullException(nameof(connection));
-        this.Decoder = decoder ?? throw new ArgumentNullException(nameof(decoder));
-        this.FrameReader = frameReader ?? throw new ArgumentNullException(nameof(frameReader));
-        this.Adapter = adapter ?? throw new ArgumentNullException(nameof(adapter));
+        this.Processor = processor ?? throw new ArgumentNullException(nameof(processor));
+        this.Pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
     }
 
 #if ENABLE_PROTOCOL_FRAME_DIAGNOSTICS
@@ -63,36 +55,22 @@ public sealed partial class ProtocolDriver
         get;
     }
 
-    private INetworkConnection Connection
+    private IProtocolSessionProcessor Processor
     {
         get;
     }
 
-    private IFrameDecoder Decoder
-    {
-        get;
-    }
-
-    private NetworkFrameReader FrameReader
-    {
-        get;
-    }
-
-    private NetworkAdapter Adapter
-    {
-        get;
-    }
-
-    private IProtocolSessionRuntime SessionRuntime
+    private NetworkPipeline Pipeline
     {
         get;
     }
 
     /// <summary>
-    /// Serializes access to the protocol session runtime to enforce
-    /// single-threaded semantic execution across concurrent driver loops.
+    /// Serializes semantic execution against the runtime.
+    /// Ensures protocol state is single-threaded even though
+    /// multiple driver loops are running.
     /// </summary>
-    private SemaphoreSlim SessionRuntimeGate
+    private SemaphoreSlim ProcessorGate
     {
         get;
     } = new(1, 1);
@@ -112,7 +90,7 @@ public sealed partial class ProtocolDriver
     public Task WhenStarted => _whenStartedSource.Task;
 
     /// <summary>
-    /// Starts executing the protocol driver. May be called at most once.
+    /// Starts executing the driver loops. May be called once.
     /// </summary>
     public Task RunAsync(CancellationToken ct)
     {
@@ -164,7 +142,7 @@ public sealed partial class ProtocolDriver
     }
 
     // ------------------------------------------------------------------
-    // Transport read loop
+    // Transport read loop (bytes -> frames)
     // ------------------------------------------------------------------
 
     /// <summary>
@@ -177,6 +155,7 @@ public sealed partial class ProtocolDriver
         this.Logger.LogDebug("[DRIVER READ LOOP] entering");
 
         var buffer = ArrayPool<byte>.Shared.Rent(64 * 1024);
+        var pipeline = this.Pipeline;
 
         try
         {
@@ -185,8 +164,8 @@ public sealed partial class ProtocolDriver
                 int bytesRead;
                 try
                 {
-                    bytesRead = await Connection
-                        .ReadAsync(buffer, ct)
+                    bytesRead = await pipeline
+                        .ReadBytesAsync(buffer, ct)
                         .ConfigureAwait(false);
                     this.Logger.LogDebug(
                         "[DRIVER READ LOOP] ReadAsync returned {BytesRead}",
@@ -201,8 +180,8 @@ public sealed partial class ProtocolDriver
                 if (bytesRead == 0)
                 {
                     this.Logger.LogDebug("[DRIVER READ LOOP] EOF");
-                    await this.Decoder
-                        .CompleteAsync(this.FrameReader, ct)
+                    await pipeline
+                        .CompleteDecodingAsync(ct)
                         .ConfigureAwait(false);
                     return;
                 }
@@ -211,8 +190,8 @@ public sealed partial class ProtocolDriver
                     buffer.AsMemory(0, bytesRead));
 
                 this.Logger.LogDebug("[DRIVER READ LOOP] calling DecodeFrameAsync");
-                await this.Decoder
-                    .DecodeFrameAsync(sequence, this.FrameReader, ct)
+                await pipeline
+                    .DecodeFrameAsync(sequence, ct)
                     .ConfigureAwait(false);
                 this.Logger.LogDebug("[DRIVER READ LOOP] returned from DecodeFrameAsync");
             }
@@ -225,7 +204,7 @@ public sealed partial class ProtocolDriver
     }
 
     // ------------------------------------------------------------------
-    // Outbound write loop
+    // Outbound write loop (session -> transport)
     // ------------------------------------------------------------------
 
     /// <summary>
@@ -238,23 +217,23 @@ public sealed partial class ProtocolDriver
 
         while (!ct.IsCancellationRequested)
         {
-            await this.SessionRuntime
+            await this.Processor
                 .WaitForOutboundFrameAsync(ct)
                 .ConfigureAwait(false);
 
             ProtocolFrame? protocolFrame;
 
-            await this.SessionRuntimeGate.WaitAsync(ct).ConfigureAwait(false);
+            await this.ProcessorGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                if (!this.SessionRuntime.TryDequeueOutboundFrame(out protocolFrame))
+                if (!this.Processor.TryDequeueOutboundFrame(out protocolFrame))
                 {
                     protocolFrame = null;
                 }
             }
             finally
             {
-                this.SessionRuntimeGate.Release();
+                this.ProcessorGate.Release();
             }
 
             if (protocolFrame is null)
@@ -264,14 +243,14 @@ public sealed partial class ProtocolDriver
             }
 
 #if ENABLE_PROTOCOL_FRAME_DIAGNOSTICS
-            RecentOutboundFrames.Write(protocolFrame);
+            this.RecentOutboundFrames.Write(protocolFrame);
 #endif
 
             var networkFrame = FrameConverter.ToNetworkFrame(protocolFrame);
 
             try
             {
-                await this.Adapter
+                await this.Pipeline
                     .WriteFrameAsync(networkFrame, ct)
                     .ConfigureAwait(false);
             }
@@ -283,7 +262,7 @@ public sealed partial class ProtocolDriver
     }
 
     // ------------------------------------------------------------------
-    // Frame consumption loop
+    // Frame consumption loop (frames -> session)
     // ------------------------------------------------------------------
 
     /// <summary>
@@ -296,7 +275,8 @@ public sealed partial class ProtocolDriver
 
         while (!ct.IsCancellationRequested)
         {
-            var networkFrame = await this.Adapter.ReadFrameAsync(ct)
+            var networkFrame = await this.Pipeline
+                .ReadFrameAsync(ct)
                 .ConfigureAwait(false);
 
             var protocolFrame = FrameConverter.ToProtocolFrame(networkFrame);
@@ -306,14 +286,14 @@ public sealed partial class ProtocolDriver
             this.RecentInboundFrames.Write(protocolFrame);
 #endif
 
-            await this.SessionRuntimeGate.WaitAsync(ct).ConfigureAwait(false);
+            await this.ProcessorGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                this.SessionRuntime.ProcessFrame(protocolFrame);
+                this.Processor.ProcessFrame(protocolFrame);
             }
             finally
             {
-                this.SessionRuntimeGate.Release();
+                this.ProcessorGate.Release();
             }
         }
     }

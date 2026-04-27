@@ -11,7 +11,7 @@ public sealed partial class StreamManager
     // Stream handling - Outbound
     // ------------------------------------------------------------------
 
-    internal OutgoingStream OpenRequestStream(RequestContext owningRequest)
+    internal OutgoingStream OpenRequestStream(uint? streamType, RequestContext owningRequest)
     {
         ArgumentNullException.ThrowIfNull(owningRequest);
 
@@ -21,6 +21,7 @@ public sealed partial class StreamManager
         // Create request-scoped stream context
         var context = new StreamContext(
             streamId: streamId,
+            streamType: streamType,
             owningRequest: owningRequest
         );
 
@@ -49,6 +50,7 @@ public sealed partial class StreamManager
 
         var context = new StreamContext(
             streamId: streamId,
+            streamType: streamType,
             owningRequest: null  // session scoped
         );
 

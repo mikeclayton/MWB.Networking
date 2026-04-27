@@ -73,7 +73,7 @@ var keyboardNotificationQueue = new ConcurrentQueue<KeyPressedNotification>();
 var keyboardNotificationEventConsumer = new KeyboardNotificationEventConsumer();
 var keyboardNotificationRequestConsumer = new KeyboardNotificationRequestConsumer();
 
-var sessionHost = SessionHostHelper.CreateSessionHost(
+var sessionHost = SessionEndpointHelper.CreateSessionEndpoint(
     logger,
     isPeerA,
     provider,

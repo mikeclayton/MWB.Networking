@@ -14,6 +14,7 @@ public sealed class ProtocolFrame
         uint? eventType,
         uint? requestId,
         uint? requestType,
+        uint? responseType,
         uint? streamId,
         uint? streamType,
         ReadOnlyMemory<byte> payload)
@@ -22,6 +23,7 @@ public sealed class ProtocolFrame
         this.EventType = eventType;
         this.RequestId = requestId;
         this.RequestType = requestType;
+        this.ResponseType = responseType;
         this.StreamId = streamId;
         this.StreamType = streamType;
         this.Payload = payload;
@@ -84,6 +86,11 @@ public sealed class ProtocolFrame
     }
 
     public uint? RequestType
+    {
+        get;
+    }
+
+    public uint? ResponseType
     {
         get;
     }

@@ -1,11 +1,13 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Pipes;
+using MWB.Networking.Layer0_Transport.UnitTests.Helpers;
 using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
+using MWB.Networking.Layer1_Framing.Frames;
 using MWB.Networking.Layer1_Framing.Hosting;
 using MWB.Networking.Layer1_Framing.Hosting.Manual;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
-using MWB.Networking.Layer3_Hosting.Configuration;
+using MWB.Networking.Layer3_Endpoint.Hosting;
 using MWB.Networking.Logging;
 using MWB.Networking.Logging.Loggers;
 using System.Buffers;
@@ -41,11 +43,11 @@ public class PipeConnectionTests
                 reader: serverPipe.Reader,
                 writer: clientPipe.Writer);
 
-            var serverSession =
-                new SessionHostBuilder()
-                    .WithLogger(logger)
+            var serverEndpoint =
+                new SessionEndpointBuilder()
+                    .UseLogger(logger)
                     .UseOddStreamIds()
-                    .ConfigurePipeline(
+                    .ConfigurePipelineWith(
                         pipeline =>
                         {
                             pipeline
@@ -62,48 +64,46 @@ public class PipeConnectionTests
                 reader: clientPipe.Reader,
                 writer: serverPipe.Writer);
 
-            var clientSession =
-                new SessionHostBuilder()
-                    .WithLogger(logger)
-                    .UseEvenStreamIds()
-                    .ConfigurePipeline(pipeline =>
-                    {
-                        pipeline
-                            .UseLengthPrefixedCodec(logger)
-                            .WrapConnectionAsProvider(logger, clientConnection);
-                    })
-                    .Build();
-
-            // ------------------------------------------------------------
-            // Observe inbound request on server
-            // ------------------------------------------------------------
             var requestTcs =
                 new TaskCompletionSource<(IncomingRequest Request, ReadOnlyMemory<byte> Payload)>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
 
-            serverSession.Observers.RequestReceived += (request, payload) =>
-            {
-                requestTcs.TrySetResult((request, payload));
-            };
+            var clientEndpoint =
+                new SessionEndpointBuilder()
+                    .UseLogger(logger)
+                    .UseEvenStreamIds()
+                    .ConfigurePipelineWith(
+                        pipeline =>
+                        {
+                            pipeline
+                                .UseLengthPrefixedCodec(logger)
+                                .WrapConnectionAsProvider(logger, clientConnection);
+                        }
+                    )
+                    .OnRequestReceived(
+                        (request, payload) =>
+                        {
+                            requestTcs.TrySetResult((request, payload));
+                        }
+                    )
+                    .Build();
 
             // ------------------------------------------------------------
             // Act: start sessions
             // ------------------------------------------------------------
             using var cts = new CancellationTokenSource();
 
-            var serverRun = serverSession.StartAsync(cts.Token);
-            var clientRun = clientSession.StartAsync(cts.Token);
+            var serverRun = serverEndpoint.StartAsync(cts.Token);
+            var clientRun = clientEndpoint.StartAsync(cts.Token);
 
-            await Task.WhenAll(
-                serverSession.WhenReady,
-                clientSession.WhenReady);
+            await Task.WhenAll(serverRun, clientRun);
 
             // ------------------------------------------------------------
             // Act: send a frame from client to server
             // ------------------------------------------------------------
             var payload = new byte[] { 0x01, 0x02, 0x03 };
 
-            clientSession.Commands.SendRequest(
+            clientEndpoint.SendRequest(
                 payload);
 
             // ------------------------------------------------------------
@@ -149,26 +149,18 @@ public class PipeConnectionTests
             // ----------------------------
             // Build client pipeline
             // ----------------------------
-            var clientPipeline = await new NetworkPipelineFactory()
+            var clientPipeline = await new NetworkPipelineBuilder()
                 .UseLengthPrefixedCodec(logger)
                 .WrapConnectionAsProvider(logger, clientConnection)
                 .CreatePipelineAsync(TestContext.CancellationToken);
-            var clientAdapter = new NetworkAdapter(
-                logger,
-                clientPipeline.FrameWriter,
-                clientPipeline.FrameReader);
 
             // ----------------------------
             // Build server pipeline
             // ----------------------------
-            var serverPipeline = await new NetworkPipelineFactory()
+            var serverPipeline = await new NetworkPipelineBuilder()
                 .UseLengthPrefixedCodec(logger)
                 .WrapConnectionAsProvider(logger, serverConnection)
                 .CreatePipelineAsync(TestContext.CancellationToken);
-            var serverAdapter = new NetworkAdapter(
-                logger,
-                serverPipeline.FrameWriter,
-                serverPipeline.FrameReader);
 
             var payload = new ReadOnlyMemory<byte>([0x01, 0x02, 0x03]);
 
@@ -185,7 +177,7 @@ public class PipeConnectionTests
                     var frame = NetworkFrames.Request(
                         requestId: (uint)(i + 1),
                         payload: payload);
-                    await clientAdapter.WriteFrameAsync(frame, TestContext.CancellationToken);
+                    await clientPipeline.WriteFrameAsync(frame, TestContext.CancellationToken);
                 }
                 writerStopwatch.Stop();
                 await clientToServer.Writer.CompleteAsync();
@@ -204,10 +196,9 @@ public class PipeConnectionTests
                     break;
                 }
 
-                await serverPipeline.RootDecoder
+                await serverPipeline
                     .DecodeFrameAsync(
                         new ReadOnlySequence<byte>(buffer, 0, bytesRead),
-                        serverPipeline.FrameReader,
                         TestContext.CancellationToken);
             }
             readerStopwatch.Stop();
@@ -256,15 +247,17 @@ public class PipeConnectionTests
             // -------------------------------------------------
             // Build sessions (NOT started yet)
             // -------------------------------------------------
-            var clientSession = new SessionHostBuilder()
-                .WithLogger(logger)
+            var clientEndpoint = new SessionEndpointBuilder()
+                .UseLogger(logger)
                 .UseEvenStreamIds()
-                .ConfigurePipeline(pipeline =>
-                {
-                    pipeline
-                        .UseLengthPrefixedCodec(logger)
-                        .WrapConnectionAsProvider(logger, clientConnection);
-                })
+                .ConfigurePipelineWith(
+                    pipeline =>
+                    {
+                        pipeline
+                            .UseLengthPrefixedCodec(logger)
+                            .WrapConnectionAsProvider(logger, clientConnection);
+                    }
+                )
                 .Build();
 
             // used in observer.EventReceived
@@ -273,15 +266,17 @@ public class PipeConnectionTests
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var readerStopwatch = (Stopwatch?)null;
 
-            var serverSession = new SessionHostBuilder()
-                .WithLogger(logger)
+            var serverEndpoint = new SessionEndpointBuilder()
+                .UseLogger(logger)
                 .UseOddStreamIds()
-                .ConfigurePipeline(pipeline =>
-                {
-                    pipeline
-                        .UseLengthPrefixedCodec(logger)
-                        .WrapConnectionAsProvider(logger, serverConnection);
-                })
+                .ConfigurePipelineWith(
+                    pipeline =>
+                    {
+                        pipeline
+                            .UseLengthPrefixedCodec(logger)
+                            .WrapConnectionAsProvider(logger, serverConnection);
+                    }
+                )
                 .OnEventReceived((_, _) =>
                     {
                         readerStopwatch ??= Stopwatch.StartNew();
@@ -302,7 +297,7 @@ public class PipeConnectionTests
             var writerStopwatch = new Stopwatch();
             for (var i = 0; i < FrameCount; i++)
             {
-                clientSession.Commands.SendEvent(1, payload);
+                clientEndpoint.SendEvent(1, payload);
             }
             writerStopwatch.Stop();
 
@@ -313,12 +308,10 @@ public class PipeConnectionTests
             // start the protocol loops
             // (wait within a maximum timeout so the test fails rather than hangs forever)
             using var lifecycleCts = new CancellationTokenSource();
-            var serverRun = serverSession.StartAsync(lifecycleCts.Token);
-            var clientRun = clientSession.StartAsync(lifecycleCts.Token);
+            var serverRun = serverEndpoint.StartAsync(lifecycleCts.Token);
+            var clientRun = clientEndpoint.StartAsync(lifecycleCts.Token);
             await Task
-                .WhenAll(
-                    serverSession.WhenReady,
-                    clientSession.WhenReady)
+                .WhenAll(clientRun, clientRun)
                 .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
 
             // -------------------------------------------------

@@ -26,9 +26,9 @@ public sealed partial class Streams_Inbound
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(1));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(1));
 
         Assert.Contains(1u, session.Diagnostics.GetSnapshot().OpenStreams);
     }
@@ -38,10 +38,10 @@ public sealed partial class Streams_Inbound
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(1));
-        runtime.ProcessFrame(ProtocolFrames.StreamData(1, new byte[] { 0xAB }));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(1));
+        processor.ProcessFrame(ProtocolFrames.StreamData(1, new byte[] { 0xAB }));
 
         Assert.Contains(1u, session.Diagnostics.GetSnapshot().OpenStreams);
     }
@@ -51,12 +51,12 @@ public sealed partial class Streams_Inbound
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(1));
-        runtime.ProcessFrame(ProtocolFrames.StreamData(1, new byte[] { 1 }));
-        runtime.ProcessFrame(ProtocolFrames.StreamData(1, new byte[] { 2 }));
-        runtime.ProcessFrame(ProtocolFrames.StreamData(1, new byte[] { 3 }));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(1));
+        processor.ProcessFrame(ProtocolFrames.StreamData(1, new byte[] { 1 }));
+        processor.ProcessFrame(ProtocolFrames.StreamData(1, new byte[] { 2 }));
+        processor.ProcessFrame(ProtocolFrames.StreamData(1, new byte[] { 3 }));
 
         Assert.Contains(1u, session.Diagnostics.GetSnapshot().OpenStreams);
     }
@@ -66,10 +66,10 @@ public sealed partial class Streams_Inbound
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(1));
-        runtime.ProcessFrame(ProtocolFrames.StreamClose(1));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(1));
+        processor.ProcessFrame(ProtocolFrames.StreamClose(1));
 
         Assert.IsEmpty(session.Diagnostics.GetSnapshot().OpenStreams);
     }
@@ -79,11 +79,11 @@ public sealed partial class Streams_Inbound
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(10));
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(20));
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(30));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(10));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(20));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(30));
 
         var snap = session.Diagnostics.GetSnapshot();
 
@@ -98,11 +98,11 @@ public sealed partial class Streams_Inbound
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(1));
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(2));
-        runtime.ProcessFrame(ProtocolFrames.StreamClose(1));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(1));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(2));
+        processor.ProcessFrame(ProtocolFrames.StreamClose(1));
 
         var snap = session.Diagnostics.GetSnapshot();
 
@@ -116,13 +116,13 @@ public sealed partial class Streams_Inbound
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(1));
-        runtime.ProcessFrame(ProtocolFrames.StreamClose(1));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(1));
+        processor.ProcessFrame(ProtocolFrames.StreamClose(1));
 
         // The same ID may be reused once the previous stream has closed.
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(1));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(1));
 
         Assert.Contains(1u, session.Diagnostics.GetSnapshot().OpenStreams);
     }
@@ -132,13 +132,13 @@ public sealed partial class Streams_Inbound
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(1));
-        runtime.ProcessFrame(ProtocolFrames.StreamData(1, new byte[] { 10 }));
-        runtime.ProcessFrame(ProtocolFrames.StreamData(1, new byte[] { 20 }));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(1));
+        processor.ProcessFrame(ProtocolFrames.StreamData(1, new byte[] { 10 }));
+        processor.ProcessFrame(ProtocolFrames.StreamData(1, new byte[] { 20 }));
 
-        Assert.IsEmpty(runtime.DrainOutboundFrames());
+        Assert.IsEmpty(processor.DrainOutboundFrames());
     }
 
 
@@ -147,12 +147,12 @@ public sealed partial class Streams_Inbound
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
-        runtime.ProcessFrame(ProtocolFrames.StreamOpen(1));
-        runtime.ProcessFrame(ProtocolFrames.StreamData(1, new byte[] { 0x01 }));
-        runtime.ProcessFrame(ProtocolFrames.StreamClose(1));
+        processor.ProcessFrame(ProtocolFrames.StreamOpen(1));
+        processor.ProcessFrame(ProtocolFrames.StreamData(1, new byte[] { 0x01 }));
+        processor.ProcessFrame(ProtocolFrames.StreamClose(1));
 
-        Assert.IsEmpty(runtime.DrainOutboundFrames());
+        Assert.IsEmpty(processor.DrainOutboundFrames());
     }
 }

@@ -26,7 +26,7 @@ public sealed partial class Streams_Lifecycle
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         // Open a session-scoped stream
         var stream = session.Commands.OpenSessionStream();
@@ -36,7 +36,7 @@ public sealed partial class Streams_Lifecycle
         stream.SendData(new byte[] { 20 });
         stream.SendData(new byte[] { 30 });
 
-        var outbound = runtime.DrainOutboundFrames();
+        var outbound = processor.DrainOutboundFrames();
 
         Assert.HasCount(4, outbound);
 

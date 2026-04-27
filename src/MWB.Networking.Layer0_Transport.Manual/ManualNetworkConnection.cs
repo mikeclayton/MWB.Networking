@@ -2,7 +2,7 @@
 using System.Collections.Concurrent;
 using System.Threading.Channels;
 
-namespace MWB.Networking.Layer0_Transport.Test;
+namespace MWB.Networking.Layer0_Transport.Manual;
 
 /// <summary>
 /// Deterministic, manually driven test implementation of <see cref="INetworkConnection"/>.

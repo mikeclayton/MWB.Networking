@@ -9,6 +9,7 @@ internal static class ProtocolFrameGenerator
         uint? eventType = null,
         uint? requestId = null,
         uint? requestType = null,
+        uint? responseType = null,
         uint? streamId = null,
         uint? streamType = null,
         ReadOnlyMemory<byte> payload = default)
@@ -18,6 +19,7 @@ internal static class ProtocolFrameGenerator
             eventType: eventType,
             requestId: requestId,
             requestType: requestType,
+            responseType: responseType,
             streamId: streamId,
             streamType: streamType,
             payload: payload

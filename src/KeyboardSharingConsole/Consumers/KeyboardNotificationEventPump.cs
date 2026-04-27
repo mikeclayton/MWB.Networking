@@ -1,5 +1,5 @@
 ﻿using KeyboardSharingConsole.Models;
-using MWB.Networking.Layer2_Protocol.Session.Api;
+using MWB.Networking.Layer3_Endpoint;
 using System.Collections.Concurrent;
 
 namespace KeyboardSharingConsole.Producers;
@@ -8,15 +8,15 @@ internal static class KeyboardNotificationEventPump
 {
     public static async Task RunEventPumpAsync(
         ConcurrentQueue<KeyPressedNotification> queue,
-        ProtocolSessionHandle session,
+        SessionEndpoint endpoint,
         CancellationToken ct,
         uint eventType = 1)
     {
         ArgumentNullException.ThrowIfNull(queue);
-        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(endpoint);
 
         // Pump owns protocol readiness
-        await session.WhenReady.ConfigureAwait(false);
+        await endpoint.StartAsync(ct);
 
         try
         {
@@ -26,7 +26,7 @@ internal static class KeyboardNotificationEventPump
                 {
                     var payload = notification.ToPayload();
 
-                    session.Commands.SendEvent(
+                    endpoint.SendEvent(
                         eventType: eventType,
                         payload: payload);
                 }

@@ -22,11 +22,12 @@ public sealed partial class Events
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
+        var processor = session.Processor;
 
         var eventCount = 0;
         session.Observer.EventReceived += (_, _) => eventCount++;
 
-        session.Runtime.ProcessFrame(ProtocolFrames.Event(1, new([0xFF])));
+        processor.ProcessFrame(ProtocolFrames.Event(1, new([0xFF])));
 
         var snap = session.Diagnostics.GetSnapshot();
 
@@ -40,13 +41,13 @@ public sealed partial class Events
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         session.Observer.EventReceived += (_, _) => { };
 
-        runtime.ProcessFrame(ProtocolFrames.Event(1, new([0x2A])));
+        processor.ProcessFrame(ProtocolFrames.Event(1, new([0x2A])));
 
-        Assert.IsEmpty(runtime.DrainOutboundFrames());
+        Assert.IsEmpty(processor.DrainOutboundFrames());
     }
 
     [TestMethod]
@@ -54,7 +55,7 @@ public sealed partial class Events
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         var callCount = 0;
         var payloadLength = -1;
@@ -65,12 +66,12 @@ public sealed partial class Events
             payloadLength = payload.Length;
         };
 
-        runtime.ProcessFrame(ProtocolFrames.Event(1));
+        processor.ProcessFrame(ProtocolFrames.Event(1));
 
         Assert.AreEqual(1, callCount);
         Assert.AreEqual(0, payloadLength);
 
-        Assert.IsEmpty(runtime.DrainOutboundFrames());
+        Assert.IsEmpty(processor.DrainOutboundFrames());
     }
 
     [TestMethod]
@@ -78,7 +79,7 @@ public sealed partial class Events
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         var received = new List<byte>();
 
@@ -87,13 +88,13 @@ public sealed partial class Events
             received.Add(payload.Span[0]);
         };
 
-        runtime.ProcessFrame(ProtocolFrames.Event(1, new byte[] { 1 }));
-        runtime.ProcessFrame(ProtocolFrames.Event(1, new byte[] { 2 }));
-        runtime.ProcessFrame(ProtocolFrames.Event(1, new byte[] { 3 }));
+        processor.ProcessFrame(ProtocolFrames.Event(1, new byte[] { 1 }));
+        processor.ProcessFrame(ProtocolFrames.Event(1, new byte[] { 2 }));
+        processor.ProcessFrame(ProtocolFrames.Event(1, new byte[] { 3 }));
 
         CollectionAssert.AreEqual(new byte[] { 1, 2, 3 }, received);
 
-        Assert.IsEmpty(runtime.DrainOutboundFrames());
+        Assert.IsEmpty(processor.DrainOutboundFrames());
     }
 
     [TestMethod]
@@ -101,27 +102,27 @@ public sealed partial class Events
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var runtime = session.Runtime;
+        var processor = session.Processor;
 
         uint? receivedType = null;
         ReadOnlyMemory<byte> receivedPayload = default;
         var callCount = 0;
 
-        session.Observer.EventReceived += (eventType, payload) =>
+        session.Observer.EventReceived += (@event, payload) =>
         {
-            receivedType = eventType;
+            receivedType = @event.EventType;
             receivedPayload = payload;
             callCount++;
         };
 
         var payload = new byte[] { 0xDE, 0xAD, 0xBE, 0xEF };
 
-        runtime.ProcessFrame(ProtocolFrames.Event(1, payload));
+        processor.ProcessFrame(ProtocolFrames.Event(1, payload));
 
         Assert.AreEqual(1, callCount);
         Assert.AreEqual(1u, receivedType);
         CollectionAssert.AreEqual(payload, receivedPayload.ToArray());
 
-        Assert.IsEmpty(runtime.DrainOutboundFrames());
+        Assert.IsEmpty(processor.DrainOutboundFrames());
     }
 }
