@@ -44,7 +44,7 @@ internal sealed class StreamManagerInbound
                 $"{nameof(ProtocolFrame)} with {nameof(ProtocolFrame.Kind)} of {nameof(ProtocolFrameKind)} must have a {nameof(ProtocolFrame.StreamId)}");
     }
 
-    private void EnsureStreamDoesNotExist(
+    private void EnsureStreamEntryDoesNotExist(
         ProtocolFrame frame,
         uint streamId)
     {
@@ -55,7 +55,7 @@ internal sealed class StreamManagerInbound
         }
     }
 
-    private void EnsureStreamExists(
+    private void EnsureStreamEntryExists(
         ProtocolFrame frame,
         uint streamId,
         out StreamEntry streamEntry)
@@ -91,12 +91,19 @@ internal sealed class StreamManagerInbound
 
     internal void AbortIncomingStream(uint streamId)
     {
-        this.StreamManager.RemoveStream(streamId);
+        if (!this.StreamEntries.TryGetStreamEntry(streamId, out var entry))
+        {
+            return;
+        }
+
+        entry.Context.Close();
 
         // peer-owned stream aborted by local peer
         // so notify the remote peer to abort the stream as well
         this.Session.EnqueueOutboundFrame(
             ProtocolFrames.StreamAbort(streamId));
+
+        this.StreamManager.RemoveStream(streamId);
     }
 
     internal void ProcessStreamFrame(ProtocolFrame frame)
@@ -121,7 +128,7 @@ internal sealed class StreamManagerInbound
     {
         // validate the frame
         this.EnsureFrameHasStreamId(frame, out var streamId);
-        this.EnsureStreamDoesNotExist(frame, streamId);
+        this.EnsureStreamEntryDoesNotExist(frame, streamId);
 
         // if the frame is associated with a request, make sure the request exists and get its context
         RequestContext? owningRequestContext = null;
@@ -155,7 +162,7 @@ internal sealed class StreamManagerInbound
     {
         // validate the frame
         this.EnsureFrameHasStreamId(frame, out var streamId);
-        this.EnsureStreamExists(frame, streamId, out var streamEntry);
+        this.EnsureStreamEntryExists(frame, streamId, out var streamEntry);
         this.EnsureIsIncomingStream(frame, streamEntry, out var incomingStream);
 
         streamEntry.Context.EnsureOpen();
@@ -166,7 +173,7 @@ internal sealed class StreamManagerInbound
     {
         // validate the frame
         this.EnsureFrameHasStreamId(frame, out var streamId);
-        this.EnsureStreamExists(frame, streamId, out var streamEntry);
+        this.EnsureStreamEntryExists(frame, streamId, out var streamEntry);
         this.EnsureIsIncomingStream(frame, streamEntry, out var incomingStream);
 
         // close the stream context

@@ -53,14 +53,16 @@ public sealed class StreamManager : IHasLogger
         return this.StreamEntries.TryGetStreamEntry(streamId, out result);
     }
 
-    internal void RemoveStream(uint streamId)
+    internal bool RemoveStream(uint streamId)
     {
         // no-op if if doesn't exist
-        if (!this.StreamEntries.RemoveStreamEntry(streamId))
+        var removed = this.StreamEntries.RemoveStreamEntry(streamId);
+        if (!removed)
         {
             // already gone, fine
             // this.Logger.Warn($"{nameof(RemoveStream)} called for non-existent stream {streamId}");
         }
+        return removed;
     }
 
     internal void TearDownStream(uint streamId)

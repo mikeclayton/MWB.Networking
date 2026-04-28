@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Null\MWB.Networking.Layer0_Transport.NullTransport.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer0_Transport\MWB.Networking.Layer0_Transport.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Hosting\MWB.Networking.Layer1_Framing.Hosting.csproj" />
+  </ItemGroup>
+
+</Project>

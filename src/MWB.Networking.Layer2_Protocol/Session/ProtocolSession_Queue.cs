@@ -11,7 +11,8 @@ public sealed partial class ProtocolSession
     // ------------------------------------------------------------------
 
     /// <summary>
-    /// Deliberately not threadsafe - caller must coordinate access.
+    /// Thread-safe outbound frame queue. Enqueue/dequeue operations are
+    /// internally synchronized - callers do not need to coordinate access.
     /// </summary>
     private OutboundFrameQueue OutboundFrames
     {

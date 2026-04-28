@@ -124,6 +124,8 @@ internal sealed class StreamManagerOutbound
 
         entry.Context.Close();
 
+        // locally-owned stream aborted by local peer
+        // so notify the remote peer to abort the stream as well
         this.Session.EnqueueOutboundFrame(
             ProtocolFrames.StreamAbort(streamId));
 
