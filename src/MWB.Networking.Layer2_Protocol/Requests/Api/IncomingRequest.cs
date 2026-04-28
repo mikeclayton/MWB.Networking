@@ -1,6 +1,6 @@
 ﻿using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 using MWB.Networking.Layer2_Protocol.Session;
-using MWB.Networking.Layer2_Protocol.Streams.Api;
+using MWB.Networking.Layer2_Protocol.Lifecycle.Api;
 
 namespace MWB.Networking.Layer2_Protocol.Requests.Api;
 
@@ -31,11 +31,11 @@ public sealed class IncomingRequest
         => this.Context.RequestType;
 
     /// <summary>
-    /// Sends the Response for this Request and closes the Requet.
+    /// Sends the Response for this Request and closes the Request.
     /// </summary>
     public void Respond(ReadOnlyMemory<byte> payload = default)
     {
-        this.Session.RequestManager.CloseRequestWithResponse(this.Context, payload);
+        this.Session.RequestManager.Outbound.CloseRequestWithResponse(this.Context, payload);
     }
 
     /// <summary>
@@ -43,7 +43,7 @@ public sealed class IncomingRequest
     /// </summary>
     public void Error(ReadOnlyMemory<byte> payload = default)
     {
-        this.Session.RequestManager.CloseRequestWithError(this.Context, payload);
+        this.Session.RequestManager.Outbound.CloseRequestWithError(this.Context, payload);
     }
 
     /// <summary>
@@ -56,6 +56,6 @@ public sealed class IncomingRequest
         this.Context.OpenStream();
 
         // delegate to ProtocolSession
-        return this.Session.StreamManager.OpenRequestStream(streamType, this.Context);
+        return this.Session.StreamManager.Outbound.OpenRequestStream(streamType, this.Context);
     }
 }

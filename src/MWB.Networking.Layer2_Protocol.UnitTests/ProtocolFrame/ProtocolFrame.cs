@@ -6,6 +6,16 @@ namespace _ProtocolFrame;
 [TestClass]
 public sealed class ProtocolFrameTests
 {
+    [TestCleanup]
+    public void Cleanup()
+    {
+        // force any unobserved exceptions from finalizers to surface during
+        // test runs rather than being silently ignored - this makes it easier
+        // to determine *which* test caused the issue (and fix it!).
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+    }
+
     /// <summary>
     /// Verifies a strict 1:1 alignment between <see cref="NetworkFrameKind"/> and
     /// <see cref="ProtocolFrameKind"/>, ensuring that both enums define the same

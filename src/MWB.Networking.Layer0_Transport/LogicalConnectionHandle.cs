@@ -1,6 +1,5 @@
 ﻿namespace MWB.Networking.Layer0_Transport;
 
-
 /// <summary>
 /// Bundles a logical network connection with its privileged control surface.
 /// </summary>

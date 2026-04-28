@@ -13,31 +13,47 @@ public sealed partial class EndToEnd
         set;
     }
 
-    [TestMethod]
-    public void StreamClose_Is_Idempotent()
+    [TestCleanup]
+    public void Cleanup()
     {
-        var logger = NullLogger.Instance;
-        var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
-        var processor = session.Processor;
-
-        // Arrange: open a request and a request-scoped stream
-        processor.ProcessFrame(ProtocolFrames.Request(1));
-        processor.ProcessFrame(ProtocolFrames.StreamOpen(
-            requestId: 1,
-            streamId: 1));
-
-        // Sanity check: stream is open
-        var snapshotBefore = session.Diagnostics.GetSnapshot();
-        Assert.Contains(1u, snapshotBefore.OpenStreams);
-
-        // Act: close the stream twice via protocol frames
-        processor.ProcessFrame(ProtocolFrames.StreamClose(1));
-        processor.ProcessFrame(ProtocolFrames.StreamClose(1)); // second close
-
-        // Assert: no streams remain, no exception, no further mutation
-        var snapshotAfter = session.Diagnostics.GetSnapshot();
-        Assert.IsEmpty(snapshotAfter.OpenStreams);
+        // force any unobserved exceptions from finalizers to surface during
+        // test runs rather than being silently ignored - this makes it easier
+        // to determine *which* test caused the issue (and fix it!).
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
     }
+
+    //
+    // conflicts with:
+    //
+    // * StreamClose_Twice_ThrowsProtocolException
+    // * StreamClose_UnknownStreamId_ThrowsProtocolException
+    //
+    //[TestMethod]
+    //public void StreamClose_Is_Idempotent()
+    //{
+    //    var logger = NullLogger.Instance;
+    //    var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
+    //    var processor = session.Processor;
+    //
+    //    // Arrange: open a request and a request-scoped stream
+    //    processor.ProcessFrame(ProtocolFrames.Request(1));
+    //    processor.ProcessFrame(ProtocolFrames.StreamOpen(
+    //        requestId: 1,
+    //        streamId: 1));
+    //
+    //    // Sanity check: stream is open
+    //    var snapshotBefore = session.Diagnostics.GetSnapshot();
+    //    Assert.Contains(1u, snapshotBefore.OpenStreams);
+    //
+    //    // Act: close the stream twice via protocol frames
+    //    processor.ProcessFrame(ProtocolFrames.StreamClose(1));
+    //    processor.ProcessFrame(ProtocolFrames.StreamClose(1)); // second close
+    //
+    //    // Assert: no streams remain, no exception, no further mutation
+    //    var snapshotAfter = session.Diagnostics.GetSnapshot();
+    //    Assert.IsEmpty(snapshotAfter.OpenStreams);
+    //}
 
     [TestMethod]
     public void StreamTeardown_DoesNotAffect_OtherRequests()

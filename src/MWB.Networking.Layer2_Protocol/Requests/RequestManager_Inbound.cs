@@ -1,46 +1,46 @@
 ﻿using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
 using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
+using MWB.Networking.Layer2_Protocol.Session;
 
 namespace MWB.Networking.Layer2_Protocol.Requests;
 
-internal sealed partial class RequestManager
+internal sealed class RequestManagerInbound
 {
-    // ------------------------------------------------------------------
-    // IncomingRequest cache - only use methods, don't access the field directly
-    // ------------------------------------------------------------------
-
-    private readonly Dictionary<RequestContext, IncomingRequest>
-        _cachedIncomingRequests = [];
-
-    private void AddCachedIncomingRequest(IncomingRequest request)
+    internal RequestManagerInbound(ProtocolSession session, RequestManager requestManager, RequestContexts requestContexts)
     {
-        _cachedIncomingRequests.Add(request.Context, request);
+        this.Session = session ?? throw new ArgumentNullException(nameof(session));
+        this.RequestManager = requestManager ?? throw new ArgumentNullException(nameof(requestManager));
+        this.RequestContexts = requestContexts ?? throw new ArgumentNullException(nameof(requestContexts));
     }
 
-    internal IncomingRequest? GetCachedIncomingRequest(RequestContext? context)
+    private ProtocolSession Session
     {
-        // Null means this is a session-scoped stream or operation
-        if (context is null)
-        {
-            return null;
-        }
-
-        // There must be exactly one IncomingRequest per RequestContext.
-        // If this lookup fails, it indicates a protocol or lifecycle bug.
-        if (!_cachedIncomingRequests.TryGetValue(context, out var incomingRequest))
-        {
-            throw new InvalidOperationException(
-                "RequestContext has no associated IncomingRequest. " +
-                "This indicates an internal request lifecycle inconsistency.");
-        }
-
-        return incomingRequest;
+        get;
     }
 
-    private void RemoveCachedIncomingRequest(RequestContext context)
+    private RequestManager RequestManager
     {
-        _cachedIncomingRequests.Remove(context);
+        get;
+    }
+
+    private RequestContexts RequestContexts
+    {
+        get;
+    }
+
+    private IncomingRequests IncomingRequests
+    {
+        get;
+    } = new();
+
+    // ------------------------------------------------------------------
+    // Incoming Request wrappers
+    // ------------------------------------------------------------------
+
+    internal void RemoveIncomingRequest(RequestContext context)
+    {
+        this.IncomingRequests.RemoveIncomingRequest(context);
     }
 
     // ------------------------------------------------------------------
@@ -55,7 +55,7 @@ internal sealed partial class RequestManager
         }
 
         var requestId = frame.RequestId.Value;
-        if (this.RequestContextExists(requestId))
+        if (this.RequestContexts.RequestContextExists(requestId))
         {
             throw ProtocolException.InvalidFrameSequence(frame, "Duplicate RequestId");
         }
@@ -63,10 +63,10 @@ internal sealed partial class RequestManager
         var requestType = frame.RequestType;
 
         var context = new RequestContext(requestId, requestType);
-        this.AddRequestContext(context);
+        this.RequestContexts.AddRequestContext(context);
 
         var request = new IncomingRequest(this.Session, context);
-        this.AddCachedIncomingRequest(request);
+        this.IncomingRequests.AddIncomingRequest(request);
 
         this.Session.OnRequestReceived(request, frame.Payload);
     }
@@ -78,7 +78,7 @@ internal sealed partial class RequestManager
             throw ProtocolException.InvalidFrameSequence(frame, "Response frame missing RequestId");
         }
 
-        if (!this.TryGetRequestContext(frame.RequestId.Value, out var context))
+        if (!this.RequestContexts.TryGetRequestContext(frame.RequestId.Value, out var context))
         {
             throw ProtocolException.InvalidFrameSequence(frame, "Unknown or completed RequestId");
         }
@@ -88,6 +88,6 @@ internal sealed partial class RequestManager
         context.CloseFromInbound(frame);
 
         // Remove the request (terminal)
-        this.RemoveRequestContext(frame.RequestId.Value);
+        this.RequestContexts.RemoveRequestContext(frame.RequestId.Value);
     }
 }

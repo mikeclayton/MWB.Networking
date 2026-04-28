@@ -14,6 +14,16 @@ public partial class StreamContext_Lifecycle
         set;
     }
 
+    [TestCleanup]
+    public void Cleanup()
+    {
+        // force any unobserved exceptions from finalizers to surface during
+        // test runs rather than being silently ignored - this makes it easier
+        // to determine *which* test caused the issue (and fix it!).
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+    }
+
     /// <summary>
     /// Regression test for a real-world lifecycle bug where multiple teardown paths
     /// attempted to close the same StreamContext more than once.
@@ -89,10 +99,13 @@ public partial class StreamContext_Lifecycle
             .Build();
 
         // Start both sessions
-        var runA = endpointA.StartAsync(lifecycleCts.Token);
-        var runB = endpointB.StartAsync(lifecycleCts.Token);
+        await endpointA
+            .StartAsync(lifecycleCts.Token)
+            .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
 
-        await Task.WhenAll(runA, runB);
+        await endpointB
+            .StartAsync(lifecycleCts.Token)
+            .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
 
         // ------------------------------------------------------------
         // Act: send request + open request-scoped stream
@@ -147,7 +160,11 @@ public partial class StreamContext_Lifecycle
         // ------------------------------------------------------------
         try
         {
-            await Task.WhenAll(runA, runB);
+            await Task
+                .WhenAll(
+                    endpointA.DisposeAsync().AsTask(),
+                    endpointB.DisposeAsync().AsTask())
+                .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
         }
         catch (OperationCanceledException)
         {

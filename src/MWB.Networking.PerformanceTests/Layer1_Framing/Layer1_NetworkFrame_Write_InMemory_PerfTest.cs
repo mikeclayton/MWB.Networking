@@ -6,15 +6,25 @@ using MWB.Networking.Layer1_Framing.Hosting;
 using MWB.Networking.PerformanceTests;
 using System.Diagnostics;
 
-namespace Performance;
+namespace Layer1_Framing;
 
 [TestClass]
-public class Layer0_Transport_Framing
+public sealed partial class Memory
 {
     public TestContext TestContext
     {
         get;
         set;
+    }
+
+    [TestCleanup]
+    public void Cleanup()
+    {
+        // force any unobserved exceptions from finalizers to surface during
+        // test runs rather than being silently ignored - this makes it easier
+        // to determine *which* test caused the issue (and fix it!).
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
     }
 
     /// <summary>
@@ -27,7 +37,7 @@ public class Layer0_Transport_Framing
     /// it demonstrates that Layer 0 and framing is not a bottleneck.
     /// </summary>
     [TestMethod]
-    public async Task NetworkFramePerfTest()
+    public async Task Layer1_NetworkFrame_Write_InMemory_PerfTest()
     {
         const int FrameCount = 1_000_000;
 
@@ -53,6 +63,26 @@ public class Layer0_Transport_Framing
             new byte[] { 0x01, 0x02, 0x03 });
 
         // ------------------------------------------------------------
+        // Arrange: write and drain the buffer to stretch and exercise it
+        // ------------------------------------------------------------
+        for (int i = 0; i < FrameCount; i++)
+        {
+            var frame = NetworkFrames.Request(
+                requestId: (uint)(i + 1),
+                payload: payload);
+            await pipeline
+                .WriteFrameAsync(frame, TestContext.CancellationToken)
+                .AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
+        }
+        for (int i = 0; i < FrameCount; i++)
+        {
+            await pipeline
+                .ReadFrameAsync(TestContext.CancellationToken)
+                .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
+        }
+
+        // ------------------------------------------------------------
         // Act: write frames
         // ------------------------------------------------------------
 
@@ -62,11 +92,10 @@ public class Layer0_Transport_Framing
             var frame = NetworkFrames.Request(
                 requestId: (uint)(i + 1),
                 payload: payload);
-
             await pipeline
-                .WriteFrameAsync(
-                    frame,
-                    TestContext.CancellationToken);
+                .WriteFrameAsync(frame, TestContext.CancellationToken)
+                .AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
         }
         stopwatch.Stop();
 

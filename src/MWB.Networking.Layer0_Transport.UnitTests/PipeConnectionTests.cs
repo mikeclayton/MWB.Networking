@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer0_Transport.UnitTests.Helpers;
-using MWB.Networking.Layer1_Framing;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
 using MWB.Networking.Layer1_Framing.Frames;
 using MWB.Networking.Layer1_Framing.Hosting;
@@ -25,6 +24,16 @@ public class PipeConnectionTests
         {
             get;
             set;
+        }
+
+        [TestCleanup]
+        public void Cleanup()
+        {
+            // force any unobserved exceptions from finalizers to surface during
+            // test runs rather than being silently ignored - this makes it easier
+            // to determine *which* test caused the issue (and fix it!).
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
         }
 
         [TestMethod]

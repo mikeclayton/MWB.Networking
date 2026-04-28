@@ -12,12 +12,22 @@ namespace Performance;
 /// after the run to ensure no frames were silently dropped.
 /// </summary>
 [TestClass]
-public sealed partial class Layer2_Protocol_Requests
+public sealed class Layer2_Protocol_Requests
 {
     public TestContext TestContext
     {
         get;
         set;
+    }
+
+    [TestCleanup]
+    public void Cleanup()
+    {
+        // force any unobserved exceptions from finalizers to surface during
+        // test runs rather than being silently ignored - this makes it easier
+        // to determine *which* test caused the issue (and fix it!).
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
     }
 
     private static readonly byte[] FourBytes = [0x01, 0x02, 0x03, 0x04];

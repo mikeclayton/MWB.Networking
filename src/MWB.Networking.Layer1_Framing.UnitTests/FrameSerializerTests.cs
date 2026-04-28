@@ -6,6 +6,16 @@ namespace MWB.Networking.Layer1_Framing.UnitTests;
 [TestClass]
 public sealed class FrameSerializerTests
 {
+    [TestCleanup]
+    public void Cleanup()
+    {
+        // force any unobserved exceptions from finalizers to surface during
+        // test runs rather than being silently ignored - this makes it easier
+        // to determine *which* test caused the issue (and fix it!).
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+    }
+
     [TestMethod]
     public void FullyPopulatedFrame_RoundTripsThroughSerializer()
     {

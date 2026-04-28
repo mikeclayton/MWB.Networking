@@ -1,10 +1,9 @@
 ﻿using MWB.Networking.Layer2_Protocol.Frames;
-using MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 using System.Diagnostics.CodeAnalysis;
 
-namespace MWB.Networking.Layer2_Protocol.Streams;
+namespace MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
-public sealed partial class StreamManager
+internal sealed class StreamEntries
 {
     // ------------------------------------------------------------------
     // Cached stream entries
@@ -12,7 +11,7 @@ public sealed partial class StreamManager
 
     private readonly Dictionary<uint, StreamEntry> _streamEntries = [];
 
-    private void AddStreamEntry(StreamEntry entry)
+    internal void AddStreamEntry(StreamEntry entry)
     {
         if (!_streamEntries.TryAdd(entry.StreamId, entry))
         {
@@ -22,7 +21,7 @@ public sealed partial class StreamManager
         }
     }
 
-    private bool StreamEntryExists(uint streamId)
+    internal bool StreamEntryExists(uint streamId)
     {
         return _streamEntries.ContainsKey(streamId);
     }
@@ -32,17 +31,17 @@ public sealed partial class StreamManager
         return _streamEntries.TryGetValue(streamId, out result);
     }
 
-    private List<StreamEntry> GetStreamEntries()
+    internal List<StreamEntry> GetStreamEntries()
     {
         return _streamEntries.Values.ToList();
     }
 
-    private List<uint> GetStreamEntryIds()
+    internal List<uint> GetStreamEntryIds()
     {
         return _streamEntries.Keys.ToList();
     }
 
-    private bool RemoveStreamEntry(uint streamId)
+    internal bool RemoveStreamEntry(uint streamId)
     {
         return _streamEntries.Remove(streamId);
     }

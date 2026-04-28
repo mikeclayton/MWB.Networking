@@ -17,6 +17,30 @@ public sealed class NetworkConnectionLifecycleTests
         set;
     }
 
+    //[AssemblyInitialize]
+    //public static void AssemblyInit(TestContext context)
+    //{
+    //    TaskScheduler.UnobservedTaskException += (sender, e) =>
+    //    {
+    //        // Break into debugger immediately
+    //        System.Diagnostics.Debugger.Break();
+
+    //        // Or force test run to fail hard
+    //        e.SetObserved();
+    //        throw e.Exception;
+    //    };
+    //}
+
+    [TestCleanup]
+    public void Cleanup()
+    {
+        // force any unobserved exceptions from finalizers to surface during
+        // test runs rather than being silently ignored - this makes it easier
+        // to determine *which* test caused the issue (and fix it!).
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+    }
+
     /// <summary>
     /// Guards against regression of a real-world bug where protocol sessions
     /// were unexpectedly crashing when the underlying network connection was
@@ -71,7 +95,7 @@ public sealed class NetworkConnectionLifecycleTests
         // Act
         // ------------------------------------------------------------
 
-        using var cts = new CancellationTokenSource(
+        using var lifecycleCts = new CancellationTokenSource(
             TimeSpan.FromSeconds(5));
 
         // Attach the first physical connection. From the protocol's
@@ -79,7 +103,7 @@ public sealed class NetworkConnectionLifecycleTests
         manualTestProvider.Attach(connectionA);
 
         // Start the protocol endpoint
-        var runTask = endpoint.StartAsync(cts.Token);
+        var runTask = endpoint.StartAsync(lifecycleCts.Token);
 
         // Simulate provider arbitration replacing the active connection
         // with a new physical connection.
@@ -156,8 +180,8 @@ public sealed class NetworkConnectionLifecycleTests
 
         await supervisorTask;
 
-        Assert.IsTrue(
-            endpointsStarted >= 2,
+        Assert.IsGreaterThanOrEqualTo(
+            2, endpointsStarted,
             "System did not recover by starting a new protocol session after termination.");
     }
 }

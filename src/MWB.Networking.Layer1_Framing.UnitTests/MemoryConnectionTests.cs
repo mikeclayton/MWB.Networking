@@ -19,6 +19,16 @@ public sealed class MemoryConnectionTests
             set;
         }
 
+        [TestCleanup]
+        public void Cleanup()
+        {
+            // force any unobserved exceptions from finalizers to surface during
+            // test runs rather than being silently ignored - this makes it easier
+            // to determine *which* test caused the issue (and fix it!).
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        }
+
         /// <summary>
         /// NOTE: This is a best-case, in-memory framing throughput test.
         /// It intentionally avoids IO, backpressure, and allocation pressure.
@@ -41,10 +51,6 @@ public sealed class MemoryConnectionTests
 
             var (providerA, _) =
                 InMemoryNetworkConnectionProvider.CreateDuplexProviders(logger);
-
-            // We'll write frames from A; B is unused in this test
-            var connectionA =
-                await providerA.OpenConnectionAsync(TestContext.CancellationToken);
 
             // Build framing pipeline on top of the in-memory connection
             var pipeline = await new NetworkPipelineBuilder()

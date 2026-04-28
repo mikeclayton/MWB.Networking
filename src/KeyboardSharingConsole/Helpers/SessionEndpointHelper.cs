@@ -2,8 +2,8 @@
 using MWB.Networking.Layer0_Transport;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
 using MWB.Networking.Layer2_Protocol.Events.Api;
+using MWB.Networking.Layer2_Protocol.Lifecycle.Infrastructure;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
-using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
 using MWB.Networking.Layer3_Endpoint;
 using MWB.Networking.Layer3_Endpoint.Hosting;
 

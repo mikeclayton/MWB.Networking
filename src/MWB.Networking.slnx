@@ -16,7 +16,7 @@
   <Folder Name="/Layer0_Transport/Implementations/">
     <Project Path="MWB.Networking.Layer0_Transport.Manual/MWB.Networking.Layer0_Transport.Manual.csproj" />
     <Project Path="MWB.Networking.Layer0_Transport.Memory/MWB.Networking.Layer0_Transport.Memory.csproj" Id="a3db7da9-cc4a-4fe6-a019-f549a78a8817" />
-    <Project Path="MWB.Networking.Layer0_Transport.Null/MWB.Networking.Layer0_Transport.Null.csproj" />
+    <Project Path="MWB.Networking.Layer0_Transport.Null/MWB.Networking.Layer0_Transport.NullTransport.csproj" />
     <Project Path="MWB.Networking.Layer0_Transport.Pipes/MWB.Networking.Layer0_Transport.Pipes.csproj" Id="67a50c08-9f1e-4214-8ecd-8c219e2f585c" />
     <Project Path="MWB.Networking.Layer0_Transport.Tcp/MWB.Networking.Layer0_Transport.Tcp.csproj" Id="78981be3-8731-4c50-977e-5e909ccae117" />
   </Folder>
@@ -35,6 +35,7 @@
   </Folder>
   <Folder Name="/Layer1_Framing/Implementations/Hosting/">
     <Project Path="MWB.Networking.Layer1_Framing.Hosting.Manual/MWB.Networking.Layer1_Framing.Hosting.Manual.csproj" Id="69f64cfa-799f-4910-9dc5-61eb0bd0f001" />
+    <Project Path="MWB.Networking.Layer1_Framing.Hosting.NullTransport/MWB.Networking.Layer1_Framing.Hosting.NullTransport.csproj" Id="ceb9d3a1-f062-4fed-a3c3-32e613393a1b" />
   </Folder>
   <Folder Name="/Layer2_Protocol/">
     <Project Path="MWB.Networking.Layer2_Protocol/MWB.Networking.Layer2_Protocol.csproj" Id="defc43f7-f557-4f09-83df-cc2eade268e3" />

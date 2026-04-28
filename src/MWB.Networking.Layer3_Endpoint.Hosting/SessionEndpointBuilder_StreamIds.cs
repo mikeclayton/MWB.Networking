@@ -1,4 +1,4 @@
-﻿using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
+﻿using MWB.Networking.Layer2_Protocol.Lifecycle.Infrastructure;
 
 namespace MWB.Networking.Layer3_Endpoint.Hosting;
 

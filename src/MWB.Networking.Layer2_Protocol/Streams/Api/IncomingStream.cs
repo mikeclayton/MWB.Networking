@@ -2,7 +2,7 @@
 using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
-namespace MWB.Networking.Layer2_Protocol.Streams.Api;
+namespace MWB.Networking.Layer2_Protocol.Lifecycle.Api;
 
 public sealed class IncomingStream : IProtocolStream
 {
@@ -86,6 +86,6 @@ public sealed class IncomingStream : IProtocolStream
         }
 
         this.State = IncomingStreamState.Aborted;
-        this.Session.StreamManager.AbortIncomingStream(this.StreamId);
+        this.Session.StreamManager.Inbound.AbortIncomingStream(this.StreamId);
     }
 }

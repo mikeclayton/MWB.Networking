@@ -1,8 +1,8 @@
 ﻿using MWB.Networking.Layer0_Transport.Encoding;
 
-namespace MWB.Networking.Layer0_Transport.NullConnection;
+namespace MWB.Networking.Layer0_Transport.NullTransport;
 
-public sealed class NullNetworkConnection : INetworkConnection
+public sealed class NullConnection : INetworkConnection
 {
     public ValueTask<int> ReadAsync(
         Memory<byte> buffer,

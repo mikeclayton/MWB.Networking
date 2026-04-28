@@ -1,10 +1,9 @@
 ﻿using MWB.Networking.Layer2_Protocol.Frames;
-using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 using System.Diagnostics.CodeAnalysis;
 
-namespace MWB.Networking.Layer2_Protocol.Requests;
+namespace MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 
-internal sealed partial class RequestManager
+internal partial class RequestContexts
 {
     // ------------------------------------------------------------------
     // Cached request contexts
@@ -12,9 +11,8 @@ internal sealed partial class RequestManager
 
     private readonly Dictionary<uint, RequestContext> _requestContexts = [];
 
-    private void AddRequestContext(RequestContext context)
+    internal void AddRequestContext(RequestContext context)
     {
-
         if (!_requestContexts.TryAdd(context.RequestId, context))
         {
             throw new ProtocolException(
@@ -23,7 +21,7 @@ internal sealed partial class RequestManager
         }
     }
 
-    private bool RequestContextExists(uint requestId)
+    internal bool RequestContextExists(uint requestId)
     {
         return _requestContexts.ContainsKey(requestId);
     }
@@ -33,14 +31,13 @@ internal sealed partial class RequestManager
         return _requestContexts.TryGetValue(requestId, out result);
     }
 
-    private List<uint> GetRequestContextIds()
+    internal List<uint> GetRequestContextIds()
     {
         return _requestContexts.Keys.ToList();
     }
 
-    private bool RemoveRequestContext(uint requestId)
+    internal bool RemoveRequestContext(uint requestId)
     {
         return _requestContexts.Remove(requestId);
     }
-
 }

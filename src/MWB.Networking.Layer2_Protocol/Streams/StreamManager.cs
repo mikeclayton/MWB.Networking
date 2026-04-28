@@ -1,20 +1,22 @@
 ﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
+using MWB.Networking.Layer2_Protocol.Lifecycle.Infrastructure;
 using MWB.Networking.Layer2_Protocol.Session;
-using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
 using MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 using MWB.Networking.Logging;
 using System.Diagnostics.CodeAnalysis;
 
 namespace MWB.Networking.Layer2_Protocol.Streams;
 
-public sealed partial class StreamManager : IHasLogger
+public sealed class StreamManager : IHasLogger
 {
     internal StreamManager(ILogger logger, ProtocolSession session, OddEvenStreamIdProvider streamIdProvider)
     {
-        this.Logger = logger ?? throw new ArgumentOutOfRangeException(nameof(logger));
-        this.Session = session ?? throw new ArgumentNullException(nameof(session));
-        this.StreamIdProvider = streamIdProvider ?? throw new ArgumentNullException(nameof(streamIdProvider));
+        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(streamIdProvider);
+        this.Logger = logger;
+        this.Inbound = new StreamManagerInbound(session, this, this.StreamEntries);
+        this.Outbound = new StreamManagerOutbound(session, this, this.StreamEntries, streamIdProvider);
     }
 
     public ILogger Logger
@@ -22,12 +24,17 @@ public sealed partial class StreamManager : IHasLogger
         get;
     }
 
-    private ProtocolSession Session
+    private StreamEntries StreamEntries
+    {
+        get;
+    } = new();
+
+    internal StreamManagerInbound Inbound
     {
         get;
     }
 
-    private OddEvenStreamIdProvider StreamIdProvider
+    internal StreamManagerOutbound Outbound
     {
         get;
     }
@@ -38,13 +45,18 @@ public sealed partial class StreamManager : IHasLogger
 
     internal IEnumerable<uint> GetStreamIds()
     {
-        return this.GetStreamEntryIds();
+        return this.StreamEntries.GetStreamEntryIds();
     }
 
-    private void RemoveStream(uint streamId)
+    internal bool TryGetStreamEntry(uint streamId, [NotNullWhen(true)] out StreamEntry? result)
+    {
+        return this.StreamEntries.TryGetStreamEntry(streamId, out result);
+    }
+
+    internal void RemoveStream(uint streamId)
     {
         // no-op if if doesn't exist
-        if (!this.RemoveStreamEntry(streamId))
+        if (!this.StreamEntries.RemoveStreamEntry(streamId))
         {
             // already gone, fine
             // this.Logger.Warn($"{nameof(RemoveStream)} called for non-existent stream {streamId}");
@@ -53,13 +65,12 @@ public sealed partial class StreamManager : IHasLogger
 
     internal void TearDownStream(uint streamId)
     {
-        if (!this.TryGetStreamEntry(streamId, out var entry))
+        if (!this.StreamEntries.TryGetStreamEntry(streamId, out var entry))
         {
             // already gone, fine
             // this.Logger.Warn($"{nameof(TearDownStream)} called for non-existent stream {streamId}");
             return;
         }
-
         entry.Context.Close();
         this.RemoveStream(streamId);
     }
@@ -67,8 +78,7 @@ public sealed partial class StreamManager : IHasLogger
     internal void TearDownRequestStreams(uint requestId)
     {
         // Iterate over a snapshot to avoid modifying during enumeration
-        var snapshot = this.GetStreamEntries();
-
+        var snapshot = this.StreamEntries.GetStreamEntries();
         foreach (var entry in snapshot)
         {
             if (entry.Context.OwningRequest?.RequestId == requestId)
@@ -78,5 +88,4 @@ public sealed partial class StreamManager : IHasLogger
             }
         }
     }
-
 }

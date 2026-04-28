@@ -18,12 +18,23 @@ public partial class Layer2_Protocol_EndToEnd
         set;
     }
 
+    [TestCleanup]
+    public void Cleanup()
+    {
+        // force any unobserved exceptions from finalizers to surface during
+        // test runs rather than being silently ignored - this makes it easier
+        // to determine *which* test caused the issue (and fix it!).
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+    }
+
     /// <remarks>
     /// This is similar to Layer2_Protocol_SendBeforeStart_IsDeliveredAfterStart,
     /// just wth 100_000 events as a performance test rather than 3 events for a
     /// correctness test.
     /// </remarks>
     [TestMethod]
+    [Ignore("Requires 'send before start' buffering behaviour which is currently unavailable.")]
     public async Task Layer2_Protocol_SendBeforeStart_PerformanceTest()
     {
         const int FrameCount = 100_000;

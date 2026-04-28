@@ -8,8 +8,25 @@ using System.IO.Pipelines;
 
 namespace _ProtocolDriver;
 
-public sealed partial class EndToEnd
+[TestClass]
+public sealed class EventRequests
 {
+    public TestContext TestContext
+    {
+        get;
+        set;
+    }
+
+    [TestCleanup]
+    public void Cleanup()
+    {
+        // force any unobserved exceptions from finalizers to surface during
+        // test runs rather than being silently ignored - this makes it easier
+        // to determine *which* test caused the issue (and fix it!).
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+    }
+
     [TestMethod]
     public async Task ProtocolDriver_Transmits_Requests_EndToEnd()
     {

@@ -27,13 +27,13 @@ internal sealed partial class EventManager : IHasLogger
     // Event handling
     // ------------------------------------------------------------------
 
-    internal void SendEvent(uint? eventType, ReadOnlyMemory<byte> payload)
+    internal void SendOutboundEvent(uint? eventType, ReadOnlyMemory<byte> payload)
     {
         this.Session.EnqueueOutboundFrame(
             ProtocolFrames.Event(eventType, payload));
     }
 
-    internal void ProcessEventFrame(ProtocolFrame frame)
+    internal void ProcessInboundEventFrame(ProtocolFrame frame)
     {
         if (frame.EventType is null)
         {

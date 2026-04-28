@@ -1,41 +1,28 @@
-﻿using MWB.Networking.Layer0_Transport.Pipes;
+﻿using Microsoft.Extensions.Logging.Abstractions;
+using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
 using MWB.Networking.Layer1_Framing.Hosting.Manual;
 using MWB.Networking.Layer3_Endpoint.Hosting;
-using MWB.Networking.Logging.Loggers;
 using System.Diagnostics;
 using System.IO.Pipelines;
 
-namespace _ProtocolDriver;
+namespace Layer2_Protocol;
 
-[TestClass]
-public sealed partial class EndToEnd
+public sealed partial class Pipes
 {
-    public TestContext TestContext
-    {
-        get;
-        set;
-    }
-
-    /// <summary>
-    /// Runtime contract test: verifies that outbound messages sent
-    /// <em>before</em> calling <c>ProtocolSession.Lifecycle.StartAsync</c>
-    /// are not lost and are delivered once the session starts.
-    ///
-    /// This protects the guarantee that pre-start sends are buffered
-    /// and drained by the write loop on startup.
-    /// </summary>
     /// <remarks>
-    /// Prevents a previous bug where messages enqueued with <c>SendEvent</c>, etc
-    /// <em>before</em> calling <c>StartAsync</c> were silently dropped instead
-    /// of being drained by the write loop once it was eventually started.
+    /// This is identical to Layer2_Protocol_SendBeforeStart_IsDeliveredAfterStart,
+    /// just wth 100_000 events as a performance test rather than 3 events for a
+    /// correctness test. We could probably make the number of frames a test input
+    /// and run both tests with the same code.
     /// </remarks>
     [TestMethod]
-    public async Task Layer2_Protocol_SendBeforeStart_IsDeliveredAfterStart()
+    public async Task Layer2_Protocol_EventEnqueueBeforeStart_WithPipes_PerfTest()
     {
-        const int FrameCount = 3;
+        const int FrameCount = 100_000;
 
-        var (logger, _) = DebugLoggerFactory.Create();
+        //var (logger, _) = DebugLoggerFactory.CreateLogger();
+        var logger = NullLogger.Instance;
 
         // -------------------------------------------------
         // Transport (in-memory pipes)
@@ -63,15 +50,16 @@ public sealed partial class EndToEnd
                     pipeline
                         .UseLogger(logger)
                         .UseLengthPrefixedCodec(logger)
-                        .UseManualNetworkConnectionProvider(logger, clientConnection);
+                        .WrapConnectionAsProvider(logger, clientConnection);
                 }
             )
             .Build();
 
-        Stopwatch? readerStopwatch = null;
+        // used in observer.EventReceived
         var received = 0;
         var allReceived = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
+        var readerStopwatch = (Stopwatch?)null;
 
         var serverEndpoint = new SessionEndpointBuilder()
             .UseLogger(logger)
@@ -82,42 +70,44 @@ public sealed partial class EndToEnd
                     pipeline
                         .UseLogger(logger)
                         .UseLengthPrefixedCodec(logger)
-                        .UseManualNetworkConnectionProvider(logger, serverConnection);
+                        .WrapConnectionAsProvider(logger, serverConnection);
                 }
             )
-            .OnEventReceived(
-                (_, _) =>
+            .OnEventReceived((_, _) =>
+            {
+                readerStopwatch ??= Stopwatch.StartNew();
+                if (Interlocked.Increment(ref received) == FrameCount)
                 {
-                    readerStopwatch ??= Stopwatch.StartNew();
-                    if (Interlocked.Increment(ref received) == FrameCount)
-                    {
-                        allReceived.TrySetResult();
-                    }
+                    allReceived.TrySetResult();
                 }
+            }
             )
             .Build();
 
         var payload = new ReadOnlyMemory<byte>(new byte[] { 1, 2, 3 });
 
-        // -------------------------------------------------
-        // PHASE 1: Send BEFORE start
-        // -------------------------------------------------
-        for (int i = 0; i < FrameCount; i++)
+        // =================================================
+        // PHASE 1: ENQUEUE (non‑blocking)
+        // =================================================
+        var globalStopwatch = new Stopwatch();
+        var writerStopwatch = new Stopwatch();
+        for (var i = 0; i < FrameCount; i++)
         {
             clientEndpoint.SendEvent(1, payload);
         }
+        writerStopwatch.Stop();
 
         // -------------------------------------------------
         // PHASE 2: Start sessions
         // -------------------------------------------------
-
-        // start the protocol loops
-        // (wait within a maximum timeout so the test fails rather than hangs forever)
         using var lifecycleCts = new CancellationTokenSource();
-        var serverRun = serverEndpoint.StartAsync(lifecycleCts.Token);
-        var clientRun = clientEndpoint.StartAsync(lifecycleCts.Token);
-        await Task
-            .WhenAll(serverRun, clientRun)
+
+        await serverEndpoint
+            .StartAsync(lifecycleCts.Token)
+            .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
+
+        await clientEndpoint
+            .StartAsync(lifecycleCts.Token)
             .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
 
         // -------------------------------------------------
@@ -128,6 +118,7 @@ public sealed partial class EndToEnd
         await allReceived.Task
             .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
         readerStopwatch?.Stop();
+        globalStopwatch.Stop();
 
         Assert.AreEqual(FrameCount, received);
 
@@ -138,12 +129,27 @@ public sealed partial class EndToEnd
         // shut down cleanly
         // (wait within a maximum timeout so the test fails rather than hangs forever)
         lifecycleCts.Cancel();
+
         await Task
-            .WhenAll(serverRun, clientRun)
+            .WhenAll(
+                serverEndpoint.DisposeAsync().AsTask(),
+                clientEndpoint.DisposeAsync().AsTask())
             .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
+
+        // ------------------------------------------------------------
+        // Log statistics
+        // ------------------------------------------------------------
+
+        TestContext.WriteLine(
+            $"Wrote {FrameCount} frames in {writerStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
+            $"({FrameCount / writerStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
 
         TestContext.WriteLine(
             $"Read {FrameCount} frames in {readerStopwatch?.Elapsed.TotalMilliseconds:F2} ms " +
             $"({FrameCount / readerStopwatch?.Elapsed.TotalSeconds:N0} frames/sec)");
+
+        TestContext.WriteLine(
+            $"Processed {FrameCount} frames in {globalStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
+            $"({FrameCount / globalStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
     }
 }

@@ -18,6 +18,16 @@ public sealed partial class Requests_Outbound
         set;
     }
 
+    [TestCleanup]
+    public void Cleanup()
+    {
+        // force any unobserved exceptions from finalizers to surface during
+        // test runs rather than being silently ignored - this makes it easier
+        // to determine *which* test caused the issue (and fix it!).
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+    }
+
     // ---------------------------------------------------------------
     // Outbound frame emission
     // ---------------------------------------------------------------

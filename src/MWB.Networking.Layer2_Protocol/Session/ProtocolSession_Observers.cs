@@ -1,7 +1,7 @@
 ﻿using MWB.Networking.Layer2_Protocol.Events.Api;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
 using MWB.Networking.Layer2_Protocol.Session.Api;
-using MWB.Networking.Layer2_Protocol.Streams.Api;
+using MWB.Networking.Layer2_Protocol.Lifecycle.Api;
 
 namespace MWB.Networking.Layer2_Protocol.Session;
 
@@ -54,6 +54,6 @@ public sealed partial class ProtocolSession : IProtocolSessionObserver
 
     public OutgoingStream OpenSessionStream(ReadOnlyMemory<byte> metadata)
     {
-        return this.StreamManager.OpenSessionStream(metadata: metadata);
+        return this.StreamManager.Outbound.OpenSessionStream(metadata: metadata);
     }
 }

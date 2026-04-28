@@ -1,7 +1,7 @@
 ﻿using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 using MWB.Networking.Layer2_Protocol.Session;
-using MWB.Networking.Layer2_Protocol.Streams.Api;
+using MWB.Networking.Layer2_Protocol.Lifecycle.Api;
 
 namespace MWB.Networking.Layer2_Protocol.Requests.Api;
 
@@ -50,7 +50,7 @@ public sealed class OutgoingRequest
         // Enforce request lifecycle rules
         this.Context.OpenStream();
 
-        return this.Session.StreamManager
+        return this.Session.StreamManager.Outbound
             .OpenRequestStream(streamType, this.Context);
     }
 }

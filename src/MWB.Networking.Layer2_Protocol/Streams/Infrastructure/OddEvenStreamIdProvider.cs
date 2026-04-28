@@ -1,4 +1,4 @@
-﻿namespace MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
+﻿namespace MWB.Networking.Layer2_Protocol.Lifecycle.Infrastructure;
 
 /// <summary>
 /// Inbound and Outbound streams are managed in a single shared identity

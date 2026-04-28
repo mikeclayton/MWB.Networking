@@ -2,8 +2,8 @@
 using MWB.Networking.Layer2_Protocol.Events;
 using MWB.Networking.Layer2_Protocol.Requests;
 using MWB.Networking.Layer2_Protocol.Session.Api;
-using MWB.Networking.Layer2_Protocol.Streams;
 using MWB.Networking.Logging;
+using MWB.Networking.Layer2_Protocol.Streams;
 
 namespace MWB.Networking.Layer2_Protocol.Session;
 
