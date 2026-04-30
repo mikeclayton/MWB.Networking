@@ -4,7 +4,6 @@ using MWB.Networking.Layer1_Framing.Codec.Abstractions;
 using MWB.Networking.Layer1_Framing.Codec.Buffer;
 using MWB.Networking.Layer1_Framing.Codec.Frames;
 using System.Buffers;
-using System.Reflection.PortableExecutable;
 
 namespace MWB.Networking.Layer1_Framing.Pipeline;
 
@@ -41,37 +40,43 @@ public sealed class NetworkPipeline
     public ByteSegments Encode(NetworkFrame frame)
     {
 
-        // Stage 0: semantic frame -> framed bytes
         var currentBuffer = new CodecBuffer();
-        _networkFrameCodec.Encode(frame, currentBuffer.Writer);
-        currentBuffer.Writer.Complete();
 
-        // Stage 1..N: framing codecs (forward order)
-        var reader = currentBuffer.Reader;
-        foreach (var codec in _frameCodecs)
+        try
         {
-            var nextBuffer = new CodecBuffer();
-            codec.Encode(reader, nextBuffer.Writer);
-            nextBuffer.Writer.Complete();
+            // Stage 0: semantic frame -> framed bytes
+            _networkFrameCodec.Encode(frame, currentBuffer.Writer);
+            currentBuffer.Writer.Complete();
 
-            // old buffer is no longer needed
-            currentBuffer.Dispose();
+            // Stage 1..N: framing codecs (forward order)
+            var reader = currentBuffer.Reader;
+            foreach (var codec in _frameCodecs)
+            {
+                var nextBuffer = new CodecBuffer();
+                codec.Encode(reader, nextBuffer.Writer);
+                nextBuffer.Writer.Complete();
 
-            // promote next buffer to be current
-            currentBuffer = nextBuffer;
-            reader = nextBuffer.Reader;
+                // old buffer is no longer needed
+                currentBuffer.Dispose();
+
+                // promote next buffer to be current
+                currentBuffer = nextBuffer;
+                reader = nextBuffer.Reader;
+            }
+
+            // Stage N+1: framing -> transport bytes
+            using var transportBuffer = new CodecBuffer();
+            _transportCodec.Encode(reader, transportBuffer.Writer);
+            transportBuffer.Writer.Complete();
+
+            // Emit segment-preserving transport payload
+            return transportBuffer.ToByteSegments();
         }
-
-        // Stage N+1: framing -> transport bytes
-        using var transportBuffer = new CodecBuffer();
-        _transportCodec.Encode(reader, transportBuffer.Writer);
-        transportBuffer.Writer.Complete();
-
-        // now safe to dispose final intermediate buffer
-        currentBuffer.Dispose();
-
-        // Emit segment-preserving transport payload
-        return transportBuffer.ToByteSegments();
+        finally
+        {
+            // now safe to dispose final intermediate buffer
+            currentBuffer?.Dispose();
+        }
     }
 
     // --------------------------------------------------------------------
