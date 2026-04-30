@@ -53,8 +53,17 @@ public sealed class NetworkPipeline
             foreach (var codec in _frameCodecs)
             {
                 var nextBuffer = new CodecBuffer();
-                codec.Encode(reader, nextBuffer.Writer);
-                nextBuffer.Writer.Complete();
+                try
+                {
+                    codec.Encode(reader, nextBuffer.Writer);
+                    nextBuffer.Writer.Complete();
+                }
+                catch
+                {
+                    // Ensure no buffer leak if codec.Encode throws
+                    nextBuffer.Dispose();
+                    throw;
+                }
 
                 // old buffer is no longer needed
                 currentBuffer.Dispose();

@@ -184,19 +184,13 @@ public sealed partial class DefaultNetworkFrameCodec : INetworkFrameCodec
         }
         else
         {
-            if (!inputReader.TryRead(out var mem) || (mem.Length < remaining))
-            {
-                return FrameDecodeResult.InvalidFrameEncoding;
-            }
-
             // Invariant / Limitation:
             // Transport decoding must provide the entire frame payload as a single
             // contiguous buffer segment. DefaultNetworkFrameCodec does not support
             // multi-segment payloads.
-            if (mem.Length != remaining)
+            if (!inputReader.TryRead(out var mem) || (mem.Length != remaining))
             {
-                throw new InvalidOperationException(
-                    "Pipeline invariant violated: NetworkFrame payload must be contained in a single buffer segment.");
+                return FrameDecodeResult.InvalidFrameEncoding;
             }
 
             payload = mem.Slice(0, (int)remaining).ToArray();

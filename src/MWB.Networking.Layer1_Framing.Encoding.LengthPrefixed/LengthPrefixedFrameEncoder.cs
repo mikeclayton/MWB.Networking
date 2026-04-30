@@ -49,7 +49,7 @@ public sealed class LengthPrefixedFrameEncoder
         outputWriter.Write(prefix);
 
         // ------------------------------------------------------------
-        // 3. Write payload (zero-copy)
+        // 3. Write payload
         // ------------------------------------------------------------
 
         var expected = payloadLength;
