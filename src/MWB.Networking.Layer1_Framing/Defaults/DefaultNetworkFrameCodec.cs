@@ -139,32 +139,32 @@ public sealed partial class DefaultNetworkFrameCodec : INetworkFrameCodec
             return true;
         }
 
-        if (((flags & NetworkFrameFlags.HasEventType) == NetworkFrameFlags.HasEventType) && !TryReadUInt32(out eventType))
+        if (((flags & NetworkFrameFlags.HasEventType) != 0) && !TryReadUInt32(out eventType))
         {
             return FrameDecodeResult.InvalidFrameEncoding;
         }
 
-        if (((flags & NetworkFrameFlags.HasRequestId) == NetworkFrameFlags.HasRequestId) && !TryReadUInt32(out requestId))
+        if (((flags & NetworkFrameFlags.HasRequestId) != 0) && !TryReadUInt32(out requestId))
         {
             return FrameDecodeResult.InvalidFrameEncoding;
         }
 
-        if (((flags & NetworkFrameFlags.HasRequestType) == NetworkFrameFlags.HasRequestType) && !TryReadUInt32(out requestType))
+        if (((flags & NetworkFrameFlags.HasRequestType) != 0) && !TryReadUInt32(out requestType))
         {
             return FrameDecodeResult.InvalidFrameEncoding;
         }
 
-        if (((flags & NetworkFrameFlags.HasResponseType) == NetworkFrameFlags.HasResponseType) && !TryReadUInt32(out responseType))
+        if (((flags & NetworkFrameFlags.HasResponseType) != 0) && !TryReadUInt32(out responseType))
         {
             return FrameDecodeResult.InvalidFrameEncoding;
         }
 
-        if (((flags & NetworkFrameFlags.HasStreamId) == NetworkFrameFlags.HasStreamId) && !TryReadUInt32(out streamId))
+        if (((flags & NetworkFrameFlags.HasStreamId) != 0) && !TryReadUInt32(out streamId))
         {
             return FrameDecodeResult.InvalidFrameEncoding;
         }
 
-        if (((flags & NetworkFrameFlags.HasStreamType) == NetworkFrameFlags.HasStreamType) && !TryReadUInt32(out streamType))
+        if (((flags & NetworkFrameFlags.HasStreamType) != 0) && !TryReadUInt32(out streamType))
         {
             return FrameDecodeResult.InvalidFrameEncoding;
         }

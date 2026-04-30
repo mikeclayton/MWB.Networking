@@ -8,7 +8,7 @@ public static class INetworkPipelineBuilderExtensions
         this NetworkPipelineBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        return new NetworkPipelineBuilderState()
+        return builder
             .UseNetworkCodec(
                 () => new DefaultNetworkFrameCodec());
     }

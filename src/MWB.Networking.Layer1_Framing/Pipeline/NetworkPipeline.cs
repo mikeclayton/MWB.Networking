@@ -88,67 +88,84 @@ public sealed class NetworkPipeline
     /// Advances the input sequence only on success.
     /// </summary>
     public FrameDecodeResult Decode(
-       ref ReadOnlySequence<byte> transportBytes,
-       out NetworkFrame? frame)
+        ref ReadOnlySequence<byte> transportBytes,
+        out NetworkFrame? frame)
     {
-        frame = null;
+        frame = default!;
 
-        // Work on a local copy so transport consumption is atomic
+        // work on a local copy so transport consumption is atomic
         var current = transportBytes;
 
         // ------------------------------------------------------
         // Step 1: Transport boundary → framed bytes
         // ------------------------------------------------------
         if (!_transportCodec.TryDecode(
-                ref current,
-                out ReadOnlyMemory<byte> framedBytes))
+            ref transportBytes,
+            out var framedBytes))
         {
             // Not enough transport bytes yet
-            return FrameDecodeResult.NeedsMoreData; // <- important: caller must retry later
+            return FrameDecodeResult.NeedsMoreData;
         }
 
-        // Seed a pipeline buffer with the framed bytes
-        using var buffer = new CodecBuffer();
-        buffer.Writer.Write(framedBytes);
-        buffer.Writer.Complete();
+        // Seed the initial buffer with the framed transport payload
+        using var initialBuffer = new CodecBuffer();
+        initialBuffer.Writer.Write(framedBytes);
+        initialBuffer.Writer.Complete();
 
-        var reader = buffer.Reader;
+        CodecBuffer? intermediateBuffer = null;
 
-        // ------------------------------------------------------
-        // Step 2: Frame codecs (reverse order)
-        // ------------------------------------------------------
-
-        // manually walking the array backwards avoids allocation by Enumerable.Reverse()
-        for (var i = _frameCodecs.Count - 1; i >= 0; i--)
+        try
         {
-            var codec = _frameCodecs[i];
-            using var nextBuffer = new CodecBuffer();
+            var reader = initialBuffer.Reader;
 
-            var frameResult = codec.Decode(reader, nextBuffer.Writer);
-            if (frameResult != FrameDecodeResult.Success)
+            // ------------------------------------------------------
+            // Step 2: Frame codecs (reverse order)
+            // ------------------------------------------------------
+
+            // manually walking the array backwards avoids allocation by Enumerable.Reverse()
+            for (var i = _frameCodecs.Count - 1; i >= 0; i--)
             {
-                return frameResult; // InvalidFrameEncoding
+                var codec = _frameCodecs[i];
+                var nextBuffer = new CodecBuffer();
+
+                var frameResult = codec.Decode(reader, nextBuffer.Writer);
+                if (frameResult != FrameDecodeResult.Success)
+                {
+                    nextBuffer.Dispose();
+                    return frameResult;
+                }
+
+                nextBuffer.Writer.Complete();
+
+                // Release the previous stage buffer
+                intermediateBuffer?.Dispose();
+
+                // Promote next buffer
+                intermediateBuffer = nextBuffer;
+                reader = nextBuffer.Reader;
             }
 
-            nextBuffer.Writer.Complete();
-            reader = nextBuffer.Reader;
+            // ------------------------------------------------------
+            // Step 3: Semantic frame decode
+            // ------------------------------------------------------
+
+            var networkFrameResult = _networkFrameCodec.Decode(reader, out frame);
+            if (networkFrameResult != FrameDecodeResult.Success)
+            {
+                // Structural failure: bytes cannot materialise a NetworkFrame
+                return networkFrameResult;
+            }
+
+            // ------------------------------------------------------
+            // Commit transport consumption
+            // ------------------------------------------------------
+            transportBytes = current;
+            return FrameDecodeResult.Success;
         }
-
-        // ------------------------------------------------------
-        // Step 3: Semantic frame decode
-        // ------------------------------------------------------
-
-        var networkFrameResult = _networkFrameCodec.Decode(reader, out frame);
-        if (networkFrameResult != FrameDecodeResult.Success)
+        finally
         {
-            // Structural failure: bytes cannot materialise a NetworkFrame
-            return networkFrameResult;
+            // Ensure all intermediate buffers are released
+            intermediateBuffer?.Dispose();
         }
-
-        // ------------------------------------------------------
-        // Commit transport consumption
-        // ------------------------------------------------------
-        transportBytes = current;
-        return FrameDecodeResult.Success;
     }
 }
