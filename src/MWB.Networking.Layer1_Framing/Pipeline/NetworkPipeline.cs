@@ -100,7 +100,7 @@ public sealed class NetworkPipeline
         // Step 1: Transport boundary → framed bytes
         // ------------------------------------------------------
         if (!_transportCodec.TryDecode(
-            ref transportBytes,
+            ref current,
             out var framedBytes))
         {
             // Not enough transport bytes yet

@@ -119,6 +119,8 @@ public sealed class CodecBuffer : IDisposable
 
     public ByteSegments ToByteSegments()
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
         if (!_writeCompleted)
         {
             throw new InvalidOperationException(
