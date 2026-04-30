@@ -172,26 +172,24 @@ public sealed partial class DefautNetworkFrameCodec : INetworkFrameCodec
 
         // ---- Remaining bytes are payload ----------------------------------
 
-        var remaining = inputReader.Length - inputReader.Position;
+        var remaining = inputReader.Length;
         if (remaining < 0 || remaining > int.MaxValue)
         {
             return FrameDecodeResult.InvalidFrameEncoding;
         }
 
-        ReadOnlyMemory<byte> payload;
-
+        ReadOnlyMemory<byte> payload = default;
         if (remaining == 0)
         {
             payload = ReadOnlyMemory<byte>.Empty;
         }
         else
         {
-            if (!inputReader.TryRead(out var mem) || mem.Length < remaining)
+            if (!inputReader.TryRead(out var mem) || (mem.Length < remaining))
             {
                 return FrameDecodeResult.InvalidFrameEncoding;
             }
-
-            payload = mem.Slice(0, (int)remaining).ToArray(); // v1: copy OK
+            payload = mem.Slice(0, (int)remaining).ToArray();
             inputReader.Advance((int)remaining);
         }
 

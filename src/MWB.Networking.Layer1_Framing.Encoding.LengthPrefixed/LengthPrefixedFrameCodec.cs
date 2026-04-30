@@ -27,7 +27,7 @@ public sealed class LengthPrefixedFrameCodec : ITransportCodec
 
     public bool TryDecode(ref ReadOnlySequence<byte> inputBytes, out ReadOnlyMemory<byte> outputBytes)
     {
-        throw new NotImplementedException();
+        return this.Decoder.TryDecode(ref inputBytes, out outputBytes);
     }
 
     /// <summary>

@@ -76,10 +76,5 @@ public sealed class LengthPrefixedFrameEncoder
             throw new InvalidOperationException(
                 $"Encoder invariant violated: expected {expected} bytes but consumed {copied}.");
         }
-
-        // ------------------------------------------------------------
-        // 4. Consume input
-        // ------------------------------------------------------------
-        inputReader.Advance(payloadLength);
     }
 }

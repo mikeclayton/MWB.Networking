@@ -4,6 +4,7 @@ using MWB.Networking.Layer1_Framing.Codec.Abstractions;
 using MWB.Networking.Layer1_Framing.Codec.Buffer;
 using MWB.Networking.Layer1_Framing.Codec.Frames;
 using System.Buffers;
+using System.Reflection.PortableExecutable;
 
 namespace MWB.Networking.Layer1_Framing.Pipeline;
 
@@ -39,25 +40,38 @@ public sealed class NetworkPipeline
     /// </summary>
     public ByteSegments Encode(NetworkFrame frame)
     {
-        using var buffer = new CodecBuffer();
 
-        var writer = buffer.Writer;
-        var reader = buffer.Reader;
+        // Stage 0: semantic frame -> framed bytes
+        var currentBuffer = new CodecBuffer();
+        _networkFrameCodec.Encode(frame, currentBuffer.Writer);
+        currentBuffer.Writer.Complete();
 
-        // Step 1: semantic frame -> framed bytes
-        _networkFrameCodec.Encode(frame, writer);
-
-        // Step 2: framing codecs (forward order)
+        // Stage 1..N: framing codecs (forward order)
+        var reader = currentBuffer.Reader;
         foreach (var codec in _frameCodecs)
         {
-            codec.Encode(reader, writer);
+            var nextBuffer = new CodecBuffer();
+            codec.Encode(reader, nextBuffer.Writer);
+            nextBuffer.Writer.Complete();
+
+            // old buffer is no longer needed
+            currentBuffer.Dispose();
+
+            // promote next buffer to be current
+            currentBuffer = nextBuffer;
+            reader = nextBuffer.Reader;
         }
 
-        // Step 3: framing -> transport bytes
-        _transportCodec.Encode(reader, writer);
+        // Stage N+1: framing -> transport bytes
+        using var transportBuffer = new CodecBuffer();
+        _transportCodec.Encode(reader, transportBuffer.Writer);
+        transportBuffer.Writer.Complete();
+
+        // now safe to dispose final intermediate buffer
+        currentBuffer.Dispose();
 
         // Emit segment-preserving transport payload
-        return buffer.ToByteSegments();
+        return transportBuffer.ToByteSegments();
     }
 
     // --------------------------------------------------------------------
@@ -85,7 +99,7 @@ public sealed class NetworkPipeline
                 out ReadOnlyMemory<byte> framedBytes))
         {
             // Not enough transport bytes yet
-            return FrameDecodeResult.Success; // <- important: caller must retry later
+            return FrameDecodeResult.NeedsMoreData; // <- important: caller must retry later
         }
 
         // Seed a pipeline buffer with the framed bytes

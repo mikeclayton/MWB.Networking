@@ -1,11 +1,10 @@
 ﻿using MWB.Networking.Layer1_Framing.Codec;
 using MWB.Networking.Layer1_Framing.Codec.Abstractions;
 using MWB.Networking.Layer1_Framing.Codec.Buffer;
-using System.Buffers;
 
 namespace MWB.Networking.Layer1_Framing.Encoding.Aes;
 
-public sealed class AesFrameDecoder : IFrameCodec
+public sealed class AesFrameCodec : IFrameCodec
 {
 
     /// <summary>
@@ -15,7 +14,7 @@ public sealed class AesFrameDecoder : IFrameCodec
         ICodecBufferReader inputReader,
         ICodecBufferWriter outputWriter)
     {
-        AesFrameDecoder.CopyToWriter(inputReader, outputWriter);
+        AesFrameCodec.CopyToWriter(inputReader, outputWriter);
         return FrameDecodeResult.Success;
     }
 
@@ -26,7 +25,7 @@ public sealed class AesFrameDecoder : IFrameCodec
         ICodecBufferReader inputReader,
         ICodecBufferWriter outputWriter)
     {
-        AesFrameDecoder.CopyToWriter(inputReader, outputWriter);
+        AesFrameCodec.CopyToWriter(inputReader, outputWriter);
     }
 
     private static void CopyToWriter(
