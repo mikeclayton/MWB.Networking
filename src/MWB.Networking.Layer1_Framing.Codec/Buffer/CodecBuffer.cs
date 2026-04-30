@@ -132,8 +132,17 @@ public sealed class CodecBuffer : IDisposable
 
     public void Dispose()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         _disposed = true;
+
+        // Disposal is a terminal state; treat the buffer as completed
+        // to prevent misleading post-dispose errors.
         _writeCompleted = true;
+
         _segments.Clear();
         _length = 0;
     }

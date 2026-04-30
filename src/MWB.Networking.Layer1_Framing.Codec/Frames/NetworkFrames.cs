@@ -52,7 +52,7 @@ public static class NetworkFrames
     public static NetworkFrame Response(
         uint requestId,
         uint? responseType,
-        ReadOnlyMemory<byte> payload)
+        ReadOnlyMemory<byte> payload = default)
     {
         return new NetworkFrame(
             kind: NetworkFrameKind.Response,

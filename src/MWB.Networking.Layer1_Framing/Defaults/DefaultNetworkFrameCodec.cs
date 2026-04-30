@@ -6,7 +6,7 @@ using System.Buffers.Binary;
 
 namespace MWB.Networking.Layer1_Framing.Defaults;
 
-public sealed partial class DefautNetworkFrameCodec : INetworkFrameCodec
+public sealed partial class DefaultNetworkFrameCodec : INetworkFrameCodec
 {
     public void Encode(NetworkFrame frame, ICodecBufferWriter writer)
     {
@@ -107,6 +107,16 @@ public sealed partial class DefautNetworkFrameCodec : INetworkFrameCodec
 
         // ---- Need at least Kind + Flags -----------------------------------
 
+        // Invariant / Limitation:
+        // Transport decoding must provide the entire frame payload as a single
+        // contiguous buffer segment. DefaultNetworkFrameCodec does not support
+        // multi-segment payloads.
+        if (!inputReader.TryRead(out var mem) || mem.Length != inputReader.Length)
+        {
+            throw new InvalidOperationException(
+                "Pipeline invariant violated: NetworkFrame payload must be contained in a single buffer segment.");
+        }
+
         if (!inputReader.TryRead(out var header) || header.Length < 2)
         {
             return FrameDecodeResult.InvalidFrameEncoding;
@@ -135,7 +145,7 @@ public sealed partial class DefautNetworkFrameCodec : INetworkFrameCodec
                 return false;
             }   
 
-            value = unchecked((uint)BinaryPrimitives.ReadInt32BigEndian(mem.Span));
+            value = BinaryPrimitives.ReadUInt32BigEndian(mem.Span);
             inputReader.Advance(4);
             return true;
         }

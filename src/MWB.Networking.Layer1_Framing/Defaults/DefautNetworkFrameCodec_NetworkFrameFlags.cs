@@ -1,6 +1,6 @@
 ﻿namespace MWB.Networking.Layer1_Framing.Defaults;
 
-public sealed partial class DefautNetworkFrameCodec
+public sealed partial class DefaultNetworkFrameCodec
 {
     [Flags]
     private enum NetworkFrameFlags : byte
