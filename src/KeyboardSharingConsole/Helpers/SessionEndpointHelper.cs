@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer0_Transport;
 using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
+using MWB.Networking.Layer1_Framing.Hosting;
 using MWB.Networking.Layer2_Protocol.Events.Api;
 using MWB.Networking.Layer2_Protocol.Lifecycle.Infrastructure;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
@@ -30,8 +31,8 @@ internal static class SessionEndpointHelper
                     pipeline =>
                     {
                         pipeline
-                            .UseLengthPrefixedCodec(logger)
-                            .UseConnectionProvider(connectionProvider);
+                            .UseDefaultNetworkCodec()
+                            .UseLengthPrefixedTransport(logger);
                     }
                 );
 

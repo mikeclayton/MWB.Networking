@@ -1,4 +1,4 @@
-﻿using MWB.Networking.Layer1_Framing.Frames;
+﻿using MWB.Networking.Layer1_Framing.Codec.Frames;
 
 namespace MWB.Networking.Layer2_Protocol.Frames;
 

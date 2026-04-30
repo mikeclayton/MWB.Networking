@@ -117,8 +117,11 @@ public sealed class NetworkPipeline
         // ------------------------------------------------------
         // Step 2: Frame codecs (reverse order)
         // ------------------------------------------------------
-        foreach (var codec in Enumerable.Reverse(_frameCodecs))
+
+        // manually walking the array backwards avoids allocation by Enumerable.Reverse()
+        for (var i = _frameCodecs.Count - 1; i >= 0; i--)
         {
+            var codec = _frameCodecs[i];
             using var nextBuffer = new CodecBuffer();
 
             var frameResult = codec.Decode(reader, nextBuffer.Writer);

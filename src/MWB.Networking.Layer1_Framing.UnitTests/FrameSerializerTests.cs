@@ -1,5 +1,4 @@
-﻿using MWB.Networking.Layer1_Framing.Frames;
-using MWB.Networking.Layer1_Framing.Serialization;
+﻿using MWB.Networking.Layer1_Framing.Codec.Frames;
 
 namespace MWB.Networking.Layer1_Framing.UnitTests;
 

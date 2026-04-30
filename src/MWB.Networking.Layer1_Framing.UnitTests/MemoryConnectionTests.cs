@@ -1,7 +1,5 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Memory;
-using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
-using MWB.Networking.Layer1_Framing.Frames;
 using MWB.Networking.Layer1_Framing.Hosting;
 using MWB.Networking.Layer1_Framing.UnitTests.Helpers;
 using System.Diagnostics;

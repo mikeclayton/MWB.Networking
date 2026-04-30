@@ -3,14 +3,7 @@ using MWB.Networking.Layer1_Framing.Pipeline;
 
 namespace MWB.Networking.Layer1_Framing.Hosting;
 
-// Stage 1: must choose NetworkFrameCodec
-public interface INetworkPipelineStartStage
-{
-    INetworkPipelineCodecStage UseNetworkCodec(
-        Func<INetworkFrameCodec> networkFrameCodecFactory);
-}
-
-// Stage 2: zero or more frame codecs
+// Stage 1: zero or more frame codecs
 public interface INetworkPipelineCodecStage
 {
     INetworkPipelineCodecStage UseFrameCodec(
@@ -20,7 +13,7 @@ public interface INetworkPipelineCodecStage
         Func<ITransportCodec> transportFactory);
 }
 
-// Stage 3: must choose byte-stream codec
+// Stage 2: must choose byte-stream codec
 public interface INetworkPipelineBuildStage
 {
     NetworkPipelineFactory BuildFactory();

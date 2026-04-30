@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer1_Framing.Encoding.NullEncoder;
-using MWB.Networking.Layer1_Framing.Hosting;
+﻿using MWB.Networking.Layer1_Framing.Hosting;
 
 namespace MWB.Networking.Layer1_Framing.NullEncoder.Hosting;
 

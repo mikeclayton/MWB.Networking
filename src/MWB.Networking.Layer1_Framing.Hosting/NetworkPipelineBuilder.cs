@@ -8,7 +8,7 @@ public sealed class NetworkPipelineBuilder
     // Initial builder stage
     // -----------------------------
 
-    public static INetworkPipelineCodecStage WithInitialCodec(
+    public INetworkPipelineCodecStage UseNetworkCodec(
         Func<INetworkFrameCodec> networkFrameCodecFactory)
     {
         ArgumentNullException.ThrowIfNull(networkFrameCodecFactory);

@@ -34,52 +34,51 @@ public sealed partial class DefaultNetworkFrameCodec : INetworkFrameCodec
 
         // ---- 3. Write header ------------------------------------------
 
-        var header = new byte[headerLength];
-        var span = header.AsSpan(0, headerLength);
+        Span<byte> header = stackalloc byte[headerLength];
         var offset = 0;
 
-        span[offset++] = (byte)frame.Kind;
-        span[offset++] = (byte)flags;
+        header[offset++] = (byte)frame.Kind;
+        header[offset++] = (byte)flags;
 
         if (frame.EventType.HasValue)
         {
             BinaryPrimitives.WriteUInt32BigEndian(
-                span.Slice(offset, 4), frame.EventType.Value);
+                header.Slice(offset, 4), frame.EventType.Value);
             offset += 4;
         }
 
         if (frame.RequestId.HasValue)
         {
             BinaryPrimitives.WriteUInt32BigEndian(
-                span.Slice(offset, 4), frame.RequestId.Value);
+                header.Slice(offset, 4), frame.RequestId.Value);
             offset += 4;
         }
 
         if (frame.RequestType.HasValue)
         {
             BinaryPrimitives.WriteUInt32BigEndian(
-                span.Slice(offset, 4), frame.RequestType.Value);
+                header.Slice(offset, 4), frame.RequestType.Value);
             offset += 4;
         }
 
         if (frame.ResponseType.HasValue)
         {
             BinaryPrimitives.WriteUInt32BigEndian(
-                span.Slice(offset, 4), frame.ResponseType.Value);
+                header.Slice(offset, 4), frame.ResponseType.Value);
             offset += 4;
         }
 
         if (frame.StreamId.HasValue)
         {
             BinaryPrimitives.WriteUInt32BigEndian(
-                span.Slice(offset, 4), frame.StreamId.Value);
+                header.Slice(offset, 4), frame.StreamId.Value);
             offset += 4;
         }
 
         if (frame.StreamType.HasValue)
         {
             BinaryPrimitives.WriteUInt32BigEndian(
-                span.Slice(offset, 4), frame.StreamType.Value);
+                header.Slice(offset, 4), frame.StreamType.Value);
             offset += 4;
         }
 
@@ -106,16 +105,6 @@ public sealed partial class DefaultNetworkFrameCodec : INetworkFrameCodec
         outputFrame = default!;
 
         // ---- Need at least Kind + Flags -----------------------------------
-
-        // Invariant / Limitation:
-        // Transport decoding must provide the entire frame payload as a single
-        // contiguous buffer segment. DefaultNetworkFrameCodec does not support
-        // multi-segment payloads.
-        if (!inputReader.TryRead(out var mem) || mem.Length != inputReader.Length)
-        {
-            throw new InvalidOperationException(
-                "Pipeline invariant violated: NetworkFrame payload must be contained in a single buffer segment.");
-        }
 
         if (!inputReader.TryRead(out var header) || header.Length < 2)
         {
@@ -150,32 +139,32 @@ public sealed partial class DefaultNetworkFrameCodec : INetworkFrameCodec
             return true;
         }
 
-        if (flags.HasFlag(NetworkFrameFlags.HasEventType) && !TryReadUInt32(out eventType))
+        if (((flags & NetworkFrameFlags.HasEventType) == NetworkFrameFlags.HasEventType) && !TryReadUInt32(out eventType))
         {
             return FrameDecodeResult.InvalidFrameEncoding;
         }
 
-        if (flags.HasFlag(NetworkFrameFlags.HasRequestId) && !TryReadUInt32(out requestId))
+        if (((flags & NetworkFrameFlags.HasRequestId) == NetworkFrameFlags.HasRequestId) && !TryReadUInt32(out requestId))
         {
             return FrameDecodeResult.InvalidFrameEncoding;
         }
 
-        if (flags.HasFlag(NetworkFrameFlags.HasRequestType) && !TryReadUInt32(out requestType))
+        if (((flags & NetworkFrameFlags.HasRequestType) == NetworkFrameFlags.HasRequestType) && !TryReadUInt32(out requestType))
         {
             return FrameDecodeResult.InvalidFrameEncoding;
         }
 
-        if (flags.HasFlag(NetworkFrameFlags.HasResponseType) && !TryReadUInt32(out responseType))
+        if (((flags & NetworkFrameFlags.HasResponseType) == NetworkFrameFlags.HasResponseType) && !TryReadUInt32(out responseType))
         {
             return FrameDecodeResult.InvalidFrameEncoding;
         }
 
-        if (flags.HasFlag(NetworkFrameFlags.HasStreamId) && !TryReadUInt32(out streamId))
+        if (((flags & NetworkFrameFlags.HasStreamId) == NetworkFrameFlags.HasStreamId) && !TryReadUInt32(out streamId))
         {
             return FrameDecodeResult.InvalidFrameEncoding;
         }
 
-        if (flags.HasFlag(NetworkFrameFlags.HasStreamType) && !TryReadUInt32(out streamType))
+        if (((flags & NetworkFrameFlags.HasStreamType) == NetworkFrameFlags.HasStreamType) && !TryReadUInt32(out streamType))
         {
             return FrameDecodeResult.InvalidFrameEncoding;
         }
@@ -199,6 +188,17 @@ public sealed partial class DefaultNetworkFrameCodec : INetworkFrameCodec
             {
                 return FrameDecodeResult.InvalidFrameEncoding;
             }
+
+            // Invariant / Limitation:
+            // Transport decoding must provide the entire frame payload as a single
+            // contiguous buffer segment. DefaultNetworkFrameCodec does not support
+            // multi-segment payloads.
+            if (mem.Length != remaining)
+            {
+                throw new InvalidOperationException(
+                    "Pipeline invariant violated: NetworkFrame payload must be contained in a single buffer segment.");
+            }
+
             payload = mem.Slice(0, (int)remaining).ToArray();
             inputReader.Advance((int)remaining);
         }

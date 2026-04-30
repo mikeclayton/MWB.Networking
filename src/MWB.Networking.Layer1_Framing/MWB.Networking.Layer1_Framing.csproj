@@ -7,16 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Helpers\**" />
-    <EmbeddedResource Remove="Helpers\**" />
-    <None Remove="Helpers\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Remove="Pipeline.Core.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Codec\MWB.Networking.Layer1_Framing.Codec.csproj" />
   </ItemGroup>
 

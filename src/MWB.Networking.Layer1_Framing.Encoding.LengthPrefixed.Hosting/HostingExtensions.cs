@@ -5,11 +5,13 @@ namespace MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
 
 public static class HostingExtensions
 {
-    public static NetworkPipelineBuilder UseLengthPrefixedCodec(this NetworkPipelineBuilder factory, ILogger logger)
+    public static INetworkPipelineBuildStage UseLengthPrefixedTransport(
+            this INetworkPipelineCodecStage builder,
+            ILogger logger,
+            int maxFrameSize = 16 * 1024 * 1024)
     {
-        return factory.AppendFrameCodec(
-            encoder: new LengthPrefixedFrameEncoder(logger),
-            decoder: new LengthPrefixedFrameDecoder(logger)
+        return builder.UseTransportCodec(
+            () => new LengthPrefixedFrameCodec(logger, maxFrameSize)
         );
     }
 }
