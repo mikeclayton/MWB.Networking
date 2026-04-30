@@ -31,7 +31,7 @@ public sealed class LengthPrefixedFrameEncoder
         // ------------------------------------------------------------
         // 1. Observe payload segments and compute total length
         // ------------------------------------------------------------
-        var bytesRemaining = inputReader.Length - inputReader.Position;
+        var bytesRemaining = inputReader.Length;
 
         if (bytesRemaining < 0 || bytesRemaining > int.MaxValue)
         {

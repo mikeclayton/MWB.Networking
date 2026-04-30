@@ -32,7 +32,7 @@ public sealed partial class DefautNetworkFrameCodec : INetworkFrameCodec
         if (frame.StreamId.HasValue) headerLength += 4;
         if (frame.StreamType.HasValue) headerLength += 4;
 
-        // ---- 4. Write header ------------------------------------------
+        // ---- 3. Write header ------------------------------------------
 
         var header = new byte[headerLength];
         var span = header.AsSpan(0, headerLength);
