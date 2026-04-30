@@ -1,155 +1,132 @@
-﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer0_Transport;
-using MWB.Networking.Layer1_Framing.Encoding.Abstractions;
-using MWB.Networking.Layer1_Framing.Frames;
+﻿using MWB.Networking.Layer0_Transport.Encoding;
+using MWB.Networking.Layer1_Framing.Codec;
+using MWB.Networking.Layer1_Framing.Codec.Abstractions;
+using MWB.Networking.Layer1_Framing.Codec.Buffer;
+using MWB.Networking.Layer1_Framing.Codec.Frames;
 using System.Buffers;
 
 namespace MWB.Networking.Layer1_Framing.Pipeline;
 
 /// <summary>
-/// Passive Layer‑1 pipeline.
-/// Encapsulates byte <-> frame transformation capabilities,
-/// but does not own execution policy or control flow.
+/// Composes a network framing pipeline from codecs.
+/// Owns ordering, buffering, and direction, but not execution or transport.
 /// </summary>
-public sealed class NetworkPipeline : IDisposable
+public sealed class NetworkPipeline
 {
+    private readonly INetworkFrameCodec _networkFrameCodec;
+    private readonly IReadOnlyList<IFrameCodec> _frameCodecs;
+    private readonly ITransportCodec _transportCodec;
+
     public NetworkPipeline(
-        ILogger logger,
-        INetworkConnection connection,
-        NetworkFrameWriter frameWriter,
-        NetworkFrameReader frameReader,
-        IFrameDecoder rootDecoder)
+        INetworkFrameCodec networkFrameCodec,
+        IReadOnlyList<IFrameCodec> frameCodecs,
+        ITransportCodec transportCodec)
     {
-        this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        this.Connection = connection ?? throw new ArgumentNullException(nameof(connection));
-        this.FrameWriter = frameWriter ?? throw new ArgumentNullException(nameof(frameWriter));
-        this.FrameReader = frameReader ?? throw new ArgumentNullException(nameof(frameReader));
-        this.RootDecoder = rootDecoder ?? throw new ArgumentNullException(nameof(rootDecoder));
+        _networkFrameCodec = networkFrameCodec
+            ?? throw new ArgumentNullException(nameof(networkFrameCodec));
+        _frameCodecs = frameCodecs
+            ?? throw new ArgumentNullException(nameof(frameCodecs));
+        _transportCodec = transportCodec
+            ?? throw new ArgumentNullException(nameof(transportCodec));
     }
 
-    public ILogger Logger
-    {
-        get;
-    }
-
-    // ------------------------------------------------------------
-    // Internal wiring (Layer 1 topology)
-    // ------------------------------------------------------------
+    // --------------------------------------------------------------------
+    // Encode: NetworkFrame -> ByteSegments
+    // --------------------------------------------------------------------
 
     /// <summary>
-    /// Gets the underlying network transport used by this pipeline.
+    /// Encodes a single network frame into transport-ready byte segments.
     /// </summary>
-    /// <remarks>
-    /// The returned <see cref="INetworkConnection"/> represents the
-    /// byte-level transport. Ownership and disposal of the connection
-    /// are determined by the component that created the pipeline.
-    /// </remarks>
-    internal INetworkConnection Connection
+    public ByteSegments Encode(NetworkFrame frame)
     {
-        get;
+        using var buffer = new CodecBuffer();
+
+        var writer = buffer.Writer;
+        var reader = buffer.Reader;
+
+        // Step 1: semantic frame -> framed bytes
+        _networkFrameCodec.Encode(frame, writer);
+
+        // Step 2: framing codecs (forward order)
+        foreach (var codec in _frameCodecs)
+        {
+            codec.Encode(reader, writer);
+        }
+
+        // Step 3: framing -> transport bytes
+        _transportCodec.Encode(reader, writer);
+
+        // Emit segment-preserving transport payload
+        return buffer.ToByteSegments();
     }
+
+    // --------------------------------------------------------------------
+    // Decode: transport bytes -> NetworkFrame
+    // --------------------------------------------------------------------
 
     /// <summary>
-    /// Gets the entry point of the outbound encoding pipeline.
+    /// Attempts to decode a single network frame from transport bytes.
+    /// Advances the input sequence only on success.
     /// </summary>
-    /// <remarks>
-    /// Frames written here enter the Layer 1 encoding pipeline, where they
-    /// are transformed into bytes and forwarded to the underlying transport.
-    /// This marks the boundary between higher-layer frame semantics and
-    /// byte-level network transmission.
-    internal NetworkFrameWriter FrameWriter
+    public FrameDecodeResult Decode(
+       ref ReadOnlySequence<byte> transportBytes,
+       out NetworkFrame? frame)
     {
-        get;
-    }
+        frame = null;
 
-    /// <summary>
-    /// Gets the exit point of the inbound decoding pipeline for decoded frames.
-    /// </summary>
-    /// <remarks>
-    /// Frames delivered here have passed through the entire Layer 1
-    /// decoding pipeline and are ready for consumption by higher layers.
-    /// </remarks>
-    internal NetworkFrameReader FrameReader
-    {
-        get;
-    }
+        // Work on a local copy so transport consumption is atomic
+        var current = transportBytes;
 
-    /// <summary>
-    /// Gets the entry point of the inbound decoding pipeline.
-    /// </summary>
-    /// All inbound bytes read from the underlying transport must enter
-    /// the Layer 1 decoding pipeline through this decoder. The decoding
-    /// pipeline transforms raw bytes into logical frames, which are then
-    /// delivered through the pipeline to its exit point for consumption
-    /// by higher layers.
-    internal IFrameDecoder RootDecoder
-    {
-        get;
-    }
+        // ------------------------------------------------------
+        // Step 1: Transport boundary → framed bytes
+        // ------------------------------------------------------
+        if (!_transportCodec.TryDecode(
+                ref current,
+                out ReadOnlyMemory<byte> framedBytes))
+        {
+            // Not enough transport bytes yet
+            return FrameDecodeResult.Success; // <- important: caller must retry later
+        }
 
-    // ------------------------------------------------------------
-    // Public execution capabilities (called by ProtocolDriver)
-    // ------------------------------------------------------------
+        // Seed a pipeline buffer with the framed bytes
+        using var buffer = new CodecBuffer();
+        buffer.Writer.Write(framedBytes);
+        buffer.Writer.Complete();
 
-    /// <summary>
-    /// Reads raw bytes from the underlying transport.
-    /// Returns the number of bytes read; 0 indicates EOF.
-    /// </summary>
-    public ValueTask<int> ReadBytesAsync(
-        Memory<byte> buffer,
-        CancellationToken ct = default)
-    {
-        return this.Connection.ReadAsync(buffer, ct);
-    }
+        var reader = buffer.Reader;
 
-    /// <summary>
-    /// Feeds a sequence of bytes into the decoding pipeline.
-    /// Any fully decoded frames are delivered to the internal FrameReader.
-    /// </summary>
-    public ValueTask DecodeFrameAsync(
-        ReadOnlySequence<byte> bytes,
-        CancellationToken ct = default)
-    {
-        return this.RootDecoder.DecodeFrameAsync(bytes, this.FrameReader, ct);
-    }
+        // ------------------------------------------------------
+        // Step 2: Frame codecs (reverse order)
+        // ------------------------------------------------------
+        foreach (var codec in Enumerable.Reverse(_frameCodecs))
+        {
+            using var nextBuffer = new CodecBuffer();
 
-    /// <summary>
-    /// Signals end‑of‑input to the decoding pipeline.
-    /// Causes any buffered partial frames to be flushed or discarded
-    /// according to decoder semantics.
-    /// </summary>
-    public ValueTask CompleteDecodingAsync(
-        CancellationToken ct = default)
-    {
-        return this.RootDecoder.CompleteAsync(this.FrameReader, ct);
-    }
+            var frameResult = codec.Decode(reader, nextBuffer.Writer);
+            if (frameResult != FrameDecodeResult.Success)
+            {
+                return frameResult; // InvalidFrameEncoding
+            }
 
-    /// <summary>
-    /// Reads the next decoded NetworkFrame.
-    /// Blocks until a frame is available or cancellation is requested.
-    /// </summary>
-    public Task<NetworkFrame> ReadFrameAsync(
-        CancellationToken ct = default)
-    {
-        return this.FrameReader.ReadFrameAsync(ct);
-    }
+            nextBuffer.Writer.Complete();
+            reader = nextBuffer.Reader;
+        }
 
-    /// <summary>
-    /// Writes a single NetworkFrame into the outbound encoding pipeline.
-    /// Completion indicates the frame has been handed off to the transport sink.
-    /// </summary>
-    public ValueTask WriteFrameAsync(
-        NetworkFrame frame,
-        CancellationToken ct = default)
-    {
-        ArgumentNullException.ThrowIfNull(frame);
-        return this.FrameWriter.WriteAsync(frame, ct);
-    }
+        // ------------------------------------------------------
+        // Step 3: Semantic frame decode
+        // ------------------------------------------------------
 
+        var networkFrameResult = _networkFrameCodec.Decode(reader, out frame);
+        if (networkFrameResult != FrameDecodeResult.Success)
+        {
+            // Structural failure: bytes cannot materialise a NetworkFrame
+            return networkFrameResult;
+        }
 
-    public void Dispose()
-    {
-        // Stop accepting new frames (if needed)
-        this.Connection.Dispose();
+        // ------------------------------------------------------
+        // Commit transport consumption
+        // ------------------------------------------------------
+        transportBytes = current;
+        return FrameDecodeResult.Success;
     }
 }

@@ -1,26 +1,19 @@
 ﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer0_Transport.Encoding;
-using MWB.Networking.Layer1_Framing.Encoding.Abstractions;
-using MWB.Networking.Layer1_Framing.Encoding.Helpers;
+using MWB.Networking.Layer1_Framing.Codec.Exceptions;
 using System.Buffers;
 using System.Buffers.Binary;
 
 namespace MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
 
-public sealed class LengthPrefixedFrameDecoder : IFrameDecoder, IDisposable
+public sealed class LengthPrefixedFrameDecoder
 {
-    private readonly DecoderBuffer _buffer;
     private readonly int _maxFrameSize;
-
-    private int? _expectedPayloadLength;
-    private bool _completed;
 
     public LengthPrefixedFrameDecoder(ILogger logger, int maxFrameSize = 16 * 1024 * 1024)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFrameSize);
 
         this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _buffer = new DecoderBuffer();
         _maxFrameSize = maxFrameSize;
     }
 
@@ -32,136 +25,63 @@ public sealed class LengthPrefixedFrameDecoder : IFrameDecoder, IDisposable
     // ─────────────────────────────────────────────────────────────
     // Decode
     // ─────────────────────────────────────────────────────────────
-    // NOTE: intentionally non-async; returns ValueTask for efficiency
-    public ValueTask DecodeFrameAsync(
-        ReadOnlySequence<byte> input,
-        IFrameDecoderSink output,
-        CancellationToken ct)
+
+
+    /// <summary>
+    /// Attempts to extract a single length-prefixed frame from the
+    /// transport byte stream.
+    ///
+    /// Returns false if more bytes are required.
+    /// Throws <see cref="TransportDecodeException"/> if the stream
+    /// is provably invalid and cannot ever be decoded.
+    /// </summary>
+    public bool TryDecode(
+        ref ReadOnlySequence<byte> inputBytes,
+        out ReadOnlyMemory<byte> payload)
     {
-        if (_completed)
+        payload = default;
+
+        // Need at least 4 bytes for the length prefix
+        if (inputBytes.Length < 4)
         {
-            throw new InvalidOperationException(
-                "DecodeFrameAsync called after decoder completion.");
+            return false; // need more bytes
         }
 
-        // Append all incoming segments into the decoder buffer
-        foreach (var segment in input)
+        // Read the 4-byte big-endian length prefix (may span segments)
+        Span<byte> prefix = stackalloc byte[4];
+        inputBytes.Slice(0, 4).CopyTo(prefix);
+
+        var payloadLength =
+            BinaryPrimitives.ReadInt32BigEndian(prefix);
+
+        // Provably invalid framing → fatal transport error
+        if (payloadLength < 0 || payloadLength > _maxFrameSize)
         {
-            _buffer.Append(segment.Span);
+            throw new TransportDecodeException(
+                $"Invalid length-prefixed frame size: {payloadLength}");
         }
 
-        this.Logger.LogDebug(
-            "[DECODER] {DecoderType} Appended {ByteCount} bytes, buffer now has {BufferedBytes}",
-            nameof(LengthPrefixedFrameDecoder),
-            input.Length,
-            _buffer.Count);
+        var totalFrameLength = 4L + payloadLength;
 
-        // Attempt to decode as many complete frames as possible
-        while (true)
+        // Do we have the full frame yet?
+        if (inputBytes.Length < totalFrameLength)
         {
-            ct.ThrowIfCancellationRequested();
-
-            // Step 1: parse length prefix if not already known
-            if (_expectedPayloadLength is null)
-            {
-                if (_buffer.Count < 4)
-                {
-                    this.Logger.LogDebug(
-                        "[DECODER] {DecoderType} Waiting for length prefix (buffer has {BufferedBytes})\",",
-                        nameof(LengthPrefixedFrameDecoder),
-                        _buffer.Count);
-
-                    // need more data
-                    return ValueTask.CompletedTask;
-                }
-
-                _expectedPayloadLength =
-                    BinaryPrimitives.ReadInt32BigEndian(
-                        _buffer.Span.Slice(0, 4));
-
-                if (_expectedPayloadLength < 0 ||
-                    _expectedPayloadLength > _maxFrameSize)
-                {
-                    throw new InvalidDataException(
-                        $"Invalid frame length: {_expectedPayloadLength}");
-                }
-
-                _buffer.Consume(4);
-            }
-
-            // Step 2: wait for full payload
-            if (_buffer.Count < _expectedPayloadLength.Value)
-            {
-                this.Logger.LogDebug(
-                    "[DECODER] {DecoderType} Waiting for payload: need {Expected}, have {Buffered}",
-                    nameof(LengthPrefixedFrameDecoder),
-                    _expectedPayloadLength.Value,
-                    _buffer.Count);
-
-                // need more data
-                return ValueTask.CompletedTask;
-            }
-
-            // Step 3: emit decoded frame
-            var payloadLength = _expectedPayloadLength.Value;
-            var payloadSpan = _buffer.Span.Slice(0, payloadLength);
-
-            // Copy out payload before mutating buffer
-            var payload = new ByteSegments(payloadSpan.ToArray());
-
-            _buffer.Consume(payloadLength);
-            _expectedPayloadLength = null;
-
-            // Emit decoded frame
-            // IMPORTANT: do NOT return — loop may decode more frames
-            this.Logger.LogDebug(
-                "[DECODER] {DecoderType} Emitting decoded frame with payload size {PayloadSize}",
-                nameof(LengthPrefixedFrameDecoder),
-                payloadLength);
-
-            var writeTask = output.OnFrameDecodedAsync(payload, ct);
-            this.Logger.LogDebug(
-                "[DECODER] {DecoderType} Sink returned IsCompletedSuccessfully = {Completed}",
-                nameof(LengthPrefixedFrameDecoder),
-                writeTask.IsCompletedSuccessfully);
-
-            // If the sink goes async, pause decoding
-            if (!writeTask.IsCompletedSuccessfully)
-            {
-                return writeTask;
-            }
-        }
-    }
-
-    // ─────────────────────────────────────────────────────────────
-    // Completion
-    // ─────────────────────────────────────────────────────────────
-    public ValueTask CompleteAsync(
-        IFrameDecoderSink output,
-        CancellationToken ct)
-    {
-        if (_completed)
-        {
-            return ValueTask.CompletedTask;
+            return false; // need more bytes
         }
 
-        _completed = true;
+        // Slice out the payload (after the length prefix)
+        ReadOnlySequence<byte> payloadSequence =
+            inputBytes.Slice(4, payloadLength);
 
-        ct.ThrowIfCancellationRequested();
+        // Ensure the payload is a single ReadOnlyMemory<byte>
+        // (copy only if necessary)
+        payload = payloadSequence.IsSingleSegment
+            ? payloadSequence.First
+            : payloadSequence.ToArray();
 
-        // Any buffered data at EOF is a protocol violation
-        if (_expectedPayloadLength is not null || _buffer.Count > 0)
-        {
-            throw new InvalidDataException(
-                "End-of-stream encountered with incomplete length-prefixed frame.");
-        }
+        // Consume the frame atomically
+        inputBytes = inputBytes.Slice(totalFrameLength);
 
-        // Nothing to flush — framing guarantees whole-frame delivery
-        return ValueTask.CompletedTask;
-    }
-
-    public void Dispose()
-    {
-        _buffer.Dispose();
+        return true;
     }
 }

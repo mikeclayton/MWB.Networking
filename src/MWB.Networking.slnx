@@ -21,7 +21,7 @@
     <Project Path="MWB.Networking.Layer0_Transport.Tcp/MWB.Networking.Layer0_Transport.Tcp.csproj" Id="78981be3-8731-4c50-977e-5e909ccae117" />
   </Folder>
   <Folder Name="/Layer1_Framing/">
-    <Project Path="MWB.Networking.Layer1_Framing.Encoding/MWB.Networking.Layer1_Framing.Encoding.csproj" Id="30741abf-4df6-4519-867d-54cbcfb3c48d" />
+    <Project Path="MWB.Networking.Layer1_Framing.Codec/MWB.Networking.Layer1_Framing.Codec.csproj" />
     <Project Path="MWB.Networking.Layer1_Framing.Hosting/MWB.Networking.Layer1_Framing.Hosting.csproj" Id="e86ef206-4680-45d4-abcd-d26fea680357" />
     <Project Path="MWB.Networking.Layer1_Framing/MWB.Networking.Layer1_Framing.csproj" Id="8b879f3a-b934-4559-8297-7fac9bd0ec82" />
   </Folder>
@@ -31,7 +31,8 @@
     <Project Path="MWB.Networking.Layer1_Framing.Encoding.Gzip/MWB.Networking.Layer1_Framing.Encoding.Gzip.csproj" Id="4b18d4a8-eeea-4198-9ac6-d190db47bb4c" />
     <Project Path="MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting/MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting.csproj" Id="79ce122f-4753-4fce-bbf7-f2b1e93e1148" />
     <Project Path="MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed/MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.csproj" Id="a14a7403-e753-4aee-945f-8d1b7e1346c3" />
-    <Project Path="MWB.Networking.Layer1_Framing.Encoding.NullEncoder/MWB.Networking.Layer1_Framing.Encoding.NullEncoder.csproj" />
+    <Project Path="MWB.Networking.Layer1_Framing.Encoding.NullEncoder/MWB.Networking.Layer1_Framing.Encoding.NullCodec.csproj" />
+    <Project Path="MWB.Networking.Layer1_Framing.NullEncoder.Hosting/MWB.Networking.Layer1_Framing.NullEncoder.Hosting.csproj" Id="cf0d72be-0e0d-4d22-b80a-18f4932edd5f" />
   </Folder>
   <Folder Name="/Layer1_Framing/Implementations/Hosting/">
     <Project Path="MWB.Networking.Layer1_Framing.Hosting.Manual/MWB.Networking.Layer1_Framing.Hosting.Manual.csproj" Id="69f64cfa-799f-4910-9dc5-61eb0bd0f001" />

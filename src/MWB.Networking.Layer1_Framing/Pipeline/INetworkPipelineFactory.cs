@@ -2,5 +2,5 @@
 
 public interface INetworkPipelineFactory
 {
-    Task<NetworkPipeline> CreatePipelineAsync(CancellationToken ct);
+    NetworkPipeline CreatePipeline();
 }

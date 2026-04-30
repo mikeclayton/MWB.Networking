@@ -21,7 +21,7 @@ public readonly struct ByteSegments
         get;
     }
 
-    public ByteSegments Collapse()
+    internal ByteSegments Collapse()
     {
         // Fast path: already a single segment
         if (this.Segments.Length <= 1)
@@ -30,7 +30,7 @@ public readonly struct ByteSegments
         }
 
         // Calculate total length
-        int totalLength = 0;
+        var totalLength = 0;
         foreach (var segment in Segments)
         {
             totalLength += segment.Length;
@@ -41,7 +41,7 @@ public readonly struct ByteSegments
         var destination = buffer.AsSpan();
 
         // Copy segments
-        int offset = 0;
+        var offset = 0;
         foreach (var segment in this.Segments)
         {
             segment.Span.CopyTo(destination.Slice(offset));

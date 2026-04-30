@@ -3,7 +3,7 @@
 /// <summary>
 /// Encapsulates the protocol lifecycle rules for a Request, its Response,
 /// and an optional Request-scoped Stream into a state machine that can be
-/// used to guard attemps at protocol level operations.
+/// used to guard attempts at protocol level operations.
 ///
 /// If an operation is invalid in the current state the machine will throw
 /// an exception, which can be translated into a protocol error response

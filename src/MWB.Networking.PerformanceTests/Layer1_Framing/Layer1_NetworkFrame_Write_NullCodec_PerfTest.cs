@@ -1,15 +1,16 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Memory;
-using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
 using MWB.Networking.Layer1_Framing.Frames;
 using MWB.Networking.Layer1_Framing.Hosting;
+using MWB.Networking.Layer1_Framing.Hosting.NullTransport;
+using MWB.Networking.Layer1_Framing.NullEncoder.Hosting;
 using MWB.Networking.PerformanceTests;
 using System.Diagnostics;
 
 namespace Layer1_Framing;
 
 [TestClass]
-public sealed partial class Memory
+public sealed partial class NullCodec
 {
     public TestContext TestContext
     {
@@ -37,14 +38,14 @@ public sealed partial class Memory
     /// it demonstrates that Layer 0 and framing is not a bottleneck.
     /// </summary>
     [TestMethod]
-    public async Task Layer1_NetworkFrame_Write_InMemory_PerfTest()
+    public async Task Layer1_NetworkFrame_Write_NullCodec_PerfTest()
     {
         const int FrameCount = 1_000_000;
 
         var logger = NullLogger.Instance;
 
         // ------------------------------------------------------------
-        // Arrange: duplex in-memory transport + framing pipeline
+        // Arrange: null transport + framing pipeline
         // ------------------------------------------------------------
 
         // We'll write frames from A; B is unused in this test
@@ -55,8 +56,8 @@ public sealed partial class Memory
         var pipeline =
             await new NetworkPipelineBuilder()
                 .UseLogger(logger)
-                .UseLengthPrefixedCodec(logger)
-                .UseConnectionProvider(providerA)
+                .UseNullCodec()
+                .UseNullConnectionProvider(logger)
                 .CreatePipelineAsync(TestContext.CancellationToken);
 
         var payload = new ReadOnlyMemory<byte>(

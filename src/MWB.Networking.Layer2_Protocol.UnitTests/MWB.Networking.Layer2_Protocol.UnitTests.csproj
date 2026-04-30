@@ -12,7 +12,7 @@
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Pipes\MWB.Networking.Layer0_Transport.Pipes.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed\MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.csproj" />
-    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Encoding.NullEncoder\MWB.Networking.Layer1_Framing.Encoding.NullEncoder.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Encoding.NullEncoder\MWB.Networking.Layer1_Framing.Encoding.NullCodec.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Hosting.Manual\MWB.Networking.Layer1_Framing.Hosting.Manual.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer2_Protocol\MWB.Networking.Layer2_Protocol.csproj" />
   </ItemGroup>

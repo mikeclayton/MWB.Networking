@@ -1,4 +1,4 @@
-﻿namespace MWB.Networking.Layer1_Framing.Frames;
+﻿namespace MWB.Networking.Layer1_Framing.Codec.Frames;
 
 /// <summary>
 /// Keep this in sync with ProtocolFrameKind.

@@ -1,11 +1,10 @@
 ﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer0_Transport.Encoding;
-using MWB.Networking.Layer1_Framing.Encoding.Abstractions;
+using MWB.Networking.Layer1_Framing.Codec.Buffer;
 using System.Buffers.Binary;
 
 namespace MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed;
 
-public sealed class LengthPrefixedFrameEncoder : IFrameEncoder
+public sealed class LengthPrefixedFrameEncoder
 {
     public LengthPrefixedFrameEncoder(ILogger logger)
     {
@@ -17,49 +16,70 @@ public sealed class LengthPrefixedFrameEncoder : IFrameEncoder
         get;
     }
 
-    // should *not* be async
-    public ValueTask EncodeFrameAsync(
-        ByteSegments input,
-        IFrameEncoderSink output,
-        CancellationToken ct)
+    /// <summary>
+    /// Encodes a single, complete input value into one or more output segments.
+    /// This method is synchronous and must not block or await.
+    /// </summary>
+    /// <remarks>
+    /// Must *not* be async
+    /// </remarks>
+
+    public void Encode(
+        ICodecBufferReader inputReader,
+        ICodecBufferWriter outputWriter)
     {
-        // 1. compute payload length
-        var length = 0;
-        foreach (var segment in input.Segments)
+        // ------------------------------------------------------------
+        // 1. Observe payload segments and compute total length
+        // ------------------------------------------------------------
+        var bytesRemaining = inputReader.Length - inputReader.Position;
+
+        if (bytesRemaining < 0 || bytesRemaining > int.MaxValue)
         {
-            length += segment.Length;
+            throw new InvalidOperationException(
+                $"Invalid payload length: {bytesRemaining}");
         }
 
-        // 2. allocate prefix (4 bytes, big-endian)
-        var prefix = new byte[4];
-        BinaryPrimitives.WriteInt32BigEndian(prefix, length);
+        var payloadLength = (int)bytesRemaining;
 
-        // 3. emit [prefix] + original segments (no copying)
-        var outSegments = new ReadOnlyMemory<byte>[input.Segments.Length + 1];
-        outSegments[0] = prefix;
+        // ------------------------------------------------------------
+        // 2. Write 4-byte big-endian length prefix
+        // ------------------------------------------------------------
+        Span<byte> prefix = stackalloc byte[4];
+        BinaryPrimitives.WriteInt32BigEndian(prefix, payloadLength);
+        outputWriter.Write(prefix);
 
-        // given:
-        //
-        // input.Segments:
-        //   [segmentA -> bytes 0..99 ]
-        //   [segmentB -> bytes 100..999 ]
-        //
-        // we end up with:
-        //
-        // outSegments:
-        //    [length prefix -> new byte[4] ]
-        //    [segmentA -> same bytes 0..99 ]
-        //    [segmentB -> same bytes 100..999 ]
+        // ------------------------------------------------------------
+        // 3. Write payload (zero-copy)
+        // ------------------------------------------------------------
 
-        Array.Copy(
-            input.Segments,
-            0,
-            outSegments,
-            1,
-            input.Segments.Length);
+        var expected = payloadLength;
+        var copied = 0L;
+        while (inputReader.TryRead(out var memory))
+        {
+            // make sure we don't overrun the expected length
+            // (should never happen if the input reader is well-behaved)
+            copied = checked(copied + memory.Length);
+            if (copied > expected)
+            {
+                throw new InvalidOperationException(
+                    $"Encoder invariant violated: expected {expected} bytes but consumed at least {copied}.");
+            }
 
-        return output.OnFrameEncodedAsync(
-            new ByteSegments(outSegments),
-            ct);
+            outputWriter.Write(memory.Span);
+            inputReader.Advance(memory.Length);
+        }
+
+        // final check for payload length underrun
+        // (should never happen if the input reader is well-behaved)
+        if (copied != payloadLength)
+        {
+            throw new InvalidOperationException(
+                $"Encoder invariant violated: expected {expected} bytes but consumed {copied}.");
+        }
+
+        // ------------------------------------------------------------
+        // 4. Consume input
+        // ------------------------------------------------------------
+        inputReader.Advance(payloadLength);
     }
 }

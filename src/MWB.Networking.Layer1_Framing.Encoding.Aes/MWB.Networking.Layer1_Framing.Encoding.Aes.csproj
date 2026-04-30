@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Encoding\MWB.Networking.Layer1_Framing.Encoding.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Codec\MWB.Networking.Layer1_Framing.Codec.csproj" />
   </ItemGroup>
 
 </Project>

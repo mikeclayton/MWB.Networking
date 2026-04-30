@@ -10,8 +10,9 @@ internal sealed class SegmentedMemoryBuffer : IDisposable
 {
     private readonly ConcurrentQueue<byte[]> _segments = new();
     private readonly SemaphoreSlim _dataAvailable = new(0);
-    private bool _completed;
-    private bool _disposed;
+
+    private volatile bool _completed;
+    private volatile bool _disposed;
 
     public SegmentedMemoryBuffer()
     {
