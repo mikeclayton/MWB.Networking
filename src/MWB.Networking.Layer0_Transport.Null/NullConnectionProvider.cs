@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer0_Transport.Abstractions;
+using MWB.Networking.Layer0_Transport.Stack;
 
 namespace MWB.Networking.Layer0_Transport.NullTransport;
 
@@ -15,17 +17,18 @@ public sealed class NullConnectionProvider
         get;
     }
 
-    private static INetworkConnection Connection
-    {
-        get;
-    } = new NullConnection();
 
-    public Task<LogicalConnectionHandle> OpenConnectionAsync(CancellationToken ct)
+    public Task<INetworkConnection> OpenConnectionAsync(
+           ObservableConnectionStatus status,
+           CancellationToken ct)
     {
-        // opening a null connection is instantaneous and side-effect free.
-        // Cancellation is irrelevant here.
-        var handle = LogicalConnectionFactory.Create(this.Logger);
-        return Task.FromResult(handle);
+        // Instantaneous, side-effect free
+        var connection = new NullConnection(status);
+
+        // Signal that wiring is complete
+        connection.OnStarted();
+
+        return Task.FromResult<INetworkConnection>(connection);
     }
 
     public void Dispose()

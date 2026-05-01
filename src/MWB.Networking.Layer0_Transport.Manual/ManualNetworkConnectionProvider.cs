@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer0_Transport.Abstractions;
+using MWB.Networking.Layer0_Transport.Stack;
 
 namespace MWB.Networking.Layer0_Transport.Manual;
 
@@ -6,81 +8,52 @@ namespace MWB.Networking.Layer0_Transport.Manual;
 /// Deterministic, manually driven test implementation of
 /// <see cref="INetworkConnectionProvider"/>.
 ///
-/// Intended for unit tests that need explicit control over
-/// connection attachment, replacement, and disconnection,
-/// without background activity or timing dependencies.
+/// Returns a <see cref="ManualNetworkConnection"/> whose behavior
+/// is fully controlled by the test.
 /// </summary>
 public sealed class ManualNetworkConnectionProvider
     : INetworkConnectionProvider, IDisposable
 {
-    private readonly LogicalConnectionHandle _handle;
-    private INetworkConnection? _pendingConnection;
+    private readonly ILogger _logger;
     private bool _disposed;
 
     public ManualNetworkConnectionProvider(ILogger logger)
     {
-        ArgumentNullException.ThrowIfNull(logger);
-        _handle = LogicalConnectionFactory.Create(logger);
-    }
-
-    public ManualNetworkConnectionProvider(
-        ILogger logger,
-        INetworkConnection connection)
-        : this(logger)
-    {
-        _pendingConnection = connection ?? throw new ArgumentNullException(nameof(connection));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <summary>
-    /// Exposes the logical connection handle for wiring protocol sessions in tests.
+    /// Gets the most recently created manual connection.
+    /// Tests use this to drive lifecycle and I/O deterministically.
     /// </summary>
-    public LogicalConnectionHandle Handle => _handle;
+    public ManualNetworkConnection? Connection
+    {
+        get;
+        private set;
+    }
 
-    /// <inheritdoc />
-    public Task<LogicalConnectionHandle> OpenConnectionAsync(
+    public Task<INetworkConnection> OpenConnectionAsync(
+        ObservableConnectionStatus status,
         CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         ThrowIfDisposed();
 
-        if (_pendingConnection is not null)
-        {
-            _handle.Control.Attach(_pendingConnection);
-            _pendingConnection = null;
-        }
+        var connection = new ManualNetworkConnection(status);
 
-        return Task.FromResult(_handle);
+        // Expose to test code
+        Connection = connection;
+
+        // NOTE:
+        // We deliberately do NOT call OnStarted() here.
+        // Tests control exactly *when* the connection becomes connected.
+        //
+        // If you want auto-start behavior, uncomment:
+        //
+        // connection.OnStarted();
+
+        return Task.FromResult<INetworkConnection>(connection);
     }
-
-    // ------------------------------------------------------------
-    // Test instrumentation
-    // ------------------------------------------------------------
-
-    /// <summary>
-    /// Attaches a physical network connection to the logical connection.
-    /// Equivalent to a provider accepting or establishing a connection.
-    /// </summary>
-    public void Attach(INetworkConnection connection)
-    {
-        ArgumentNullException.ThrowIfNull(connection);
-        ThrowIfDisposed();
-        _handle.Control.Attach(connection);
-    }
-
-    /// <summary>
-    /// Replaces the currently attached physical connection with a new one.
-    /// Uses the same attach mechanism as production providers.
-    /// </summary>
-    public void Replace(INetworkConnection connection)
-    {
-        ArgumentNullException.ThrowIfNull(connection);
-        ThrowIfDisposed();
-        _handle.Control.Attach(connection);
-    }
-
-    // ------------------------------------------------------------
-    // Disposal
-    // ------------------------------------------------------------
 
     public void Dispose()
     {
@@ -88,9 +61,7 @@ public sealed class ManualNetworkConnectionProvider
             return;
 
         _disposed = true;
-
-        // Terminate the logical connection and any active protocol sessions.
-        _handle.Connection.Dispose();
+        Connection?.Dispose();
     }
 
     private void ThrowIfDisposed()

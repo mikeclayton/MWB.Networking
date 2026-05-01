@@ -1,4 +1,6 @@
-﻿using MWB.Networking.Layer0_Transport.Encoding;
+﻿using MWB.Networking.Layer0_Transport.Abstractions;
+using MWB.Networking.Layer0_Transport.Encoding;
+using MWB.Networking.Layer0_Transport.Stack;
 using System.Collections.Concurrent;
 using System.Threading.Channels;
 
@@ -7,14 +9,16 @@ namespace MWB.Networking.Layer0_Transport.Manual;
 /// <summary>
 /// Deterministic, manually driven test implementation of <see cref="INetworkConnection"/>.
 ///
-/// Contains no read or write loops or background processes - every action it takes
-/// must be triggered by a method call.
+/// Contains no background threads or I/O loops. All behavior is
+/// explicitly controlled by test code.
 ///
-/// Intended for protocol and transport unit tests that need explicit control
-/// over reads, writes, and disconnection behavior.
+/// Supports explicit lifecycle signaling via <see cref="OnStarted"/> and
+/// <see cref="Disconnect"/>.
 /// </summary>
-public sealed class ManualNetworkConnection : INetworkConnection
+public sealed class ManualNetworkConnection : INetworkConnection, IDisposable
 {
+    private readonly ObservableConnectionStatus _status;
+
     private readonly Channel<ReadOnlyMemory<byte>> _readChannel =
         Channel.CreateUnbounded<ReadOnlyMemory<byte>>(
             new UnboundedChannelOptions
@@ -23,11 +27,51 @@ public sealed class ManualNetworkConnection : INetworkConnection
                 SingleWriter = false
             });
 
-    private readonly ConcurrentQueue<ByteSegments> _writes =
-        new();
+    private readonly ConcurrentQueue<ByteSegments> _writes = new();
 
-    private volatile bool _isDisconnected;
-    private volatile bool _isDisposed;
+    private bool _started;
+    private bool _isDisconnected;
+    private bool _isDisposed;
+
+    public ManualNetworkConnection(ObservableConnectionStatus status)
+    {
+        _status = status ?? throw new ArgumentNullException(nameof(status));
+    }
+
+    // ------------------------------------------------------------------
+    // Lifecycle (explicit, deterministic)
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// Signals that the connection has started.
+    /// Test code controls when this occurs.
+    /// </summary>
+    internal void OnStarted()
+    {
+        if (_started)
+            return;
+
+        _started = true;
+
+        _status.OnConnecting();
+        _status.OnConnected();
+    }
+
+    /// <summary>
+    /// Forces the connection into a disconnected (EOF) state.
+    /// All subsequent reads return 0.
+    /// </summary>
+    public void Disconnect(string? reason = null)
+    {
+        if (_isDisconnected)
+            return;
+
+        _isDisconnected = true;
+
+        _readChannel.Writer.TryComplete();
+
+        _status.OnDisconnected();
+    }
 
     // ------------------------------------------------------------------
     // INetworkConnection implementation
@@ -38,9 +82,7 @@ public sealed class ManualNetworkConnection : INetworkConnection
         CancellationToken ct)
     {
         if (_isDisposed || _isDisconnected)
-        {
             return 0; // EOF
-        }
 
         ReadOnlyMemory<byte> data;
         try
@@ -62,47 +104,36 @@ public sealed class ManualNetworkConnection : INetworkConnection
         ByteSegments segments,
         CancellationToken ct)
     {
-        ObjectDisposedException.ThrowIf(_isDisposed, nameof(ManualNetworkConnection));
+        ObjectDisposedException.ThrowIf(
+            _isDisposed,
+            nameof(ManualNetworkConnection));
 
         if (_isDisconnected)
-        {
-            throw new InvalidOperationException("Connection is disconnected.");
-        }
+            throw new InvalidOperationException(
+                "Connection is disconnected.");
 
         _writes.Enqueue(segments);
         return ValueTask.CompletedTask;
     }
 
-    public void Dispose()
-    {
-        _isDisposed = true;
-        _readChannel.Writer.TryComplete();
-    }
-
     // ------------------------------------------------------------------
-    // Test instrumentation (out-of-band control)
+    // Test instrumentation
     // ------------------------------------------------------------------
 
     /// <summary>
-    /// Injects raw bytes that will be returned by the next <see cref="ReadAsync"/> call.
+    /// Injects raw bytes that will be returned by the next
+    /// <see cref="ReadAsync"/> call.
     /// </summary>
     public void InjectFrame(ReadOnlyMemory<byte> frame)
     {
-        if (_isDisposed) return;
+        if (_isDisposed || _isDisconnected)
+            return;
+
         _readChannel.Writer.TryWrite(frame);
     }
 
     /// <summary>
-    /// Forces the connection into an EOF state. All subsequent reads return 0.
-    /// </summary>
-    public void Disconnect()
-    {
-        _isDisconnected = true;
-        _readChannel.Writer.TryComplete();
-    }
-
-    /// <summary>
-    /// Returns all data written through <see cref="WriteAsync"/> so far.
+    /// Returns all data written via <see cref="WriteAsync"/>.
     /// </summary>
     public IReadOnlyCollection<ByteSegments> GetWrites()
         => _writes.ToArray();
@@ -111,4 +142,19 @@ public sealed class ManualNetworkConnection : INetworkConnection
     /// Indicates whether the connection has been manually disconnected.
     /// </summary>
     public bool IsDisconnected => _isDisconnected;
+
+    // ------------------------------------------------------------------
+    // Disposal
+    // ------------------------------------------------------------------
+
+    public void Dispose()
+    {
+        if (_isDisposed)
+            return;
+
+        _isDisposed = true;
+
+        _readChannel.Writer.TryComplete();
+        _status.OnDisconnected();
+    }
 }

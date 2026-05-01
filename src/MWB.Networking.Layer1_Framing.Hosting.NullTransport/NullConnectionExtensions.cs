@@ -5,16 +5,16 @@ namespace MWB.Networking.Layer1_Framing.Hosting.NullTransport;
 
 public static class NullConnectionExtensions
 {
-    public static NetworkPipelineBuilder UseNullConnectionProvider(
-        this NetworkPipelineBuilder pipeline,
-        ILogger logger)
-    {
-        ArgumentNullException.ThrowIfNull(logger);
+    //public static NetworkPipelineBuilder UseNullConnectionProvider(
+    //    this NetworkPipelineBuilder pipeline,
+    //    ILogger logger)
+    //{
+    //    ArgumentNullException.ThrowIfNull(logger);
 
-        var provider = new NullConnectionProvider(logger);
+    //    var provider = new NullConnectionProvider(logger);
 
-        pipeline.UseConnectionProvider(provider);
+    //    pipeline.UseConnectionProvider(provider);
 
-        return pipeline;
-    }
+    //    return pipeline;
+    //}
 }

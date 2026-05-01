@@ -1,31 +1,59 @@
-﻿using MWB.Networking.Layer0_Transport.Encoding;
+﻿using MWB.Networking.Layer0_Transport.Abstractions;
+using MWB.Networking.Layer0_Transport.Encoding;
+using MWB.Networking.Layer0_Transport.Stack;
 
 namespace MWB.Networking.Layer0_Transport.NullTransport;
 
 public sealed class NullConnection : INetworkConnection
 {
-    public ValueTask<int> ReadAsync(
-        Memory<byte> buffer,
-        CancellationToken ct)
+    private readonly ObservableConnectionStatus _status;
+    private bool _started;
+    private bool _disposed;
+
+    public NullConnection(ObservableConnectionStatus status)
     {
-        // Immediately signal EOF: no inbound data
-        return new ValueTask<int>(0);
+        _status = status ?? throw new ArgumentNullException(nameof(status));
+    }
+
+    /// <summary>
+    /// Called once wiring is complete.
+    /// Null connections are immediately usable.
+    /// </summary>
+    internal void OnStarted()
+    {
+        if (_started)
+            return;
+
+        _started = true;
+
+        _status.OnConnecting();
+        _status.OnConnected();
+    }
+
+
+    public ValueTask<int> ReadAsync(
+            Memory<byte> buffer,
+            CancellationToken ct)
+    {
+        // End-of-stream immediately
+        return ValueTask.FromResult(0);
     }
 
     public ValueTask WriteAsync(
         ByteSegments segments,
         CancellationToken ct)
     {
-        // Discard all outbound bytes
-        return ValueTask.CompletedTask;
-    }
-
-    public ValueTask CompleteAsync()
-    {
+        // Discard silently
         return ValueTask.CompletedTask;
     }
 
     public void Dispose()
     {
+        if (_disposed)
+            return;
+
+        _disposed = true;
+
+        _status.OnDisconnected();
     }
 }

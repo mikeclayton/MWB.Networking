@@ -1,80 +1,61 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using MWB.Networking.Layer0_Transport.Abstractions;
+using MWB.Networking.Layer0_Transport.Memory.Buffer;
+using MWB.Networking.Layer0_Transport.Stack;
 
 namespace MWB.Networking.Layer0_Transport.Memory;
 
 /// <summary>
-/// Provides one end of a duplex, buffered, in-memory network connection.
-/// Intended for tests and single-process protocol harnesses.
+/// Network connection provider that exposes one side of an
+/// in-memory full-duplex transport.
 /// </summary>
+/// <remarks>
+/// This provider is lifecycle-agnostic. It binds an
+/// <see cref="ObservableConnectionStatus"/> to the selected
+/// <see cref="InMemoryConnection"/> and signals that the
+/// connection has started.
+/// </remarks>
 public sealed class InMemoryNetworkConnectionProvider
-    : INetworkConnectionProvider, IDisposable
+    : INetworkConnectionProvider
 {
-    private readonly ILogger _logger;
-    private readonly InMemoryConnectionPair _pair;
-    private readonly Side _side;
+    private readonly SegmentedDuplexBuffer _buffer;
+    private readonly SegmentedDuplexBufferSide _side;
+
     private bool _opened;
 
-    private InMemoryNetworkConnectionProvider(
-        ILogger logger,
-        InMemoryConnectionPair pair,
-        Side side)
+    public InMemoryNetworkConnectionProvider(
+        SegmentedDuplexBuffer buffer,
+        SegmentedDuplexBufferSide side)
     {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _pair = pair ?? throw new ArgumentNullException(nameof(pair));
+        _buffer = buffer ?? throw new ArgumentNullException(nameof(buffer));
         _side = side;
     }
 
-    /// <summary>
-    /// Creates two paired providers representing opposite ends
-    /// of a single duplex in-memory transport.
-    /// </summary>
-    public static (
-        InMemoryNetworkConnectionProvider ProviderA,
-        InMemoryNetworkConnectionProvider ProviderB)
-        CreateDuplexProviders(ILogger logger)
+    public Task<INetworkConnection> OpenConnectionAsync(
+        ObservableConnectionStatus status,
+        CancellationToken ct)
     {
-        var pair = new InMemoryConnectionPair();
+        ct.ThrowIfCancellationRequested();
 
-        return (
-            new InMemoryNetworkConnectionProvider(logger, pair, Side.A),
-            new InMemoryNetworkConnectionProvider(logger, pair, Side.B)
-        );
-    }
-
-    /// <summary>
-    /// Opens the in-memory connection. May only be called once.
-    /// </summary>
-    public Task<LogicalConnectionHandle> OpenConnectionAsync(
-        CancellationToken cancellationToken = default)
-    {
-        if (Interlocked.Exchange(ref _opened, true))
-        {
+        if (_opened)
             throw new InvalidOperationException(
-                "InMemoryNetworkConnectionProvider can only open one connection.");
-        }
+                "This provider can only open one connection instance.");
 
-        cancellationToken.ThrowIfCancellationRequested();
+        _opened = true;
 
-        var connection =
-            _side == Side.A
-                ? _pair.ConnectionAtoB
-                : _pair.ConnectionBtoA;
+        var connection = _buffer.GetConnection(_side);
 
-        var handle = LogicalConnectionFactory.Create(_logger);
-        handle.Control.Attach(connection);
+        // Bind lifecycle state for this connection attempt
+        connection.BindStatus(status);
 
-        return Task.FromResult(handle);
+        // Signal that wiring is complete and the connection is usable
+        connection.OnStarted();
+
+        return Task.FromResult<INetworkConnection>(connection);
     }
 
     public void Dispose()
     {
-        // Provider owns no resources beyond the logical handle.
-        // Pair lifetime is shared and managed externally.
-    }
-
-    private enum Side
-    {
-        A,
-        B
+        // Intentionally no-op.
+        // The TransportStack owns connection lifetime.
     }
 }
