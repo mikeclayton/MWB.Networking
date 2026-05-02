@@ -1,6 +1,6 @@
 ﻿using MWB.Networking.Layer1_Framing.Codec.Abstractions;
 
-namespace MWB.Networking.Layer1_Framing.Hosting;
+namespace MWB.Networking.Layer1_Framing.Pipeline.Hosting;
 
 public sealed class NetworkPipelineBuilder
 {

@@ -13,8 +13,7 @@
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Pipes\MWB.Networking.Layer0_Transport.Pipes.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport\MWB.Networking.Layer0_Transport.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Hosting.Manual\MWB.Networking.Layer1_Framing.Hosting.Manual.csproj" />
-    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Hosting\MWB.Networking.Layer1_Framing.Hosting.csproj" />
-    <ProjectReference Include="..\MWB.Networking.Layer1_Framing\MWB.Networking.Layer1_Framing.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Pipeline\MWB.Networking.Layer1_Framing.Pipeline.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer2_Protocol\MWB.Networking.Layer2_Protocol.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer3_Endpoint.Hosting\MWB.Networking.Layer3_Endpoint.Hosting.csproj" />
   </ItemGroup>

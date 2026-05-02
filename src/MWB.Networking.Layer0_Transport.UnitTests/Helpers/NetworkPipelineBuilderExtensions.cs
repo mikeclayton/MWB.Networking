@@ -1,5 +1,6 @@
 ﻿using MWB.Networking.Layer1_Framing.Hosting;
 using MWB.Networking.Layer1_Framing.Pipeline;
+using MWB.Networking.Layer1_Framing.Pipeline.Hosting;
 
 namespace MWB.Networking.Layer0_Transport.UnitTests.Helpers;
 

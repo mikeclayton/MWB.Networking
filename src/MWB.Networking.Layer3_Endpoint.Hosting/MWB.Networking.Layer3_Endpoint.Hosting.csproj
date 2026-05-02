@@ -12,8 +12,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Hosting\MWB.Networking.Layer1_Framing.Hosting.csproj" />
-    <ProjectReference Include="..\MWB.Networking.Layer1_Framing\MWB.Networking.Layer1_Framing.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer2_Protocol\MWB.Networking.Layer2_Protocol.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer3_Endpoint\MWB.Networking.Layer3_Endpoint.csproj" />
   </ItemGroup>

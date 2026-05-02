@@ -1,4 +1,4 @@
-﻿<Project Sdk="MSTest.Sdk/4.2.1">
+<Project Sdk="MSTest.Sdk/4.2.1">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
@@ -6,5 +6,10 @@
     <Nullable>enable</Nullable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Memory\MWB.Networking.Layer0_Transport.Memory.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer0_Transport\MWB.Networking.Layer0_Transport.csproj" />
+  </ItemGroup>
 
 </Project>

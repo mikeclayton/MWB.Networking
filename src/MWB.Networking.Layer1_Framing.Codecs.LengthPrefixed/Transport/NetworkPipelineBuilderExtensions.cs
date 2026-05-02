@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer1_Framing.Hosting;
+using MWB.Networking.Layer1_Framing.Pipeline.Hosting;
 
 namespace MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.Transport;
 
