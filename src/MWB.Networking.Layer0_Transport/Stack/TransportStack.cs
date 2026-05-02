@@ -1,4 +1,5 @@
 ﻿using MWB.Networking.Layer0_Transport.Abstractions;
+using MWB.Networking.Layer0_Transport.Encoding;
 using MWB.Networking.Layer0_Transport.Internal;
 
 namespace MWB.Networking.Layer0_Transport.Stack;
@@ -14,10 +15,18 @@ public sealed partial class TransportStack : IDisposable
     // Construction
     // -----------------------------
 
+    private readonly INetworkConnectionProvider _connectionProvider;
+    private readonly object _sync = new();
+
+    private LogicalConnection? _logicalConnection;
+    private ObservableConnectionStatus? _status;
+    private bool _disposed;
+
     public TransportStack(
         INetworkConnectionProvider connectionProvider)
     {
-        throw new NotImplementedException();
+        _connectionProvider =
+            connectionProvider ?? throw new ArgumentNullException(nameof(connectionProvider));
     }
 
     /// <summary>
@@ -28,7 +37,13 @@ public sealed partial class TransportStack : IDisposable
     {
         get
         {
-            throw new NotImplementedException();
+            lock (_sync)
+            {
+                if (_logicalConnection is null)
+                    throw new InvalidOperationException("Transport is not connected.");
+
+                return _logicalConnection;
+            }
         }
     }
 
@@ -39,10 +54,50 @@ public sealed partial class TransportStack : IDisposable
     /// <summary>
     /// Establishes a new network connection using the configured provider.
     /// </summary>
-    public Task ConnectAsync(
+    public async Task ConnectAsync(
         CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException();
+        ThrowIfDisposed();
+
+        ObservableConnectionStatus status;
+        INetworkConnection physicalConnection;
+        LogicalConnection logical;
+
+        lock (_sync)
+        {
+            if (_logicalConnection is not null)
+            {
+                throw new InvalidOperationException("Transport is already connected.");
+            }
+
+            status = new ObservableConnectionStatus();
+            _status = status;
+        }
+
+        // Request a physical connection attempt
+        physicalConnection =
+            await _connectionProvider
+                .OpenConnectionAsync(status, cancellationToken)
+                .ConfigureAwait(false);
+
+        // Create the logical connection
+        logical = new LogicalConnection(physicalConnection, status);
+
+        // Wire lifecycle events
+        status.Connected += OnConnected;
+        status.Disconnected += OnDisconnected;
+        status.Faulted += OnFaulted;
+
+        lock (_sync)
+        {
+            if (_disposed)
+            {
+                logical.Dispose();
+                throw new ObjectDisposedException(nameof(TransportStack));
+            }
+
+            _logicalConnection = logical;
+        }
     }
 
     /// <summary>
@@ -51,7 +106,29 @@ public sealed partial class TransportStack : IDisposable
     public Task DisconnectAsync(
         CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException();
+        ThrowIfDisposed();
+
+        LogicalConnection? logical;
+        ObservableConnectionStatus? status;
+
+        lock (_sync)
+        {
+            logical = _logicalConnection;
+            status = _status;
+
+            _logicalConnection = null;
+            _status = null;
+        }
+
+        if (status is not null)
+        {
+            status.Connected -= OnConnected;
+            status.Disconnected -= OnDisconnected;
+            status.Faulted -= OnFaulted;
+        }
+
+        logical?.Dispose();
+        return Task.CompletedTask;
     }
 
     // -----------------------------
@@ -64,15 +141,15 @@ public sealed partial class TransportStack : IDisposable
     public ValueTask<int> ReadAsync(
         Memory<byte> buffer,
         CancellationToken cancellationToken = default)
-        => throw new NotImplementedException();
+        => this.LogicalConnection.ReadAsync(buffer, cancellationToken);
 
     /// <summary>
     /// Asynchronously writes bytes to the connection.
     /// </summary>
     public ValueTask WriteAsync(
-        ReadOnlyMemory<byte> buffer,
+        ByteSegments segments,
         CancellationToken cancellationToken = default)
-        => throw new NotImplementedException();
+        => this.LogicalConnection.WriteAsync(segments, cancellationToken);
 
     // -----------------------------
     // Events
@@ -86,12 +163,29 @@ public sealed partial class TransportStack : IDisposable
     /// <summary>
     /// Raised when the connection is closed or lost.
     /// </summary>
-    public event EventHandler<TransportDisconnectedEventArgs>? Disconnected;
+    public event EventHandler? Disconnected;
 
     /// <summary>
     /// Raised when a fatal transport error occurs.
     /// </summary>
     public event EventHandler<TransportFaultedEventArgs>? Faulted;
+
+    private void OnConnected(object? sender, EventArgs e)
+        => this.Connected?.Invoke(this, EventArgs.Empty);
+
+    private void OnDisconnected(object? sender, EventArgs e)
+    {
+        lock (_sync)
+        {
+            _logicalConnection = null;
+            _status = null;
+        }
+
+        this.Disconnected?.Invoke(this, e);
+    }
+
+    private void OnFaulted(object? sender, TransportFaultedEventArgs e)
+        => this.Faulted?.Invoke(this, e);
 
     // -----------------------------
     // Disposal
@@ -99,6 +193,19 @@ public sealed partial class TransportStack : IDisposable
 
     public void Dispose()
     {
-        throw new NotImplementedException();
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
+        this.DisconnectAsync().GetAwaiter().GetResult();
+        _connectionProvider.Dispose();
+    }
+
+    private void ThrowIfDisposed()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, nameof(TransportStack));
     }
 }
