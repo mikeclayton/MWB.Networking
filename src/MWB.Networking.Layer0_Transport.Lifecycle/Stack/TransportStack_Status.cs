@@ -1,4 +1,4 @@
-﻿namespace MWB.Networking.Layer0_Transport.Stack;
+﻿namespace MWB.Networking.Layer0_Transport.Lifecycle.Stack;
 
 public sealed partial class TransportStack
 {
@@ -9,14 +9,14 @@ public sealed partial class TransportStack
     /// <summary>
     /// Gets the current connection status.
     /// </summary>
-    private ObservableConnectionStatus Status
+    private ObservableConnectionStatus? Status
     {
         get;
         set;
     }
 
-    public TransportConnectionState State
-        => this.Status.State;
+    public TransportConnectionState? State
+        => this.Status?.State;
 
     /// <summary>
     /// True if the stack is currently connected.

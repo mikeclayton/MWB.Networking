@@ -1,6 +1,6 @@
 ﻿using MWB.Networking.Layer0_Transport.Encoding;
 
-namespace MWB.Networking.Layer0_Transport.Abstractions;
+namespace MWB.Networking.Layer0_Transport.Lifecycle.Abstractions;
 
 /// <summary>
 /// Represents a low‑level, transport‑oriented network connection that

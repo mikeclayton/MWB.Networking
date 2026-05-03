@@ -8,7 +8,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Null\MWB.Networking.Layer0_Transport.NullTransport.csproj" />
-    <ProjectReference Include="..\MWB.Networking.Layer0_Transport\MWB.Networking.Layer0_Transport.csproj" />
   </ItemGroup>
 
 </Project>

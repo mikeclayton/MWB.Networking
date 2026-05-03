@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer0_Transport.Abstractions;
-using MWB.Networking.Layer0_Transport.Stack;
+using MWB.Networking.Layer0_Transport.Lifecycle.Abstractions;
+using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
 
 namespace MWB.Networking.Layer0_Transport.Manual;
 
@@ -37,12 +37,12 @@ public sealed class ManualNetworkConnectionProvider
         CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        ThrowIfDisposed();
+        this.ThrowIfDisposed();
 
         var connection = new ManualNetworkConnection(status);
 
         // Expose to test code
-        Connection = connection;
+        this.Connection = connection;
 
         // NOTE:
         // We deliberately do NOT call OnStarted() here.
@@ -58,10 +58,12 @@ public sealed class ManualNetworkConnectionProvider
     public void Dispose()
     {
         if (_disposed)
+        {
             return;
+        }
 
         _disposed = true;
-        Connection?.Dispose();
+        this.Connection?.Dispose();
     }
 
     private void ThrowIfDisposed()

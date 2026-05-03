@@ -1,8 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer0_Transport.Abstractions;
-using MWB.Networking.Layer0_Transport.Manual;
-
-namespace MWB.Networking.Layer1_Framing.Hosting.Manual;
+﻿namespace MWB.Networking.Layer1_Framing.Hosting.Manual;
 
 public static class ManualConnectionExtensions
 {

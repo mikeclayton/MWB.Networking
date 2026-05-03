@@ -1,6 +1,6 @@
-﻿using MWB.Networking.Layer0_Transport.Stack;
+﻿using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
 
-namespace MWB.Networking.Layer0_Transport.Abstractions;
+namespace MWB.Networking.Layer0_Transport.Lifecycle.Abstractions;
 
 /// <summary>
 /// Factory for establishing a network connection.

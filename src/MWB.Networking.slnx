@@ -10,8 +10,8 @@
     <Project Path="MWB.Networking.Logging/MWB.Networking.Logging.csproj" Id="a225f23f-606c-4428-b899-9fc80975b21d" />
   </Folder>
   <Folder Name="/Layer0_Transport/">
+    <Project Path="MWB.Networking.Layer0_Transport.Lifecycle/MWB.Networking.Layer0_Transport.Lifecycle.csproj" />
     <Project Path="MWB.Networking.Layer0_Transport.Primitives/MWB.Networking.Layer0_Transport.Encoding.csproj" Id="6324e246-ef26-49e3-ac3c-c2ed0b87848f" />
-    <Project Path="MWB.Networking.Layer0_Transport/MWB.Networking.Layer0_Transport.csproj" Id="43b50a0d-5307-4b82-8dac-592025422df0" />
   </Folder>
   <Folder Name="/Layer0_Transport/Connections/">
     <Project Path="MWB.Networking.Layer0_Transport.Manual/MWB.Networking.Layer0_Transport.Manual.csproj" />

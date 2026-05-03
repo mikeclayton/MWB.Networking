@@ -12,7 +12,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Manual\MWB.Networking.Layer0_Transport.Manual.csproj" />
-    <ProjectReference Include="..\MWB.Networking.Layer0_Transport\MWB.Networking.Layer0_Transport.csproj" />
   </ItemGroup>
 
 </Project>

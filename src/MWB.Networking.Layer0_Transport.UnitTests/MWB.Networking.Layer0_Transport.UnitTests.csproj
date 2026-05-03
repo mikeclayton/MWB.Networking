@@ -11,7 +11,6 @@
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Manual\MWB.Networking.Layer0_Transport.Manual.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Memory\MWB.Networking.Layer0_Transport.Memory.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Pipes\MWB.Networking.Layer0_Transport.Pipes.csproj" />
-    <ProjectReference Include="..\MWB.Networking.Layer0_Transport\MWB.Networking.Layer0_Transport.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Hosting.Manual\MWB.Networking.Layer1_Framing.Hosting.Manual.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Pipeline\MWB.Networking.Layer1_Framing.Pipeline.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer2_Protocol\MWB.Networking.Layer2_Protocol.csproj" />

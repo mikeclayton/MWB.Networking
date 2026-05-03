@@ -39,10 +39,7 @@ public sealed class ProtocolRuntimeFactory : IProtocolRuntimeFactory
         // 1. Build Layer 1 pipeline
         // ------------------------------------------------------------
 
-        var pipeline =
-            await _pipelineFactory
-                .CreatePipelineAsync(cancellationToken)
-                .ConfigureAwait(false);
+        var pipeline = _pipelineFactory.CreatePipeline();
 
         // ------------------------------------------------------------
         // 2. Create protocol session (pure semantics)

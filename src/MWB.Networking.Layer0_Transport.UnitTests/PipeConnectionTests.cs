@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
+using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
 using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer0_Transport.UnitTests.Helpers;
 using MWB.Networking.Layer1_Framing.Codec.Frames;
@@ -46,10 +47,13 @@ public class PipeConnectionTests
             // ------------------------------------------------------------
             // Build server session
             // ------------------------------------------------------------
+            var serverStatus = new ObservableConnectionStatus();
+
             using var serverConnection = new PipeNetworkConnection(
                 logger: logger,
                 reader: serverPipe.Reader,
-                writer: clientPipe.Writer);
+                writer: clientPipe.Writer,
+                status: serverStatus);
 
             var requestTcs =
                 new TaskCompletionSource<(IncomingRequest Request, ReadOnlyMemory<byte> Payload)>(
@@ -79,7 +83,10 @@ public class PipeConnectionTests
             // ------------------------------------------------------------
             // Build client session
             // ------------------------------------------------------------
+            var clientStatus = new ObservableConnectionStatus();
+
             var clientConnection = new PipeNetworkConnection(
+                status: clientStatus,
                 logger: logger,
                 reader: clientPipe.Reader,
                 writer: serverPipe.Writer);
@@ -158,15 +165,19 @@ public class PipeConnectionTests
                 resumeWriterThreshold: 1024 * 1024 * 50));
             var serverToClient = new Pipe();
 
+            var clientStatus = new ObservableConnectionStatus();
             var clientConnection = new PipeNetworkConnection(
                 logger: logger,
                 reader: serverToClient.Reader,
-                writer: clientToServer.Writer);
+                writer: clientToServer.Writer,
+                status: clientStatus);
 
+            var serverStatus = new ObservableConnectionStatus();
             var serverConnection = new PipeNetworkConnection(
                 logger: logger,
                 reader: clientToServer.Reader,
-                writer: serverToClient.Writer);
+                writer: serverToClient.Writer,
+                status: serverStatus);
 
             // ----------------------------
             // Build client pipeline
@@ -264,15 +275,19 @@ public class PipeConnectionTests
             var clientToServer = new Pipe();
             var serverToClient = new Pipe();
 
+            var clientStatus = new ObservableConnectionStatus();
             var clientConnection = new PipeNetworkConnection(
                 logger: logger,
                 reader: serverToClient.Reader,
-                writer: clientToServer.Writer);
+                writer: clientToServer.Writer,
+                status: clientStatus);
 
+            var serverStatus = new ObservableConnectionStatus();
             var serverConnection = new PipeNetworkConnection(
                 logger: logger,
                 reader: clientToServer.Reader,
-                writer: serverToClient.Writer);
+                writer: serverToClient.Writer,
+                status: serverStatus);
 
             // -------------------------------------------------
             // Build sessions (NOT started yet)

@@ -1,5 +1,5 @@
+using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
 using MWB.Networking.Layer0_Transport.Memory.UnitTests.Helpers;
-using MWB.Networking.Layer0_Transport.Stack;
 
 namespace MWB.Networking.Layer0_Transport.Memory.UnitTests;
 

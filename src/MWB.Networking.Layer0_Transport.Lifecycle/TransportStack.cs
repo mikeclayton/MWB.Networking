@@ -1,8 +1,9 @@
-﻿using MWB.Networking.Layer0_Transport.Abstractions;
-using MWB.Networking.Layer0_Transport.Encoding;
-using MWB.Networking.Layer0_Transport.Internal;
+﻿using MWB.Networking.Layer0_Transport.Encoding;
+using MWB.Networking.Layer0_Transport.Lifecycle.Abstractions;
+using MWB.Networking.Layer0_Transport.Lifecycle.Internal;
+using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
 
-namespace MWB.Networking.Layer0_Transport.Stack;
+namespace MWB.Networking.Layer0_Transport.Lifecycle;
 
 /// <summary>
 /// Orchestrates the lifecycle of a network transport connection.
@@ -84,9 +85,9 @@ public sealed partial class TransportStack : IDisposable
         logical = new LogicalConnection(physicalConnection, status);
 
         // Wire lifecycle events
-        status.Connected += OnConnected;
-        status.Disconnected += OnDisconnected;
-        status.Faulted += OnFaulted;
+        status.Connected += this.OnConnected;
+        status.Disconnected += this.OnDisconnected;
+        status.Faulted += this.OnFaulted;
 
         lock (_sync)
         {
@@ -106,7 +107,7 @@ public sealed partial class TransportStack : IDisposable
     public Task DisconnectAsync(
         CancellationToken cancellationToken = default)
     {
-        ThrowIfDisposed();
+        this.ThrowIfDisposed();
 
         LogicalConnection? logical;
         ObservableConnectionStatus? status;

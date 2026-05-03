@@ -1,8 +1,8 @@
-﻿using MWB.Networking.Layer0_Transport.Abstractions;
-using MWB.Networking.Layer0_Transport.Encoding;
-using MWB.Networking.Layer0_Transport.Stack;
+﻿using MWB.Networking.Layer0_Transport.Encoding;
+using MWB.Networking.Layer0_Transport.Lifecycle.Abstractions;
+using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
 
-namespace MWB.Networking.Layer0_Transport.Internal;
+namespace MWB.Networking.Layer0_Transport.Lifecycle.Internal;
 
 /// <summary>
 /// Provides a short‑lived logical I/O surface over a single physical

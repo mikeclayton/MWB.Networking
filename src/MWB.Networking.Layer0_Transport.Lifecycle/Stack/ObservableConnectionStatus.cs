@@ -1,4 +1,4 @@
-﻿namespace MWB.Networking.Layer0_Transport.Stack;
+﻿namespace MWB.Networking.Layer0_Transport.Lifecycle.Stack;
 
 public sealed class ObservableConnectionStatus
 {
