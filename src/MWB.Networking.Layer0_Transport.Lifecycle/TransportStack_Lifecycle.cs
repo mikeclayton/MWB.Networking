@@ -47,9 +47,6 @@ public sealed partial class TransportStack
         => this.Faulted?.Invoke(this, e);
 
     /// <summary>
-    /// Establishes a new network connection using the configured provider.
-    /// </summary>
-    /// <summary>
     /// Initiates a new transport connection attempt using the configured provider.
     /// This method starts the connection lifecycle but does not wait for the
     /// Connected state; callers that require a ready transport should call

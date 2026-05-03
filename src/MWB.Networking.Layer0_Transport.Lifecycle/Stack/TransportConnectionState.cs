@@ -31,7 +31,6 @@ public enum TransportConnectionState
 
     /// <summary>
     /// The connection has failed due to an error.
-    /// A transition to Disconnected is expected next.
     /// </summary>
     Faulted = 4
 }

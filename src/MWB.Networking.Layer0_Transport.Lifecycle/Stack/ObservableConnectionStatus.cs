@@ -6,13 +6,37 @@ public sealed class ObservableConnectionStatus
 {
     private readonly object _sync = new();
 
+    /// <summary>
+    /// The current lifecycle state. Starts at Disconnected to represent
+    /// "not yet connected", not a terminal outcome.
+    /// </summary>
     private TransportConnectionState _state =
         TransportConnectionState.Disconnected;
 
     public TransportConnectionState State
     {
-        get { lock (_sync) return _state; }
+        get
+        {
+            lock (_sync)
+            {
+                return _state;
+            }
+        }
     }
+
+    /// <summary>
+    /// Indicates whether this lifecycle has reached a terminal outcome
+    /// (Disconnected or Faulted). This flag is monotonic: once set, it
+    /// never resets.
+    ///
+    /// We cannot infer terminality from the state enum alone because
+    /// Disconnected is both the initial and a terminal state.
+    /// </summary>
+    private bool _hasTerminated;
+
+    // -----------------------------
+    // Events
+    // -----------------------------
 
     public event EventHandler? Connecting;
     public event EventHandler? Connected;
@@ -20,29 +44,31 @@ public sealed class ObservableConnectionStatus
     public event EventHandler<TransportDisconnectedEventArgs>? Disconnected;
     public event EventHandler<TransportFaultedEventArgs>? Faulted;
 
-    // ---------- Observation API ----------
+    // -----------------------------
+    // Lifecycle methods
+    // -----------------------------
 
     public void OnConnecting()
     {
-        Transition(
+        this.Transition(
             expected: TransportConnectionState.Disconnected,
-            next: TransportConnectionState.Connecting,
+            newState: TransportConnectionState.Connecting,
             onTransition: () => Connecting?.Invoke(this, EventArgs.Empty));
     }
 
     public void OnConnected()
     {
-        Transition(
+        this.Transition(
             expected: TransportConnectionState.Connecting,
-            next: TransportConnectionState.Connected,
+            newState: TransportConnectionState.Connected,
             onTransition: () => Connected?.Invoke(this, EventArgs.Empty));
     }
 
     public void OnDisconnecting()
     {
-        Transition(
+        this.Transition(
             expected: TransportConnectionState.Connected,
-            next: TransportConnectionState.Disconnecting,
+            newState: TransportConnectionState.Disconnecting,
             onTransition: () => Disconnecting?.Invoke(this, EventArgs.Empty));
     }
 
@@ -50,58 +76,68 @@ public sealed class ObservableConnectionStatus
 
     public void OnDisconnected(TransportDisconnectedEventArgs e)
     {
-        TransitionToTerminal(
+        Terminal(
             TransportConnectionState.Disconnected,
             () => Disconnected?.Invoke(this, e));
     }
 
     public void OnFaulted(TransportFaultedEventArgs e)
     {
-        TransitionToTerminal(
+        Terminal(
             TransportConnectionState.Faulted,
             () => Faulted?.Invoke(this, e));
     }
 
-    // ---------- Helpers ----------
+    // -----------------------------
+    // Transition helpers
+    // -----------------------------
 
+    /// <summary>
+    /// Performs a non-terminal state transition (e.g. Connecting, Connected).
+    /// Transitions are ignored once a terminal outcome has occurred.
+    /// </summary>
     private void Transition(
         TransportConnectionState expected,
-        TransportConnectionState next,
+        TransportConnectionState newState,
         Action onTransition)
     {
         lock (_sync)
         {
-            if (IsTerminal(_state))
+            if (_hasTerminated)
+            {
                 return;
-
-            if (_state == next)
-                return;
-
+            }
             if (_state != expected)
+            {
                 return; // tolerate late / racing signals
-
-            _state = next;
+            }
+            if (_state == newState)
+            {
+                // avoid duplicate transition events
+                return;
+            }
+            _state = newState;
         }
-
         onTransition();
     }
 
-    private void TransitionToTerminal(
+    /// <summary>
+    /// Performs a terminal state transition (Disconnected or Faulted).
+    /// Only the first terminal transition is honored.
+    /// </summary>
+    private void Terminal(
         TransportConnectionState terminal,
         Action onTransition)
     {
         lock (_sync)
         {
-            if (IsTerminal(_state))
+            if (_hasTerminated)
+            {
                 return;
-
+            }
+            _hasTerminated = true;
             _state = terminal;
         }
-
         onTransition();
     }
-
-    private static bool IsTerminal(TransportConnectionState state) =>
-        state == TransportConnectionState.Disconnected ||
-        state == TransportConnectionState.Faulted;
 }
