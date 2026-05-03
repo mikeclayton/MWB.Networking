@@ -20,7 +20,6 @@ public sealed partial class TransportStack : IDisposable
     private readonly object _sync = new();
 
     private LogicalConnection? _logicalConnection;
-    private ObservableConnectionStatus? _status;
     private bool _disposed;
 
     public TransportStack(
@@ -49,90 +48,6 @@ public sealed partial class TransportStack : IDisposable
     }
 
     // -----------------------------
-    // Lifecycle operations
-    // -----------------------------
-
-    /// <summary>
-    /// Establishes a new network connection using the configured provider.
-    /// </summary>
-    public async Task ConnectAsync(
-        CancellationToken cancellationToken = default)
-    {
-        ThrowIfDisposed();
-
-        ObservableConnectionStatus status;
-        INetworkConnection physicalConnection;
-        LogicalConnection logical;
-
-        lock (_sync)
-        {
-            if (_logicalConnection is not null)
-            {
-                throw new InvalidOperationException("Transport is already connected.");
-            }
-
-            status = new ObservableConnectionStatus();
-            _status = status;
-        }
-
-        // Request a physical connection attempt
-        physicalConnection =
-            await _connectionProvider
-                .OpenConnectionAsync(status, cancellationToken)
-                .ConfigureAwait(false);
-
-        // Create the logical connection
-        logical = new LogicalConnection(physicalConnection, status);
-
-        // Wire lifecycle events
-        status.Connected += this.OnConnected;
-        status.Disconnected += this.OnDisconnected;
-        status.Faulted += this.OnFaulted;
-
-        lock (_sync)
-        {
-            if (_disposed)
-            {
-                logical.Dispose();
-                throw new ObjectDisposedException(nameof(TransportStack));
-            }
-
-            _logicalConnection = logical;
-        }
-    }
-
-    /// <summary>
-    /// Gracefully disconnects the current connection.
-    /// </summary>
-    public Task DisconnectAsync(
-        CancellationToken cancellationToken = default)
-    {
-        this.ThrowIfDisposed();
-
-        LogicalConnection? logical;
-        ObservableConnectionStatus? status;
-
-        lock (_sync)
-        {
-            logical = _logicalConnection;
-            status = _status;
-
-            _logicalConnection = null;
-            _status = null;
-        }
-
-        if (status is not null)
-        {
-            status.Connected -= OnConnected;
-            status.Disconnected -= OnDisconnected;
-            status.Faulted -= OnFaulted;
-        }
-
-        logical?.Dispose();
-        return Task.CompletedTask;
-    }
-
-    // -----------------------------
     // Byte I/O surface
     // -----------------------------
 
@@ -153,53 +68,16 @@ public sealed partial class TransportStack : IDisposable
         => this.LogicalConnection.WriteAsync(segments, cancellationToken);
 
     // -----------------------------
-    // Events
-    // -----------------------------
-
-    /// <summary>
-    /// Raised when the connection is successfully established.
-    /// </summary>
-    public event EventHandler? Connected;
-
-    /// <summary>
-    /// Raised when the connection is closed or lost.
-    /// </summary>
-    public event EventHandler? Disconnected;
-
-    /// <summary>
-    /// Raised when a fatal transport error occurs.
-    /// </summary>
-    public event EventHandler<TransportFaultedEventArgs>? Faulted;
-
-    private void OnConnected(object? sender, EventArgs e)
-        => this.Connected?.Invoke(this, EventArgs.Empty);
-
-    private void OnDisconnected(object? sender, EventArgs e)
-    {
-        lock (_sync)
-        {
-            _logicalConnection = null;
-            _status = null;
-        }
-
-        this.Disconnected?.Invoke(this, e);
-    }
-
-    private void OnFaulted(object? sender, TransportFaultedEventArgs e)
-        => this.Faulted?.Invoke(this, e);
-
-    // -----------------------------
     // Disposal
     // -----------------------------
 
     public void Dispose()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposed, true))
         {
+            // _disposed was already true before, so exit
             return;
         }
-
-        _disposed = true;
 
         this.DisconnectAsync().GetAwaiter().GetResult();
         _connectionProvider.Dispose();

@@ -1,4 +1,4 @@
-﻿namespace MWB.Networking.Layer0_Transport.Lifecycle.Stack;
+﻿using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
 
 public sealed class ObservableConnectionStatus
 {
@@ -15,7 +15,7 @@ public sealed class ObservableConnectionStatus
     public event EventHandler? Connecting;
     public event EventHandler? Connected;
     public event EventHandler? Disconnecting;
-    public event EventHandler? Disconnected;
+    public event EventHandler<TransportDisconnectedEventArgs>? Disconnected;
     public event EventHandler<TransportFaultedEventArgs>? Faulted;
 
     // ---------- Observation API ----------
@@ -25,7 +25,7 @@ public sealed class ObservableConnectionStatus
         Transition(
             expected: TransportConnectionState.Disconnected,
             next: TransportConnectionState.Connecting,
-            onTransition: () => this.Connecting?.Invoke(this, EventArgs.Empty));
+            onTransition: () => Connecting?.Invoke(this, EventArgs.Empty));
     }
 
     public void OnConnected()
@@ -33,7 +33,7 @@ public sealed class ObservableConnectionStatus
         Transition(
             expected: TransportConnectionState.Connecting,
             next: TransportConnectionState.Connected,
-            onTransition: () => this.Connected?.Invoke(this, EventArgs.Empty));
+            onTransition: () => Connected?.Invoke(this, EventArgs.Empty));
     }
 
     public void OnDisconnecting()
@@ -41,46 +41,24 @@ public sealed class ObservableConnectionStatus
         Transition(
             expected: TransportConnectionState.Connected,
             next: TransportConnectionState.Disconnecting,
-            onTransition: () => this.Disconnecting?.Invoke(this, EventArgs.Empty));
+            onTransition: () => Disconnecting?.Invoke(this, EventArgs.Empty));
     }
 
-    public void OnDisconnected()
+    // ---------- Terminal transitions ----------
+
+    public void OnDisconnected(TransportDisconnectedEventArgs e)
     {
-        TransitionAnyOf(
-            allowedFrom:
-            [
-                TransportConnectionState.Connecting,
-                TransportConnectionState.Connected,
-                TransportConnectionState.Disconnecting,
-                TransportConnectionState.Faulted
-            ],
-            next: TransportConnectionState.Disconnected,
-            onTransition: () => this.Disconnected?.Invoke(this, EventArgs.Empty),
-            allowNoOp: true);
+        TransitionToTerminal(
+            TransportConnectionState.Disconnected,
+            () => Disconnected?.Invoke(this, e));
     }
 
-    public void OnFaulted(string message, Exception? exception = null)
+    public void OnFaulted(TransportFaultedEventArgs e)
     {
-        lock (_sync)
-        {
-            if (_state == TransportConnectionState.Faulted)
-            {
-                return;
-            }
-
-            if (_state == TransportConnectionState.Disconnected)
-            {
-                throw InvalidTransition("Faulted");
-            }
-
-            _state = TransportConnectionState.Faulted;
-        }
-
-        this.Faulted?.Invoke(
-            this,
-            new TransportFaultedEventArgs(message, exception));
+        TransitionToTerminal(
+            TransportConnectionState.Faulted,
+            () => Faulted?.Invoke(this, e));
     }
-
 
     // ---------- Helpers ----------
 
@@ -91,11 +69,14 @@ public sealed class ObservableConnectionStatus
     {
         lock (_sync)
         {
+            if (IsTerminal(_state))
+                return;
+
             if (_state == next)
-                return; // benign duplicate
+                return;
 
             if (_state != expected)
-                throw InvalidTransition(next.ToString());
+                return; // tolerate late / racing signals
 
             _state = next;
         }
@@ -103,29 +84,22 @@ public sealed class ObservableConnectionStatus
         onTransition();
     }
 
-    private void TransitionAnyOf(
-        TransportConnectionState[] allowedFrom,
-        TransportConnectionState next,
-        Action onTransition,
-        bool allowNoOp)
+    private void TransitionToTerminal(
+        TransportConnectionState terminal,
+        Action onTransition)
     {
         lock (_sync)
         {
-            if (_state == next && allowNoOp)
+            if (IsTerminal(_state))
                 return;
 
-            if (!Array.Exists(allowedFrom, s => s == _state))
-                throw InvalidTransition(next.ToString());
-
-            _state = next;
+            _state = terminal;
         }
 
         onTransition();
     }
 
-    private InvalidOperationException InvalidTransition(string target)
-    {
-        return new InvalidOperationException(
-            $"Invalid connection state transition: {_state} → {target}");
-    }
+    private static bool IsTerminal(TransportConnectionState state) =>
+        state == TransportConnectionState.Disconnected ||
+        state == TransportConnectionState.Faulted;
 }

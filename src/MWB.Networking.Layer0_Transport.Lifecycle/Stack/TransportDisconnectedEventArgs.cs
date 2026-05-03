@@ -1,4 +1,4 @@
-﻿using System;
+﻿namespace MWB.Networking.Layer0_Transport.Lifecycle.Stack;
 
 /// <summary>
 /// Provides information about a transport disconnection event.
@@ -12,9 +12,11 @@ public sealed class TransportDisconnectedEventArgs : EventArgs
 {
     public TransportDisconnectedEventArgs(
         string message,
+        Exception? exception = null,
         DateTimeOffset? occurredAt = null)
     {
         this.Message = message ?? throw new ArgumentNullException(nameof(message));
+        this.Exception = exception;
         this.OccurredAt = occurredAt ?? DateTimeOffset.UtcNow;
     }
 
@@ -26,6 +28,15 @@ public sealed class TransportDisconnectedEventArgs : EventArgs
     /// should be taken in response.
     /// </remarks>
     public string Message
+    {
+        get;
+    }
+
+    /// <summary>
+    /// The underlying exception that caused the disconnect, if one exists.
+    /// May be null if the disconnect did not originate from an exception.
+    /// </summary>
+    public Exception? Exception
     {
         get;
     }
