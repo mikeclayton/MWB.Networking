@@ -162,8 +162,7 @@ public sealed partial class TransportStack
 
         void Cleanup()
         {
-
-            if (Interlocked.CompareExchange(ref cleanedUp, true))
+            if (Interlocked.CompareExchange(ref cleanedUp, true, false))
             {
                 // already cleaned up
                 return;
