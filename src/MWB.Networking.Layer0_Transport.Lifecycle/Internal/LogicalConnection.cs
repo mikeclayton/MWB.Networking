@@ -25,7 +25,7 @@ internal sealed class LogicalConnection : IDisposable
 {
     private readonly INetworkConnection _connection;
     private readonly ObservableConnectionStatus _status;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     /// <summary>
     /// Initializes a new logical connection bound to a single
