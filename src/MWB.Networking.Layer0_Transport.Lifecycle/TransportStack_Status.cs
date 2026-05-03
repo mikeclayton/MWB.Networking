@@ -71,6 +71,12 @@ public sealed partial class TransportStack
     private void OnFaulted(object? _, TransportFaultedEventArgs e)
     {
         this.CleanupConnection();
+
+        // IMPORTANT:
+        // A faulted connection attempt is complete and must
+        // not block subsequent ConnectAsync calls.
+        this.CleanupConnectionOnDisconnect();
+
         this.RaiseFaultedEvent(e);
         this.RaiseConnectionStateChanged(TransportConnectionState.Faulted);
     }

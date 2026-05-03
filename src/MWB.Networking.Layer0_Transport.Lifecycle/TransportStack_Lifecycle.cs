@@ -132,20 +132,6 @@ public sealed partial class TransportStack
 
             throw;
         }
-
-
-        logical = new LogicalConnection(physicalConnection, status);
-
-        lock (_sync)
-        {
-            if (_disposed)
-            {
-                logical.Dispose();
-                throw new ObjectDisposedException(nameof(TransportStack));
-            }
-
-            _logicalConnection = logical;
-        }
     }
 
     /// <summary>
@@ -256,7 +242,7 @@ public sealed partial class TransportStack
     /// Gracefully disconnects the current connection.
     /// Signals lifecycle transitions and releases transport resources.
     /// </summary>
-    public Task DisconnectAsync(CancellationToken cancellationToken = default)
+    public Task DisconnectAsync()
     {
         this.ThrowIfDisposed();
 
