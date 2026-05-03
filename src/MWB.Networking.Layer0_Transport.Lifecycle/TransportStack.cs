@@ -19,7 +19,7 @@ public sealed partial class TransportStack : IDisposable, IAsyncDisposable
     private readonly object _sync = new();
 
     private LogicalConnection? _logicalConnection;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     public TransportStack(
         INetworkConnectionProvider connectionProvider)

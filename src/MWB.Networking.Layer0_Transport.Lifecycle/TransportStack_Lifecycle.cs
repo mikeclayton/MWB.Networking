@@ -162,8 +162,10 @@ public sealed partial class TransportStack
 
         void Cleanup()
         {
-            if (cleanedUp)
+
+            if (Interlocked.CompareExchange(ref cleanedUp, true))
             {
+                // already cleaned up
                 return;
             }
 
@@ -218,6 +220,12 @@ public sealed partial class TransportStack
                             faultMessage)));
 
             case TransportConnectionState.Disconnected:
+                if (!statusEventSource.HasTerminated)
+                {
+                    // initial Disconnected → still connecting
+                    break;
+                }
+
                 Cleanup();
                 var disconnectMessage = "Transport disconnected before connection completed.";
                 return Task.FromException(

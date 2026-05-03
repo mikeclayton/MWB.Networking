@@ -13,6 +13,16 @@ public sealed class ObservableConnectionStatus
     private TransportConnectionState _state =
         TransportConnectionState.Disconnected;
 
+    /// <summary>
+    /// Indicates whether this lifecycle has reached a terminal outcome
+    /// (Disconnected or Faulted). This flag is monotonic: once set, it
+    /// never resets.
+    ///
+    /// We cannot infer terminality from the state enum alone because
+    /// Disconnected is both the initial and a terminal state.
+    /// </summary>
+    private bool _hasTerminated;
+
     public TransportConnectionState State
     {
         get
@@ -24,15 +34,16 @@ public sealed class ObservableConnectionStatus
         }
     }
 
-    /// <summary>
-    /// Indicates whether this lifecycle has reached a terminal outcome
-    /// (Disconnected or Faulted). This flag is monotonic: once set, it
-    /// never resets.
-    ///
-    /// We cannot infer terminality from the state enum alone because
-    /// Disconnected is both the initial and a terminal state.
-    /// </summary>
-    private bool _hasTerminated;
+    public bool HasTerminated
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _hasTerminated;
+            }
+        }
+    }
 
     // -----------------------------
     // Events
@@ -113,7 +124,8 @@ public sealed class ObservableConnectionStatus
             }
             if (_state == newState)
             {
-                // avoid duplicate transition events
+                // to avoid duplicate transition events
+                // (shouldn't be reachable, but left in case)
                 return;
             }
             _state = newState;

@@ -115,6 +115,13 @@ internal sealed class LogicalConnection : IDisposable
                             "Logical connection faulted before becoming connected."));
 
                 case TransportConnectionState.Disconnected:
+
+                    if (!_status.HasTerminated)
+                    {
+                        // initial state, not terminal yet
+                        break;
+                    }
+
                     Cleanup();
                     throw new TransportDisconnectedException(
                         "Logical connection disconnected before becoming connected.",
