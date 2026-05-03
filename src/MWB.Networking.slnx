@@ -14,7 +14,7 @@
     <Project Path="MWB.Networking.Layer0_Transport.Primitives/MWB.Networking.Layer0_Transport.Encoding.csproj" Id="6324e246-ef26-49e3-ac3c-c2ed0b87848f" />
   </Folder>
   <Folder Name="/Layer0_Transport/Connections/">
-    <Project Path="MWB.Networking.Layer0_Transport.Manual/MWB.Networking.Layer0_Transport.Manual.csproj" />
+    <Project Path="MWB.Networking.Layer0_Transport.Instrumented/MWB.Networking.Layer0_Transport.Instrumented.csproj" />
     <Project Path="MWB.Networking.Layer0_Transport.Memory.UnitTests/MWB.Networking.Layer0_Transport.Memory.UnitTests.csproj" Id="286a01af-8f88-4804-80ce-f4b6b0762d52" />
     <Project Path="MWB.Networking.Layer0_Transport.Memory/MWB.Networking.Layer0_Transport.Memory.csproj" Id="a3db7da9-cc4a-4fe6-a019-f549a78a8817" />
     <Project Path="MWB.Networking.Layer0_Transport.Null/MWB.Networking.Layer0_Transport.NullTransport.csproj" />

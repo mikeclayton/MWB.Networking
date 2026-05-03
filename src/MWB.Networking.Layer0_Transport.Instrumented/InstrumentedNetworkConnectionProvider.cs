@@ -2,22 +2,22 @@
 using MWB.Networking.Layer0_Transport.Lifecycle.Abstractions;
 using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
 
-namespace MWB.Networking.Layer0_Transport.Manual;
+namespace MWB.Networking.Layer0_Transport.Instrumented;
 
 /// <summary>
 /// Deterministic, manually driven test implementation of
 /// <see cref="INetworkConnectionProvider"/>.
 ///
-/// Returns a <see cref="ManualNetworkConnection"/> whose behavior
+/// Returns a <see cref="InstrumentedNetworkConnection"/> whose behavior
 /// is fully controlled by the test.
 /// </summary>
-public sealed class ManualNetworkConnectionProvider
+public sealed class InstrumentedNetworkConnectionProvider
     : INetworkConnectionProvider, IDisposable
 {
     private readonly ILogger _logger;
-    private bool _disposed;
+    private volatile bool _disposed;
 
-    public ManualNetworkConnectionProvider(ILogger logger)
+    public InstrumentedNetworkConnectionProvider(ILogger logger)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -26,7 +26,7 @@ public sealed class ManualNetworkConnectionProvider
     /// Gets the most recently created manual connection.
     /// Tests use this to drive lifecycle and I/O deterministically.
     /// </summary>
-    public ManualNetworkConnection? Connection
+    public InstrumentedNetworkConnection? Connection
     {
         get;
         private set;
@@ -39,7 +39,7 @@ public sealed class ManualNetworkConnectionProvider
         ct.ThrowIfCancellationRequested();
         this.ThrowIfDisposed();
 
-        var connection = new ManualNetworkConnection(status);
+        var connection = new InstrumentedNetworkConnection(status);
 
         // Expose to test code
         this.Connection = connection;
@@ -69,6 +69,6 @@ public sealed class ManualNetworkConnectionProvider
 
     private void ThrowIfDisposed()
     {
-        ObjectDisposedException.ThrowIf(_disposed, nameof(ManualNetworkConnectionProvider));
+        ObjectDisposedException.ThrowIf(_disposed, nameof(InstrumentedNetworkConnectionProvider));
     }
 }

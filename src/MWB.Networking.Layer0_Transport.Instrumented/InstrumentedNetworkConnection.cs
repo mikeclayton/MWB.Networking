@@ -4,7 +4,7 @@ using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
 using System.Collections.Concurrent;
 using System.Threading.Channels;
 
-namespace MWB.Networking.Layer0_Transport.Manual;
+namespace MWB.Networking.Layer0_Transport.Instrumented;
 
 /// <summary>
 /// Deterministic, manually driven test implementation of <see cref="INetworkConnection"/>.
@@ -15,7 +15,7 @@ namespace MWB.Networking.Layer0_Transport.Manual;
 /// Supports explicit lifecycle signaling via <see cref="OnStarted"/> and
 /// <see cref="Disconnect"/>.
 /// </summary>
-public sealed class ManualNetworkConnection : INetworkConnection, IDisposable
+public sealed partial class InstrumentedNetworkConnection : INetworkConnection, IDisposable
 {
     private readonly ObservableConnectionStatus _status;
 
@@ -33,7 +33,7 @@ public sealed class ManualNetworkConnection : INetworkConnection, IDisposable
     private bool _isDisconnected;
     private bool _disposed;
 
-    public ManualNetworkConnection(ObservableConnectionStatus status)
+    public InstrumentedNetworkConnection(ObservableConnectionStatus status)
     {
         _status = status ?? throw new ArgumentNullException(nameof(status));
     }
@@ -108,7 +108,7 @@ public sealed class ManualNetworkConnection : INetworkConnection, IDisposable
     {
         ObjectDisposedException.ThrowIf(
             _disposed,
-            nameof(ManualNetworkConnection));
+            nameof(InstrumentedNetworkConnection));
 
         if (_isDisconnected)
             throw new InvalidOperationException(
@@ -126,7 +126,7 @@ public sealed class ManualNetworkConnection : INetworkConnection, IDisposable
     /// Injects raw bytes that will be returned by the next
     /// <see cref="ReadAsync"/> call.
     /// </summary>
-    public void InjectFrame(ReadOnlyMemory<byte> frame)
+    public void InjectBytes(ReadOnlyMemory<byte> frame)
     {
         if (_disposed || _isDisconnected)
             return;
@@ -139,11 +139,6 @@ public sealed class ManualNetworkConnection : INetworkConnection, IDisposable
     /// </summary>
     public IReadOnlyCollection<ByteSegments> GetWrites()
         => _writes.ToArray();
-
-    /// <summary>
-    /// Indicates whether the connection has been manually disconnected.
-    /// </summary>
-    public bool IsDisconnected => _isDisconnected;
 
     // ------------------------------------------------------------------
     // Disposal

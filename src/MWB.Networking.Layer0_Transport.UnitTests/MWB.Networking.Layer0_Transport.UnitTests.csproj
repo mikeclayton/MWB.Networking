@@ -8,7 +8,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Manual\MWB.Networking.Layer0_Transport.Manual.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Memory\MWB.Networking.Layer0_Transport.Memory.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Pipes\MWB.Networking.Layer0_Transport.Pipes.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Hosting.Manual\MWB.Networking.Layer1_Framing.Hosting.Manual.csproj" />

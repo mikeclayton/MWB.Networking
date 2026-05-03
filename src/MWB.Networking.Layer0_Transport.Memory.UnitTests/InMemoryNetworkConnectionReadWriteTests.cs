@@ -1,5 +1,6 @@
 using MWB.Networking.Layer0_Transport.Encoding;
 using MWB.Networking.Layer0_Transport.Memory.UnitTests.Helpers;
+using System.Diagnostics;
 
 namespace MWB.Networking.Layer0_Transport.Memory.UnitTests;
 
@@ -57,16 +58,36 @@ public sealed class InMemoryNetworkConnectionReadWriteTests
         var (writeEnd, readEnd) = ConnectionTestHelpers.CreateUnidirectionalPair();
         var ct = TestContext.CancellationToken;
 
-        // 1 MB
-        var data = new byte[1024 * 1024];
+        var data = new byte[1024 * 1024 * 100];
         new Random(42).NextBytes(data);
 
+        var writerStopwatch = Stopwatch.StartNew();
         await writeEnd.WriteAsync(ConnectionTestHelpers.Segment(data), ct);
+        writerStopwatch.Stop();
         writeEnd.Dispose();
 
+        TestContext.WriteLine(
+            $"Write completed in {writerStopwatch.ElapsedMilliseconds} ms " +
+            $"({Throughput(data.Length, writerStopwatch)} MB/s)");
+
+        var readerStopwatch = Stopwatch.StartNew();
         var received = await ConnectionTestHelpers.ReadToEndAsync(readEnd, ct);
+        readerStopwatch.Stop();
+
+        TestContext.WriteLine(
+            $"Read completed in {readerStopwatch.ElapsedMilliseconds} ms " +
+            $"({Throughput(received.Length, readerStopwatch)} MB/s)");
 
         CollectionAssert.AreEqual(data, received);
+    }
+
+    private static double Throughput(long bytes, Stopwatch sw)
+    {
+        if (sw.Elapsed.TotalSeconds == 0)
+            return double.PositiveInfinity;
+
+        var megabytes = bytes / (1024d * 1024d);
+        return megabytes / sw.Elapsed.TotalSeconds;
     }
 
     // -------------------------------------------------------------------------
