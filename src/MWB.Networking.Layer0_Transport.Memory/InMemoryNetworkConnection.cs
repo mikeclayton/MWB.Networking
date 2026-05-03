@@ -1,72 +1,101 @@
-﻿namespace MWB.Networking.Layer0_Transport.Memory;
+﻿using MWB.Networking.Layer0_Transport.Encoding;
+using MWB.Networking.Layer0_Transport.Lifecycle.Abstractions;
+using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
+using MWB.Networking.Layer0_Transport.Memory.Buffer;
 
-using MWB.Networking.Layer0_Transport.Encoding;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+namespace MWB.Networking.Layer0_Transport.Memory;
 
 /// <summary>
-/// Buffered in-process implementation of <see cref="INetworkConnection"/>.
-/// Provides stream semantics with explicit EOF on disposal.
+/// One endpoint of an in-memory full-duplex byte transport.
+/// Wraps a reader and writer backed by a segmented buffer.
 /// </summary>
-public sealed class InMemoryNetworkConnection : INetworkConnection, IDisposable
+/// <remarks>
+/// This type contains no pairing, lifecycle policy, or reconnection logic.
+/// Lifecycle is reported exclusively via <see cref="ObservableConnectionStatus"/>.
+/// </remarks>
+public sealed class InMemoryNetworkConnection :
+    INetworkConnection,
+    IDisposable
 {
-    private readonly MemoryBufferReader _reader;
-    private readonly MemoryBufferWriter _writer;
+    private readonly SegmentedBufferReader _reader;
+    private readonly SegmentedBufferWriter _writer;
+
+    private ObservableConnectionStatus? _status;
+    private bool _started;
     private bool _disposed;
 
     internal InMemoryNetworkConnection(
-        MemoryBufferReader reader,
-        MemoryBufferWriter writer)
+        SegmentedBufferReader reader,
+        SegmentedBufferWriter writer)
     {
-        _reader = reader;
-        _writer = writer;
+        _reader = reader ?? throw new ArgumentNullException(nameof(reader));
+        _writer = writer ?? throw new ArgumentNullException(nameof(writer));
+    }
+
+    // ------------------------------------------------------------------
+    // Lifecycle binding (called by provider)
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// Binds the lifecycle status for this connection attempt.
+    /// Must be called exactly once before <see cref="OnStarted"/>.
+    /// </summary>
+    internal void BindStatus(ObservableConnectionStatus status)
+    {
+        if (_status is not null)
+            throw new InvalidOperationException("Status already bound.");
+
+        _status = status ?? throw new ArgumentNullException(nameof(status));
     }
 
     /// <summary>
-    /// Writes a sequence of byte segments.
-    /// Writes are buffered, non-blocking, and preserve segment boundaries.
+    /// Signals that wiring is complete and the endpoint is ready.
+    /// In-memory transports are immediately usable.
     /// </summary>
+    internal void OnStarted()
+    {
+        if (_started)
+            return;
+
+        _started = true;
+
+        _status!.OnConnecting();
+        _status.OnConnected();
+    }
+
+    // ------------------------------------------------------------------
+    // INetworkConnection
+    // ------------------------------------------------------------------
+
+    public ValueTask<int> ReadAsync(
+        Memory<byte> buffer,
+        CancellationToken ct)
+    {
+        ThrowIfDisposed();
+        return _reader.ReadAsync(buffer, ct);
+    }
+
     public async ValueTask WriteAsync(
         ByteSegments segments,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
-        this.ThrowIfDisposed();
+        ThrowIfDisposed();
 
         foreach (var segment in segments.Segments)
         {
-            await _writer
-                .WriteAsync(segment, cancellationToken)
-                .ConfigureAwait(false);
+            if (!segment.IsEmpty)
+            {
+                await _writer
+                    .WriteAsync(segment, ct)
+                    .ConfigureAwait(false);
+            }
         }
     }
 
-    /// <summary>
-    /// Writes a contiguous block of bytes.
-    /// </summary>
-    public ValueTask WriteAsync(
-        ReadOnlyMemory<byte> data,
-        CancellationToken cancellationToken)
-    {
-        this.ThrowIfDisposed();
-        return _writer.WriteAsync(data, cancellationToken);
-    }
+    // ------------------------------------------------------------------
+    // Disposal
+    // ------------------------------------------------------------------
 
-    /// <summary>
-    /// Reads bytes into the provided buffer.
-    /// May return fewer bytes than requested. Returns 0 on EOF.
-    /// </summary>
-    public ValueTask<int> ReadAsync(
-        Memory<byte> buffer,
-        CancellationToken cancellationToken)
-    {
-        this.ThrowIfDisposed();
-        return _reader.ReadAsync(buffer, cancellationToken);
-    }
-
-    /// <summary>
-    /// Completes the write side and signals EOF to the reader.
-    /// </summary>
     public void Dispose()
     {
         if (_disposed)
@@ -75,14 +104,13 @@ public sealed class InMemoryNetworkConnection : INetworkConnection, IDisposable
         }
 
         _disposed = true;
+
         _writer.Complete();
+        _status?.OnDisconnected();
     }
 
     private void ThrowIfDisposed()
     {
-        if (_disposed)
-        {
-            throw new ObjectDisposedException(nameof(InMemoryNetworkConnection));
-        }
+        ObjectDisposedException.ThrowIf(_disposed, nameof(InMemoryNetworkConnection));
     }
 }

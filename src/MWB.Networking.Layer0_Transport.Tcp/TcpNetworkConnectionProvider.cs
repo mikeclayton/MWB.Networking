@@ -1,291 +1,167 @@
 ﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer0_Transport.Lifecycle.Abstractions;
+using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
 using MWB.Networking.Layer0_Transport.Tcp.Arbitration;
 using MWB.Networking.Logging;
 using System.Net.Sockets;
 
 namespace MWB.Networking.Layer0_Transport.Tcp;
 
+/// <summary>
+/// Long-lived provider capable of creating multiple independent
+/// TCP connection attempts over time.
+/// </summary>
 public sealed class TcpNetworkConnectionProvider
     : INetworkConnectionProvider
 {
-    /// <remarks>
-    /// preferredArbitrationDirection is an application-supplied hint used solely
-    /// to *temporarily* break symmetric TCP connection races. This is a temporary
-    /// policy until a zero-configuration symmetric arbitrator is introduced
-    /// (which won't be publicly visible).
-    /// </remarks>
+    private readonly ILogger _logger;
+    private readonly TcpNetworkConnectionConfig _config;
+    private readonly ITcpConnectionArbitrator _arbitrator;
+
     public TcpNetworkConnectionProvider(
         ILogger logger,
         TcpNetworkConnectionConfig config,
         ConnectionDirection preferredArbitrationDirection)
     {
-        this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        this.Config = config ?? throw new ArgumentNullException(nameof(config));
-        this.LogicalConnection = LogicalConnectionFactory.Create(logger);
-
-        // PreferredDirectionArbitrator is a temporary, application-configured
-        // symmetry-breaking policy. It will be replaced by an automatic
-        // zero-configuration symmetric arbitrator in the future.
-        this.ConnectionArbitrator = new PreferredDirectionArbitrator(
-            preferredArbitrationDirection);
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _config = config ?? throw new ArgumentNullException(nameof(config));
+        _arbitrator =
+            new PreferredDirectionArbitrator(
+                preferredArbitrationDirection);
     }
 
-    public ILogger Logger
-    {
-        get;
-    }
-
-    private TcpNetworkConnectionConfig Config
-    {
-        get;
-    }
-
-    private ITcpConnectionArbitrator ConnectionArbitrator
-    {
-        get;
-    }
-
-    private LogicalConnectionHandle LogicalConnection
-    {
-        get;
-    }
-
-    private Lock LockObject
-    {
-        get;
-    } = new();
-
-    private TcpNetworkConnection? ActiveConnection
-    {
-        get;
-        set;
-    }
-
-    private ConnectionDirection? ActiveConnectionDirection
-    {
-        get;
-        set;
-    }
-
-    private TcpListener? Listener
-    {
-        get;
-        set;
-    }
-
-    private CancellationTokenSource? _cts;
-    private Task? _listenerTask;
-    private Task? _outboundTask;
-
-    public async Task<LogicalConnectionHandle> OpenConnectionAsync(
+    /// <summary>
+    /// Creates a single TCP connection attempt.
+    /// May be called multiple times over the provider's lifetime.
+    /// </summary>
+    public async Task<INetworkConnection> OpenConnectionAsync(
+        ObservableConnectionStatus status,
         CancellationToken ct)
     {
-        using var logScope = this.Logger.BeginMethodLoggingScope(this);
+        using var scope = _logger.BeginMethodLoggingScope(this);
+        ArgumentNullException.ThrowIfNull(status);
 
-        _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-
-        if (this.Config.LocalEndpoint is not null)
-        {
-            _listenerTask = this.StartListenerAsync(_cts.Token);
-        }
-
-        if (this.Config.RemoteEndpoint is not null)
-        {
-            _outboundTask = this.StartOutboundConnectLoopAsync(_cts.Token);
-        }
-
-        var handle = this.LogicalConnection;
-        await handle.Connection.WhenReadyAsync(ct);
-
-        return handle;
-    }
-
-    private async Task StartListenerAsync(CancellationToken ct)
-    {
-        using var logScope = this.Logger.BeginMethodLoggingScope(this);
-
-        this.Listener = new TcpListener(this.Config.LocalEndpoint!);
-        this.Listener.Start();
+        TcpListener? listener = null;
+        var candidates =
+            new List<(TcpClient Client, ConnectionDirection Direction)>(2);
 
         try
         {
-            while (!ct.IsCancellationRequested)
+            // ------------------------------------------------------------
+            // Inbound candidate
+            // ------------------------------------------------------------
+            if (_config.LocalEndpoint is not null)
             {
-                var client = await this.Listener.AcceptTcpClientAsync(ct);
-                client.NoDelay = this.Config.NoDelay;
+                listener = new TcpListener(_config.LocalEndpoint);
+                listener.Start();
 
-                this.AttachCandidate(
-                    new TcpNetworkConnection(client, this.Config.MaxFrameSize),
-                    ConnectionDirection.Inbound);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // normal shutdown
-        }
-    }
+                _logger.LogDebug(
+                    "Listening on {Endpoint}",
+                    _config.LocalEndpoint);
 
-    private async Task StartOutboundConnectLoopAsync(CancellationToken ct)
-    {
-        using var logScope = this.Logger.BeginMethodLoggingScope(this);
+                var inboundClient =
+                    await listener.AcceptTcpClientAsync(ct)
+                        .ConfigureAwait(false);
 
-        // Defensive: no remote endpoint means nothing to do
-        if (this.Config.RemoteEndpoint is null)
-        {
-            this.Logger.LogDebug("no remote endpoint configured- returning from method");
-            return;
-        }
+                inboundClient.NoDelay = _config.NoDelay;
 
-        while (!ct.IsCancellationRequested)
-        {
-            //this.Logger.LogDebug("entering (busy) connect loop");
+                candidates.Add(
+                    (inboundClient, ConnectionDirection.Inbound));
 
-            // If we already have an active logical connection,
-            // do NOT keep dialing. Layer 0's job is to establish
-            // a connection, not compete with an existing one.
-            if (this.ActiveConnection is not null)
-            {
-                try
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(1),ct);
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-                continue;
+                _logger.LogDebug("Accepted inbound TCP connection");
             }
 
-            try
+            // ------------------------------------------------------------
+            // Outbound candidate
+            // ------------------------------------------------------------
+            if (_config.RemoteEndpoint is not null)
             {
-                var client = new TcpClient
+                var outboundClient = new TcpClient
                 {
-                    NoDelay = this.Config.NoDelay
+                    NoDelay = _config.NoDelay
                 };
 
-                // attempt outbound connect
-                this.Logger.LogDebug("attempting connect to {Endpoint}", this.Config.RemoteEndpoint);
-                await client.ConnectAsync(
-                    this.Config.RemoteEndpoint!.Address,
-                    this.Config.RemoteEndpoint.Port,
-                    ct);
-                this.Logger.LogDebug("outbound connect established");
+                _logger.LogDebug(
+                    "Connecting to {Endpoint}",
+                    _config.RemoteEndpoint);
 
-                // Wrap the socket in a physical transport
-                var connection = new TcpNetworkConnection(
-                    client,
-                    this.Config.MaxFrameSize);
+                await outboundClient.ConnectAsync(
+                    _config.RemoteEndpoint.Address,
+                    _config.RemoteEndpoint.Port,
+                    ct).ConfigureAwait(false);
 
-                // Hand candidate to arbitrator
-                this.AttachCandidate(
-                    connection,
-                    ConnectionDirection.Outbound);
+                candidates.Add(
+                    (outboundClient, ConnectionDirection.Outbound));
 
-                // IMPORTANT:
-                // Do NOT return.
-                // Even if this connection "wins", we must remain alive
-                // in case it later fails and a reconnect is needed.
-            }
-            catch (OperationCanceledException)
-            {
-                this.Logger.LogDebug("connection closed normally");
-                break;
-            }
-            catch (SocketException ex)
-            {
-                this.Logger.LogDebug(ex, "connect failed, will retry");
-            }
-            catch (Exception ex)
-            {
-
-                this.Logger.LogWarning(ex, "unexpected error");
+                _logger.LogDebug("Outbound TCP connection established");
             }
 
-            // Backoff before retrying
-            try
+            if (candidates.Count == 0)
             {
-                await Task.Delay(
-                    TimeSpan.FromSeconds(1),
-                    ct);
+                throw new InvalidOperationException(
+                    "No local or remote endpoint configured.");
             }
-            catch (OperationCanceledException)
+
+            // ------------------------------------------------------------
+            // Arbitration
+            // ------------------------------------------------------------
+            var winner = candidates[0];
+
+            for (int i = 1; i < candidates.Count; i++)
             {
-                this.Logger.LogDebug("connection closed normally");
-                break;
+                var challenger = candidates[i];
+
+                if (_arbitrator.ShouldReplace(
+                        winner.Direction,
+                        challenger.Direction))
+                {
+                    _logger.LogDebug(
+                        "Replacing {Old} with {New}",
+                        winner.Direction,
+                        challenger.Direction);
+
+                    winner.Client.Dispose();
+                    winner = challenger;
+                }
+                else
+                {
+                    challenger.Client.Dispose();
+                }
             }
+
+            // ------------------------------------------------------------
+            // Wrap as INetworkConnection
+            // ------------------------------------------------------------
+            var connection =
+                new TcpNetworkConnection(
+                    winner.Client,
+                    _config.MaxFrameSize);
+
+            // ------------------------------------------------------------
+            // Bind lifecycle and start
+            // ------------------------------------------------------------
+            connection.BindStatus(status);
+            connection.OnStarted();
+
+            return connection;
         }
-    }
-
-    private void AttachCandidate(
-        TcpNetworkConnection candidateConnection,
-        ConnectionDirection candidateDirection)
-    {
-        using var logScope = this.Logger.BeginMethodLoggingScope(this);
-
-        ArgumentNullException.ThrowIfNull(candidateConnection);
-
-        // lock to ensure critical section below is protected,
-        // but don't await while holding the lock
-        using var lockScope = this.LockObject.EnterScope();
-
-        var control = this.LogicalConnection.Control;
-
-        // set and return if not already set
-        if (this.ActiveConnection is null)
+        catch
         {
-            this.ActiveConnection = candidateConnection;
-            this.ActiveConnectionDirection = candidateDirection;
-            control.Attach(candidateConnection);
-            this.Logger.LogDebug(
-                "AttachCandidate accepted connection (direction={Direction})",
-                candidateDirection);
-            return;
+            foreach (var (client, _) in candidates)
+            {
+                client.Dispose();
+            }
+            throw;
         }
-
-        // choose the highest priority connection if already set,
-        // and dispose the loser
-        var activeConnectionDirection = this.ActiveConnectionDirection
-            ?? throw new InvalidOperationException("ActiveConnectionDirection not set");
-        if (this.ConnectionArbitrator.ShouldReplace(
-            activeConnectionDirection,
-            candidateDirection))
+        finally
         {
-            this.ActiveConnection.Dispose();
-            this.ActiveConnection = candidateConnection;
-            this.ActiveConnectionDirection = candidateDirection;
-            control.Attach(candidateConnection);
-        }
-        else
-        {
-            candidateConnection.Dispose();
-
-            this.Logger.LogDebug(
-                    "AttachCandidate rejected connection (direction={Direction})",
-                    candidateDirection);
+            listener?.Stop();
         }
     }
 
     public void Dispose()
     {
-        // stop all background activity first
-        _cts?.Cancel();
-        _cts?.Dispose();
-        _cts = null;
-
-        // stop accepting inbound connections
-        this.Listener?.Stop();
-        this.Listener = null;
-
-        // lock to ensure critical section below is protected,
-        // but don't await while holding the lock
-        using var lockScope = this.LockObject.EnterScope();
-
-        this.ActiveConnection?.Dispose();
-        this.ActiveConnection = null;
-        this.ActiveConnectionDirection = null;
-
-        // CRITICAL: terminate the logical connection itself
-        // This unblocks WhenReadyAsync, read loops, decoders, and protocol consumers
-        this.LogicalConnection.Connection.Dispose();
+        // Intentionally empty.
+        // The provider is stateless between calls.
     }
 }

@@ -17,6 +17,9 @@ public enum ProtocolErrorKind
     MissingRequestId,
     MissingStreamId,
 
-    // General / fallback
-    ProtocolViolation
+    // General
+    ProtocolViolation,
+
+    // Fallback
+    InternalError
 }

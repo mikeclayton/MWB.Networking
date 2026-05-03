@@ -7,12 +7,16 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace MWB.Networking.Layer2_Protocol.Requests;
 
-internal sealed partial class RequestManager : IHasLogger
+internal sealed class RequestManager : IHasLogger
 {
     internal RequestManager(ILogger logger, ProtocolSession session)
     {
-        this.Logger = logger ?? throw new ArgumentOutOfRangeException(nameof(logger));
+        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(session);
+        this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         this.Session = session ?? throw new ArgumentNullException(nameof(session));
+        this.Inbound = new RequestManagerInbound(session, this, this.RequestContexts);
+        this.Outbound = new RequestManagerOutbound(session, this, this.RequestContexts);
     }
 
     public ILogger Logger
@@ -25,35 +29,19 @@ internal sealed partial class RequestManager : IHasLogger
         get;
     }
 
-    // ------------------------------------------------------------------
-    // Cached request contexts
-    // ------------------------------------------------------------------
-
-    private readonly Dictionary<uint, RequestContext> _requestContexts = [];
-
-    private void AddRequestContext(RequestContext context)
+    private RequestContexts RequestContexts
     {
-        _requestContexts.Add(context.RequestId, context);
+        get;
+    } = new();
+
+    internal RequestManagerInbound Inbound
+    {
+        get;
     }
 
-    private bool RequestContextExists(uint requestId)
+    internal RequestManagerOutbound Outbound
     {
-        return _requestContexts.ContainsKey(requestId);
-    }
-
-    internal bool TryGetRequestContext(uint requestId, [NotNullWhen(true)] out RequestContext? result)
-    {
-        return _requestContexts.TryGetValue(requestId, out result);
-    }
-
-    private List<uint> GetRequestContextIds()
-    {
-        return _requestContexts.Keys.ToList();
-    }
-
-    private bool RemoveRequestContext(uint requestId)
-    {
-        return _requestContexts.Remove(requestId);
+        get;
     }
 
     // ------------------------------------------------------------------
@@ -68,13 +56,18 @@ internal sealed partial class RequestManager : IHasLogger
 
     internal IEnumerable<uint> GetRequestIds()
     {
-        return this.GetRequestContextIds();
+        return this.RequestContexts.GetRequestContextIds();
     }
 
-    private void RemoveRequest(uint requestId)
+    internal bool TryGetRequestContext(uint requestId, [NotNullWhen(true)] out RequestContext? result)
+    {
+        return this.RequestContexts.TryGetRequestContext(requestId, out result);
+    }
+
+    internal void RemoveRequest(uint requestId)
     {
         // Look up the request context first
-        if (!this.TryGetRequestContext(requestId, out var context))
+        if (!this.RequestContexts.TryGetRequestContext(requestId, out var context))
         {
             // not a valid request
             throw new InvalidOperationException();
@@ -83,7 +76,7 @@ internal sealed partial class RequestManager : IHasLogger
         // auto-close streams owned by the request
         this.Session.StreamManager.TearDownRequestStreams(requestId);
 
-        this.RemoveCachedIncomingRequest(context);
-        this.RemoveRequestContext(requestId);
+        this.Inbound.RemoveIncomingRequest(context);
+        this.RequestContexts.RemoveRequestContext(requestId);
     }
 }

@@ -1,11 +1,10 @@
 ﻿using MWB.Networking.Layer2_Protocol.Requests.Api;
 using MWB.Networking.Layer2_Protocol.Session.Api;
-using MWB.Networking.Layer2_Protocol.Streams.Api;
-using MWB.Networking.Logging;
+using MWB.Networking.Layer2_Protocol.Lifecycle.Api;
 
 namespace MWB.Networking.Layer2_Protocol.Session;
 
-internal sealed partial class ProtocolSession : IProtocolSessionCommands
+public sealed partial class ProtocolSession : IProtocolSessionCommands
 {
     private IProtocolSessionCommands AsCommands()
         => this;
@@ -14,27 +13,26 @@ internal sealed partial class ProtocolSession : IProtocolSessionCommands
     // Events
     // ------------------------------------------------------------
 
-    //[LogMethod]
-    void IProtocolSessionCommands.SendEvent(uint eventType, ReadOnlyMemory<byte> payload)
+    void IProtocolSessionCommands.SendEvent(uint? eventType, ReadOnlyMemory<byte> payload)
     {
-        this.EventManager.SendEvent(eventType, payload);
+        this.EventManager.SendOutboundEvent(eventType, payload);
     }
 
     // ------------------------------------------------------------
     // Requests
     // ------------------------------------------------------------
 
-    OutgoingRequest IProtocolSessionCommands.SendRequest(ReadOnlyMemory<byte> payload)
+    OutgoingRequest IProtocolSessionCommands.SendRequest(uint? requestType, ReadOnlyMemory<byte> payload)
     {
-        return this.RequestManager.SendRequest(payload);
+        return this.RequestManager.Outbound.SendRequest(requestType, payload);
     }
 
     // ------------------------------------------------------------------
     // Streams
     // ------------------------------------------------------------------
 
-    OutgoingStream IProtocolSessionCommands.OpenSessionStream(ReadOnlyMemory<byte> metadata)
+    OutgoingStream IProtocolSessionCommands.OpenSessionStream(uint? streamType, ReadOnlyMemory<byte> metadata)
     {
-        return this.StreamManager.OpenSessionStream(metadata);
+        return this.StreamManager.Outbound.OpenSessionStream(streamType, metadata);
     }
 }

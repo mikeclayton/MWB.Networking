@@ -1,6 +1,6 @@
 ﻿using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 using MWB.Networking.Layer2_Protocol.Session;
-using MWB.Networking.Layer2_Protocol.Streams.Api;
+using MWB.Networking.Layer2_Protocol.Lifecycle.Api;
 
 namespace MWB.Networking.Layer2_Protocol.Requests.Api;
 
@@ -24,32 +24,38 @@ public sealed class IncomingRequest
         get;
     }
 
+    public uint RequestId
+        => this.Context.RequestId;
+
+    public uint? RequestType
+        => this.Context.RequestType;
+
     /// <summary>
-    /// Sends the Response for this Request and closes the Requet.
+    /// Sends the Response for this Request and closes the Request.
     /// </summary>
-    public void Respond(ReadOnlyMemory<byte> payload)
+    public void Respond(ReadOnlyMemory<byte> payload = default)
     {
-        this.Session.RequestManager.CloseRequestWithResponse(this.Context, payload);
+        this.Session.RequestManager.Outbound.CloseRequestWithResponse(this.Context, payload);
     }
 
     /// <summary>
     /// Sends an error Response for this Request and closes the Request.
     /// </summary>
-    public void Error(ReadOnlyMemory<byte> payload)
+    public void Error(ReadOnlyMemory<byte> payload = default)
     {
-        this.Session.RequestManager.CloseRequestWithError(this.Context, payload);
+        this.Session.RequestManager.Outbound.CloseRequestWithError(this.Context, payload);
     }
 
     /// <summary>
     /// Opens the single Request-scoped Stream for this Request.
     /// </summary>
 
-    public OutgoingStream OpenRequestStream()
+    public OutgoingStream OpenRequestStream(uint? streamType)
     {
         // validate request is open
         this.Context.OpenStream();
 
         // delegate to ProtocolSession
-        return this.Session.StreamManager.OpenRequestStream(this.Context);
+        return this.Session.StreamManager.Outbound.OpenRequestStream(streamType, this.Context);
     }
 }

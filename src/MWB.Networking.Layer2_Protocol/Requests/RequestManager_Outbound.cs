@@ -1,11 +1,34 @@
 ﻿using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
 using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
+using MWB.Networking.Layer2_Protocol.Session;
 
 namespace MWB.Networking.Layer2_Protocol.Requests;
 
-internal sealed partial class RequestManager
+internal sealed class RequestManagerOutbound
 {
+    internal RequestManagerOutbound(ProtocolSession session, RequestManager requestManager, RequestContexts requestContexts)
+    {
+        this.Session = session ?? throw new ArgumentNullException(nameof(session));
+        this.RequestManager = requestManager ?? throw new ArgumentNullException(nameof(requestManager));
+        this.RequestContexts = requestContexts ?? throw new ArgumentNullException(nameof(requestContexts));
+    }
+
+    private ProtocolSession Session
+    {
+        get;
+    }
+
+    private RequestManager RequestManager
+    {
+        get;
+    }
+
+    private RequestContexts RequestContexts
+    {
+        get;
+    }
+
     private uint NextRequestId
     {
         get;
@@ -16,17 +39,18 @@ internal sealed partial class RequestManager
     // Request handling - Outbound
     // ------------------------------------------------------------------
 
-    public OutgoingRequest SendRequest(ReadOnlyMemory<byte> payload)
+    internal OutgoingRequest SendRequest(uint? requestType, ReadOnlyMemory<byte> payload)
     {
         // Generate a new unique request ID<br>
         var requestId = this.NextRequestId++;
 
         // Create and track request context
-        var context = new RequestContext(requestId);
-        this.AddRequestContext(context);
+        var context = new RequestContext(requestId, requestType);
+        this.RequestContexts.AddRequestContext(context);
 
         // Emit the protocol request frame to the peer
-        this.Session.EnqueueOutboundFrame(ProtocolFrames.Request(requestId, payload));
+        this.Session.EnqueueOutboundFrame(
+            ProtocolFrames.Request(requestId, requestType, payload));
 
         // Return an application-facing handle
         return new OutgoingRequest(this.Session, context);
@@ -40,10 +64,10 @@ internal sealed partial class RequestManager
         context.Close();
 
         // 2. Emit terminal response frame
-        this.Session.EnqueueOutboundFrame(ProtocolFrames.Response(context.RequestId, payload));
+        this.Session.EnqueueOutboundFrame(ProtocolFrames.Response(context.RequestId, null, payload));
 
         // 3. Remove request + close any request-scoped streams
-        this.RemoveRequest(context.RequestId);
+        this.RequestManager.RemoveRequest(context.RequestId);
     }
 
     internal void CloseRequestWithError(
@@ -54,6 +78,6 @@ internal sealed partial class RequestManager
 
         this.Session.EnqueueOutboundFrame(ProtocolFrames.Error(context.RequestId, payload));
 
-        this.RemoveRequest(context.RequestId);
+        this.RequestManager.RemoveRequest(context.RequestId);
     }
 }

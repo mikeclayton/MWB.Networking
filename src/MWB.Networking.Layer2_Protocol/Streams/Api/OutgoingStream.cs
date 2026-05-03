@@ -2,7 +2,7 @@
 using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
-namespace MWB.Networking.Layer2_Protocol.Streams.Api;
+namespace MWB.Networking.Layer2_Protocol.Lifecycle.Api;
 
 /// <summary>
 /// Represents a stream initiated by the local peer.
@@ -61,7 +61,7 @@ public sealed class OutgoingStream : IProtocolStream
         }
 
         this.State = OutgoingStreamState.Closed;
-        this.Session.StreamManager.CloseOutgoingStream(this.StreamId);
+        this.Session.StreamManager.Outbound.CloseOutgoingStream(this.StreamId);
     }
 
     /// <summary>

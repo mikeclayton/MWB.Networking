@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="NetworkPipelineBuilder.cs" />
+    <Compile Remove="SessionEndpointBuilderObservers.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MWB.Networking.Layer2_Protocol\MWB.Networking.Layer2_Protocol.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer3_Endpoint\MWB.Networking.Layer3_Endpoint.csproj" />
+  </ItemGroup>
+
+</Project>

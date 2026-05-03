@@ -7,12 +7,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MethodDecorator.Fody" Version="1.1.1" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.6" />
+    <Compile Remove="Driver\Construction\**" />
+    <Compile Remove="Session\Construction\**" />
+    <EmbeddedResource Remove="Driver\Construction\**" />
+    <EmbeddedResource Remove="Session\Construction\**" />
+    <None Remove="Driver\Construction\**" />
+    <None Remove="Session\Construction\**" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MWB.Networking.Layer1_Framing\MWB.Networking.Layer1_Framing.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Pipeline\MWB.Networking.Layer1_Framing.Pipeline.csproj" />
     <ProjectReference Include="..\MWB.Networking.Logging\MWB.Networking.Logging.csproj" />
   </ItemGroup>
 

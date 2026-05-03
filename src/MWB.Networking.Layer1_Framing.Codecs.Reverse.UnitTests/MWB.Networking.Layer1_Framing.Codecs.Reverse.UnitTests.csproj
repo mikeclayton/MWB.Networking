@@ -1,0 +1,12 @@
+<Project Sdk="MSTest.Sdk/4.2.1">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Codec\MWB.Networking.Layer1_Framing.Codec.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Codecs.Reverse\MWB.Networking.Layer1_Framing.Codecs.Reverse.csproj" />
+  </ItemGroup>
+</Project>

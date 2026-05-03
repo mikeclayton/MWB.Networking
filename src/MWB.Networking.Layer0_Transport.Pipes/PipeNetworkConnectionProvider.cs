@@ -1,28 +1,57 @@
 ﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer0_Transport.Lifecycle.Abstractions;
+using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
 using System.IO.Pipelines;
 
 namespace MWB.Networking.Layer0_Transport.Pipes;
 
 public sealed class PipeNetworkConnectionProvider
-    : INetworkConnectionProvider, IDisposable
+    : INetworkConnectionProvider
 {
-    private readonly LogicalConnectionHandle _handle;
+    private readonly ILogger _logger;
+    private readonly PipeReader _reader;
+    private readonly PipeWriter _writer;
+    private bool _disposed;
 
     public PipeNetworkConnectionProvider(
         ILogger logger,
         PipeReader reader,
         PipeWriter writer)
     {
-        _handle = LogicalConnectionFactory.Create(logger);
-
-        var connection = new PipeNetworkConnection(reader, writer);
-        _handle.Control.Attach(connection);
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _reader = reader ?? throw new ArgumentNullException(nameof(reader));
+        _writer = writer ?? throw new ArgumentNullException(nameof(writer));
     }
 
-    public Task<LogicalConnectionHandle> OpenConnectionAsync(
+    public Task<INetworkConnection> OpenConnectionAsync(
+        ObservableConnectionStatus status,
         CancellationToken ct)
-        => Task.FromResult(_handle);
+    {
+        ArgumentNullException.ThrowIfNull(status);
+
+        ct.ThrowIfCancellationRequested();
+
+        var connection =
+            new PipeNetworkConnection(
+                _logger,
+                _reader,
+                _writer,
+                status);
+
+        connection.OnStarted();
+
+        return Task.FromResult((INetworkConnection)connection);
+    }
 
     public void Dispose()
-        => _handle.Connection.Dispose();
+    {
+        if (_disposed)
+            return;
+
+        _disposed = true;
+
+        // Provider owns the pipes, so it disposes them
+        _reader.Complete();
+        _writer.Complete();
+    }
 }

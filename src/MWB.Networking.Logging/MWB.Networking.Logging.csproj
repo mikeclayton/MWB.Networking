@@ -7,12 +7,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Loggers\TestContextLogger.cs" />
+    <Compile Remove="Loggers\TestContextLoggerFactory.cs" />
+    <Compile Remove="Loggers\TestContextLoggerProvider.cs" />
     <Compile Remove="LogMethodAttribute.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="MethodDecorator.Fody" Version="1.1.1" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.6" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.7" />
   </ItemGroup>
 
 </Project>

@@ -1,4 +1,4 @@
-﻿using MWB.Networking.Layer1_Framing;
+﻿using MWB.Networking.Layer1_Framing.Codec.Frames;
 using MWB.Networking.Layer2_Protocol.Frames;
 
 namespace MWB.Networking.Layer2_Protocol.Driver;
@@ -48,7 +48,10 @@ internal static class FrameConverter
             kind: FrameConverter.ToProtocolFrameKind(frame.Kind),
             eventType: frame.EventType,
             requestId: frame.RequestId,
+            requestType: frame.RequestType,
+            responseType: frame.ResponseType,
             streamId: frame.StreamId,
+            streamType: frame.StreamType,
             payload: frame.Payload);
     }
 
@@ -60,7 +63,10 @@ internal static class FrameConverter
             kind: FrameConverter.ToNetworkFrameKind(frame.Kind),
             eventType: frame.EventType,
             requestId: frame.RequestId,
+            requestType: frame.RequestType,
+            responseType: frame.ResponseType,
             streamId: frame.StreamId,
+            streamType: frame.StreamType,
             payload: frame.Payload);
     }
 }

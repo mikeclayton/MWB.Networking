@@ -1,4 +1,4 @@
-﻿namespace MWB.Networking.Layer2_Protocol.Streams.Api;
+﻿namespace MWB.Networking.Layer2_Protocol.Lifecycle.Api;
 
 /// <summary>
 /// Application-defined metadata associated with a stream.

@@ -2,17 +2,17 @@
 using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
-namespace MWB.Networking.Layer2_Protocol.Streams.Api;
+namespace MWB.Networking.Layer2_Protocol.Lifecycle.Api;
 
 public sealed class IncomingStream : IProtocolStream
 {
     internal IncomingStream(
         ProtocolSession session,
-        uint streamId,
+        StreamContext context,
         IncomingRequest? owningRequest = null)
     {
         this.Session = session ?? throw new ArgumentNullException(nameof(session));
-        this.StreamId = streamId;
+        this.Context = context ?? throw new ArgumentNullException(nameof(context));
         this.OwningRequest = owningRequest;
     }
 
@@ -21,13 +21,19 @@ public sealed class IncomingStream : IProtocolStream
         get;
     }
 
-    internal uint StreamId
+    private StreamContext Context
     {
         get;
     }
 
+    public uint StreamId
+        => this.Context.StreamId;
+
     uint IProtocolStream.StreamId
         => this.StreamId;
+
+    public uint? StreamType
+        => this.Context.StreamType;
 
     /// <summary>
     /// The request that owns this stream, if any.
@@ -80,6 +86,6 @@ public sealed class IncomingStream : IProtocolStream
         }
 
         this.State = IncomingStreamState.Aborted;
-        this.Session.StreamManager.AbortIncomingStream(this.StreamId);
+        this.Session.StreamManager.Inbound.AbortIncomingStream(this.StreamId);
     }
 }

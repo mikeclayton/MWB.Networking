@@ -4,12 +4,18 @@ namespace MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 
 internal sealed class RequestContext
 {
-    public RequestContext(uint requestId)
+    internal RequestContext(uint requestId, uint? requestType)
     {
         this.RequestId = requestId;
+        this.RequestType = requestType;
     }
 
-    public uint RequestId
+    internal uint RequestId
+    {
+        get;
+    }
+
+    internal uint? RequestType
     {
         get;
     }

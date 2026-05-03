@@ -7,12 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MethodDecorator.Fody" Version="1.1.1" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.6" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.7" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MWB.Networking.Layer0_Transport\MWB.Networking.Layer0_Transport.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Lifecycle\MWB.Networking.Layer0_Transport.Lifecycle.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Primitives\MWB.Networking.Layer0_Transport.Encoding.csproj" />
     <ProjectReference Include="..\MWB.Networking.Logging\MWB.Networking.Logging.csproj" />
   </ItemGroup>
 

@@ -1,7 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer0_Transport;
-using MWB.Networking.Layer1_Framing;
-using MWB.Networking.Layer1_Framing.Encoding.Abstractions;
+using MWB.Networking.Layer1_Framing.Pipeline;
 using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Session.Api;
 using MWB.Networking.Logging;
@@ -11,39 +9,29 @@ using System.Diagnostics;
 namespace MWB.Networking.Layer2_Protocol.Driver;
 
 /// <summary>
-/// Drives a ProtocolSession using a NetworkAdapter.
+/// Drivers a protocol session over a transport by running
+/// read / write / consume loops.
 ///
-/// Owns execution, concurrency, cancellation, and lifetime.
-/// Contains no protocol semantics and no transport logic beyond
-/// driving the byte->frame decoding pipeline.
+/// Layer 2.5:
+/// - Knows protocol internals
+/// - Owns execution, concurrency, and shutdown
+/// - Does NOT own lifecycle policy
+/// - Does NOT define protocol semantics
 /// </summary>
-public sealed class ProtocolDriver : IHasLogger
+public sealed partial class ProtocolDriver
 {
-    public ProtocolDriver(
+    // ------------------------------------------------------------------
+    // Construction
+    // ------------------------------------------------------------------
+
+    internal ProtocolDriver(
         ILogger logger,
-        IProtocolSessionRuntime sessionRuntime,
-        ProtocolDriverOptions options)
+        IProtocolSessionProcessor processor,
+        NetworkPipeline pipeline)
     {
         this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        this.SessionRuntime = sessionRuntime ?? throw new ArgumentNullException(nameof(sessionRuntime));
-        // copy options alocally
-        ArgumentNullException.ThrowIfNull(options);
-        this.Connection = options.Connection
-            ?? throw new ArgumentException(
-                $"{nameof(options)}.{nameof(options.Connection)} is required and cannot be null.",
-                nameof(options));
-        this.Decoder = options.Decoder
-            ?? throw new ArgumentException(
-                $"{nameof(options)}.{nameof(options.Decoder)} is required and cannot be null.",
-                nameof(options));
-        this.FrameReader = options.FrameReader
-            ?? throw new ArgumentException(
-                $"{nameof(options)}.{nameof(options.FrameReader)} is required and cannot be null.",
-                nameof(options));
-        this.Adapter = options.Adapter
-            ?? throw new ArgumentException(
-                $"{nameof(options)}.{nameof(options.Adapter)} is required and cannot be null.",
-                nameof(options));
+        this.Processor = processor ?? throw new ArgumentNullException(nameof(processor));
+        this.Pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
     }
 
 #if ENABLE_PROTOCOL_FRAME_DIAGNOSTICS
@@ -58,54 +46,84 @@ public sealed class ProtocolDriver : IHasLogger
     } = new(capacity: 100_000);
 #endif
 
+    // ------------------------------------------------------------------
+    // Dependencies
+    // ------------------------------------------------------------------
+
     public ILogger Logger
     {
         get;
     }
 
-    private INetworkConnection Connection
-    {
-        get;
-    }
-    
-    private IFrameDecoder Decoder
+    private IProtocolSessionProcessor Processor
     {
         get;
     }
 
-    private NetworkFrameReader FrameReader
-    {
-        get;
-    }
-    
-    private NetworkAdapter Adapter
+    private NetworkPipeline Pipeline
     {
         get;
     }
 
-    private IProtocolSessionRuntime SessionRuntime
-    {
-        get;
-    }
-
-    private SemaphoreSlim SessionGate
+    /// <summary>
+    /// Serializes semantic execution against the runtime.
+    /// Ensures protocol state is single-threaded even though
+    /// multiple driver loops are running.
+    /// </summary>
+    private SemaphoreSlim ProcessorGate
     {
         get;
     } = new(1, 1);
 
-    private TaskCompletionSource WhenReadySource
-    {
-        get;
-    } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    // ------------------------------------------------------------------
+    // Lifecycle
+    // ------------------------------------------------------------------
 
-    public Task WhenReady
-        => this.WhenReadySource.Task;
+    private readonly DriverLifecycle _lifecycle = new();
+
+    private readonly TaskCompletionSource _whenStartedSource =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
-    /// Runs the protocol driver until cancelled or a fatal error occurs.
+    /// Completes when the driver execution loops have been scheduled.
     /// </summary>
-    //[LogMethod]
-    public async Task RunAsync(CancellationToken ct)
+    public Task WhenStarted => _whenStartedSource.Task;
+
+    /// <summary>
+    /// Starts executing the driver loops. May be called once.
+    /// </summary>
+    public Task RunAsync(CancellationToken ct)
+    {
+        using var scope = this.Logger.BeginMethodLoggingScope(this);
+
+        return _lifecycle.Start(token =>
+        {
+            var linkedCts =
+                CancellationTokenSource.CreateLinkedTokenSource(ct, token);
+
+            return this.RunInternalAsync(linkedCts.Token);
+        });
+    }
+
+    /// <summary>
+    /// Requests cooperative shutdown of the driver and waits for execution
+    /// to complete. Safe to call multiple times.
+    /// </summary>
+    public Task StopAsync()
+    {
+        return _lifecycle.StopAsync();
+    }
+
+    private void SignalStarted()
+    {
+        _whenStartedSource.TrySetResult();
+    }
+
+    // ------------------------------------------------------------------
+    // Execution
+    // ------------------------------------------------------------------
+
+    private async Task RunInternalAsync(CancellationToken ct)
     {
         using var scope = this.Logger.BeginMethodLoggingScope(this);
 
@@ -113,7 +131,7 @@ public sealed class ProtocolDriver : IHasLogger
         var writeTask = this.RunWriteLoopAsync(ct);
         var consumeTask = this.ConsumeFramesAsync(ct);
 
-        this.WhenReadySource.TrySetResult();
+        SignalStarted();
 
         await Task
             .WhenAny(
@@ -123,17 +141,21 @@ public sealed class ProtocolDriver : IHasLogger
             .ConfigureAwait(false);
     }
 
+    // ------------------------------------------------------------------
+    // Transport read loop (bytes -> frames)
+    // ------------------------------------------------------------------
+
     /// <summary>
     /// Drives the transport read loop and feeds bytes into the frame decoder.
     /// Decoded frames are delivered asynchronously via NetworkFrameReader.
     /// </summary>
-    //[LogMethod]
     private async Task RunReadLoopAsync(CancellationToken ct)
     {
         using var scope = this.Logger.BeginMethodLoggingScope(this);
         this.Logger.LogDebug("[DRIVER READ LOOP] entering");
 
         var buffer = ArrayPool<byte>.Shared.Rent(64 * 1024);
+        var pipeline = this.Pipeline;
 
         try
         {
@@ -142,8 +164,8 @@ public sealed class ProtocolDriver : IHasLogger
                 int bytesRead;
                 try
                 {
-                    bytesRead = await Connection
-                        .ReadAsync(buffer, ct)
+                    bytesRead = await pipeline
+                        .ReadBytesAsync(buffer, ct)
                         .ConfigureAwait(false);
                     this.Logger.LogDebug(
                         "[DRIVER READ LOOP] ReadAsync returned {BytesRead}",
@@ -158,8 +180,8 @@ public sealed class ProtocolDriver : IHasLogger
                 if (bytesRead == 0)
                 {
                     this.Logger.LogDebug("[DRIVER READ LOOP] EOF");
-                    await this.Decoder
-                        .CompleteAsync(this.FrameReader, ct)
+                    await pipeline
+                        .CompleteDecodingAsync(ct)
                         .ConfigureAwait(false);
                     return;
                 }
@@ -168,8 +190,8 @@ public sealed class ProtocolDriver : IHasLogger
                     buffer.AsMemory(0, bytesRead));
 
                 this.Logger.LogDebug("[DRIVER READ LOOP] calling DecodeFrameAsync");
-                await this.Decoder
-                    .DecodeFrameAsync(sequence, this.FrameReader, ct)
+                await pipeline
+                    .DecodeFrameAsync(sequence, ct)
                     .ConfigureAwait(false);
                 this.Logger.LogDebug("[DRIVER READ LOOP] returned from DecodeFrameAsync");
             }
@@ -181,34 +203,37 @@ public sealed class ProtocolDriver : IHasLogger
         }
     }
 
+    // ------------------------------------------------------------------
+    // Outbound write loop (session -> transport)
+    // ------------------------------------------------------------------
+
     /// <summary>
     /// Continuously drains outbound frames from the protocol session
     /// and writes them to the adapter.
     /// </summary>
-    //[LogMethod]
     private async Task RunWriteLoopAsync(CancellationToken ct)
     {
         using var scope = this.Logger.BeginMethodLoggingScope(this);
 
         while (!ct.IsCancellationRequested)
         {
-            await this.SessionRuntime
+            await this.Processor
                 .WaitForOutboundFrameAsync(ct)
                 .ConfigureAwait(false);
 
             ProtocolFrame? protocolFrame;
 
-            await this.SessionGate.WaitAsync(ct).ConfigureAwait(false);
+            await this.ProcessorGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                if (!this.SessionRuntime.TryDequeueOutboundFrame(out protocolFrame))
+                if (!this.Processor.TryDequeueOutboundFrame(out protocolFrame))
                 {
                     protocolFrame = null;
                 }
             }
             finally
             {
-                this.SessionGate.Release();
+                this.ProcessorGate.Release();
             }
 
             if (protocolFrame is null)
@@ -218,14 +243,14 @@ public sealed class ProtocolDriver : IHasLogger
             }
 
 #if ENABLE_PROTOCOL_FRAME_DIAGNOSTICS
-            RecentOutboundFrames.Write(protocolFrame);
+            this.RecentOutboundFrames.Write(protocolFrame);
 #endif
 
             var networkFrame = FrameConverter.ToNetworkFrame(protocolFrame);
 
             try
             {
-                await this.Adapter
+                await this.Pipeline
                     .WriteFrameAsync(networkFrame, ct)
                     .ConfigureAwait(false);
             }
@@ -236,19 +261,23 @@ public sealed class ProtocolDriver : IHasLogger
         }
     }
 
+    // ------------------------------------------------------------------
+    // Frame consumption loop (frames -> session)
+    // ------------------------------------------------------------------
+
     /// <summary>
     /// Consumes decoded NetworkFrames from the adapter and feeds them
     /// into the protocol session.
     /// </summary>
-    //[LogMethod]
-    public async Task ConsumeFramesAsync(CancellationToken ct)
+    private async Task ConsumeFramesAsync(CancellationToken ct)
     {
         using var scope = this.Logger.BeginMethodLoggingScope(this);
 
         while (!ct.IsCancellationRequested)
         {
-            var networkFrame =
-                await this.Adapter.ReadFrameAsync(ct).ConfigureAwait(false);
+            var networkFrame = await this.Pipeline
+                .ReadFrameAsync(ct)
+                .ConfigureAwait(false);
 
             var protocolFrame = FrameConverter.ToProtocolFrame(networkFrame);
 
@@ -257,14 +286,14 @@ public sealed class ProtocolDriver : IHasLogger
             this.RecentInboundFrames.Write(protocolFrame);
 #endif
 
-            await this.SessionGate.WaitAsync(ct).ConfigureAwait(false);
+            await this.ProcessorGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                this.SessionRuntime.ProcessFrame(protocolFrame);
+                this.Processor.ProcessFrame(protocolFrame);
             }
             finally
             {
-                this.SessionGate.Release();
+                this.ProcessorGate.Release();
             }
         }
     }
