@@ -10,7 +10,7 @@ namespace MWB.Networking.Layer0_Transport.Lifecycle;
 /// Owns connection creation, teardown, and state,
 /// and exposes a logical byte-oriented connection surface.
 /// </summary>
-public sealed partial class TransportStack : IDisposable
+public sealed partial class TransportStack
 {
     // -----------------------------
     // Lifecycle operations
@@ -116,7 +116,7 @@ public sealed partial class TransportStack : IDisposable
     /// Completes with an exception if the connection faults or disconnects
     /// before becoming connected.
     /// </summary>
-    public Task AwaitConnectedAsync(CancellationToken cancellationToken = default)
+    public Task AwaitConnectedAsync()
     {
         ObservableConnectionStatus statusEventSource;
 
@@ -131,17 +131,30 @@ public sealed partial class TransportStack : IDisposable
 
         // Fast-path: already connected
         if (statusEventSource.State == TransportConnectionState.Connected)
+        {
             return Task.CompletedTask;
+        }
 
         var tcs = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
 
+        CancellationTokenRegistration ctr = default;
+        var cleanedUp = false;
 
         void Cleanup()
         {
+            if (cleanedUp)
+            {
+                return;
+            }
+
+            cleanedUp = true;
+
             statusEventSource.Connected -= OnConnected;
             statusEventSource.Faulted -= OnFaulted;
             statusEventSource.Disconnected -= OnDisconnected;
+
+            ctr.Dispose();
         }
 
         void OnConnected(object? _, EventArgs __)
@@ -162,7 +175,7 @@ public sealed partial class TransportStack : IDisposable
         {
             Cleanup();
             tcs.TrySetException(new TransportDisconnectedException(
-                "Transport disconnected while awaiting connection establishment.", 
+                "Transport disconnected while awaiting connection establishment.",
                 e));
         }
 
@@ -172,16 +185,14 @@ public sealed partial class TransportStack : IDisposable
         statusEventSource.Disconnected += OnDisconnected;
 
         // Re-check AFTER subscribing to close the race window
-        var state = statusEventSource.State;
-
-        Cleanup();
-
-        switch (state)
+        switch (statusEventSource.State)
         {
             case TransportConnectionState.Connected:
+                Cleanup();
                 return Task.CompletedTask;
 
             case TransportConnectionState.Faulted:
+                Cleanup();
                 var faultMessage = "Transport faulted before connection completed.";
                 return Task.FromException(
                     new TransportFaultException(
@@ -190,6 +201,7 @@ public sealed partial class TransportStack : IDisposable
                             faultMessage)));
 
             case TransportConnectionState.Disconnected:
+                Cleanup();
                 var disconnectMessage = "Transport disconnected before connection completed.";
                 return Task.FromException(
                     new TransportDisconnectedException(
@@ -198,17 +210,9 @@ public sealed partial class TransportStack : IDisposable
                             disconnectMessage)));
 
             default:
-                // Not terminal: Connecting / Disconnecting
+                // Connecting / Disconnecting:
+                // leave handlers subscribed; events will complete the TCS
                 break;
-        }
-
-        if (cancellationToken.CanBeCanceled)
-        {
-            cancellationToken.Register(() =>
-            {
-                Cleanup();
-                tcs.TrySetCanceled(cancellationToken);
-            });
         }
 
         return tcs.Task;

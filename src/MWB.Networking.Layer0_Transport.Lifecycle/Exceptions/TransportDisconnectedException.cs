@@ -1,6 +1,6 @@
 ﻿using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
 
-namespace MWB.Networking.Layer0_Transport.Lifecycle.Exception;
+namespace MWB.Networking.Layer0_Transport.Lifecycle.Exceptions;
 
 /// <summary>
 /// Raised when the transport enters the disconnected state.
