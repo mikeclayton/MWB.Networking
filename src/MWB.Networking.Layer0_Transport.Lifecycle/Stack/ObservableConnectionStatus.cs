@@ -1,5 +1,7 @@
 ﻿using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
 
+namespace MWB.Networking.Layer0_Transport.Lifecycle.Stack;
+
 public sealed class ObservableConnectionStatus
 {
     private readonly object _sync = new();

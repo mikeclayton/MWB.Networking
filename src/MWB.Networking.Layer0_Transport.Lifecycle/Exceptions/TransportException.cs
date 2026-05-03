@@ -1,4 +1,4 @@
-﻿namespace MWB.Networking.Layer0_Transport.Lifecycle.Stack;
+﻿namespace MWB.Networking.Layer0_Transport.Lifecycle.Exception;
 
 /// <summary>
 /// Base type for all transport-layer exceptions.

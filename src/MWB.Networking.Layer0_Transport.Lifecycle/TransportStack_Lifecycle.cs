@@ -1,4 +1,5 @@
 ﻿using MWB.Networking.Layer0_Transport.Lifecycle.Abstractions;
+using MWB.Networking.Layer0_Transport.Lifecycle.Exceptions;
 using MWB.Networking.Layer0_Transport.Lifecycle.Internal;
 using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
 
@@ -15,7 +16,18 @@ public sealed partial class TransportStack : IDisposable
     // Lifecycle operations
     // -----------------------------
 
-    private void HandleDisconnected(TransportDisconnectedEventArgs e)
+    /// <summary>
+    /// Handles transition of the stack to the Disconnected state.
+    ///
+    /// This method is intentionally idempotent. It is the single cleanup path
+    /// for provider-initiated and remote disconnects.
+    ///
+    /// In the voluntary DisconnectAsync path, the stack may already have
+    /// nulled internal fields before the lifecycle raises Disconnected.
+    /// In that case, HandleDisconnected will run redundantly and must remain
+    /// safe to do so.
+    /// </summary>
+    private void CleanupOnDisconnected(TransportDisconnectedEventArgs e)
     {
         lock (_sync)
         {
@@ -24,7 +36,7 @@ public sealed partial class TransportStack : IDisposable
         }
     }
 
-    private void HandleFaulted(TransportFaultedEventArgs e)
+    private void RaiseFaultedEvent(TransportFaultedEventArgs e)
         => this.Faulted?.Invoke(this, e);
 
     /// <summary>
@@ -121,43 +133,83 @@ public sealed partial class TransportStack : IDisposable
         if (statusEventSource.State == TransportConnectionState.Connected)
             return Task.CompletedTask;
 
-        var tcs =
-            new TaskCompletionSource(
-                TaskCreationOptions.RunContinuationsAsynchronously);
+        var tcs = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
 
-        // Local handlers so we can unsubscribe cleanly
-        void OnConnected(object? _, EventArgs __)
-            => tcs.TrySetResult();
 
-        void OnFaulted(object? _, TransportFaultedEventArgs fault)
-              => tcs.TrySetException(
-                  new TransportFaultException("The transport has faulted.", fault));
-
-        void OnDisconnected(object? _, TransportDisconnectedEventArgs disconnection)
-            => tcs.TrySetException(
-                new TransportDisconnectedException("The transport has disconnected.", disconnection));
-
-        // Subscribe BEFORE observing state transitions
-        statusEventSource.Connected += OnConnected;
-        statusEventSource.Faulted += OnFaulted;
-        statusEventSource.Disconnected += OnDisconnected;
-
-        // Cancellation handling
-        CancellationTokenRegistration ctr = default;
-        if (cancellationToken.CanBeCanceled)
-        {
-            ctr = cancellationToken.Register(
-                () => tcs.TrySetCanceled(cancellationToken));
-        }
-
-        // Ensure cleanup exactly once
-        tcs.Task.ContinueWith(_ =>
+        void Cleanup()
         {
             statusEventSource.Connected -= OnConnected;
             statusEventSource.Faulted -= OnFaulted;
             statusEventSource.Disconnected -= OnDisconnected;
-            ctr.Dispose();
-        }, TaskScheduler.Default);
+        }
+
+        void OnConnected(object? _, EventArgs __)
+        {
+            Cleanup();
+            tcs.TrySetResult();
+        }
+
+        void OnFaulted(object? _, TransportFaultedEventArgs e)
+        {
+            Cleanup();
+            tcs.TrySetException(new TransportFaultException(
+                "Transport faulted while awaiting connection establishment.",
+                e));
+        }
+
+        void OnDisconnected(object? _, TransportDisconnectedEventArgs e)
+        {
+            Cleanup();
+            tcs.TrySetException(new TransportDisconnectedException(
+                "Transport disconnected while awaiting connection establishment.", 
+                e));
+        }
+
+        // Subscribe FIRST
+        statusEventSource.Connected += OnConnected;
+        statusEventSource.Faulted += OnFaulted;
+        statusEventSource.Disconnected += OnDisconnected;
+
+        // Re-check AFTER subscribing to close the race window
+        var state = statusEventSource.State;
+
+        Cleanup();
+
+        switch (state)
+        {
+            case TransportConnectionState.Connected:
+                return Task.CompletedTask;
+
+            case TransportConnectionState.Faulted:
+                var faultMessage = "Transport faulted before connection completed.";
+                return Task.FromException(
+                    new TransportFaultException(
+                        faultMessage,
+                        new TransportFaultedEventArgs(
+                            faultMessage)));
+
+            case TransportConnectionState.Disconnected:
+                var disconnectMessage = "Transport disconnected before connection completed.";
+                return Task.FromException(
+                    new TransportDisconnectedException(
+                        disconnectMessage,
+                        new TransportDisconnectedEventArgs(
+                            disconnectMessage)));
+
+            default:
+                // Not terminal: Connecting / Disconnecting
+                break;
+        }
+
+        if (cancellationToken.CanBeCanceled)
+        {
+            cancellationToken.Register(() =>
+            {
+                Cleanup();
+                tcs.TrySetCanceled(cancellationToken);
+            });
+        }
 
         return tcs.Task;
     }

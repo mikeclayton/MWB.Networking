@@ -1,4 +1,6 @@
-﻿namespace MWB.Networking.Layer0_Transport.Lifecycle.Stack;
+﻿using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
+
+namespace MWB.Networking.Layer0_Transport.Lifecycle.Exceptions;
 
 /// <summary>
 /// Raised when the transport enters the Faulted state.

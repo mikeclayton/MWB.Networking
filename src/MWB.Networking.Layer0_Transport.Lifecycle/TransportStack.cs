@@ -1,7 +1,6 @@
 ﻿using MWB.Networking.Layer0_Transport.Encoding;
 using MWB.Networking.Layer0_Transport.Lifecycle.Abstractions;
 using MWB.Networking.Layer0_Transport.Lifecycle.Internal;
-using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
 
 namespace MWB.Networking.Layer0_Transport.Lifecycle;
 
@@ -10,7 +9,7 @@ namespace MWB.Networking.Layer0_Transport.Lifecycle;
 /// Owns connection creation, teardown, and state,
 /// and exposes a logical byte-oriented connection surface.
 /// </summary>
-public sealed partial class TransportStack : IDisposable
+public sealed partial class TransportStack : IDisposable, IAsyncDisposable
 {
     // -----------------------------
     // Construction
@@ -71,15 +70,19 @@ public sealed partial class TransportStack : IDisposable
     // Disposal
     // -----------------------------
 
-    public void Dispose()
+    void IDisposable.Dispose()
+    {
+        DisposeAsync().AsTask().GetAwaiter().GetResult();
+    }
+
+    public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, true))
         {
-            // _disposed was already true before, so exit
             return;
         }
 
-        this.DisconnectAsync().GetAwaiter().GetResult();
+        await this.DisconnectAsync().ConfigureAwait(false);
         _connectionProvider.Dispose();
     }
 

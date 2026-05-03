@@ -63,25 +63,32 @@ public sealed partial class TransportStack
 
     private void OnDisconnected(object? _, TransportDisconnectedEventArgs e)
     {
-        this.HandleDisconnected(e);
+        this.CleanupOnDisconnected(e);
         this.RaiseConnectionStateChanged(TransportConnectionState.Disconnected);
     }
 
     private void OnFaulted(object? _, TransportFaultedEventArgs e)
     {
-        this.HandleFaulted(e);
+        this.RaiseFaultedEvent(e);
         this.RaiseConnectionStateChanged(TransportConnectionState.Faulted);
     }
 
     private void RaiseConnectionStateChanged(TransportConnectionState newState)
     {
-        if (_lastRaisedConnectionState == newState)
+        EventHandler<TransportConnectionState>? handler = null;
+
+        lock (_sync)
         {
-            return;
+            if (_lastRaisedConnectionState == newState)
+            {
+                return;
+            }
+
+            _lastRaisedConnectionState = newState;
+            handler = this.ConnectionStateChanged;
         }
 
-        _lastRaisedConnectionState = newState;
-        this.ConnectionStateChanged?.Invoke(this, newState);
+        handler?.Invoke(this, newState);
     }
 
     // -----------------------------
