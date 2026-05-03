@@ -33,7 +33,7 @@ public sealed class InMemoryConnectionPairDuplexTests
     [TestMethod]
     public async Task AWritesToB_BReceivesData()
     {
-        var (connectionA, connectionB) = ConnectionTestHelpers.CreateDuplexConnectionPair();
+        var (connectionA, connectionB) = ConnectionTestHelpers.CreateDuplexInMemoryConnectionPair();
         var ct = TestContext.CancellationToken;
 
         var data = new byte[] { 0x01, 0x02, 0x03 };
@@ -48,7 +48,7 @@ public sealed class InMemoryConnectionPairDuplexTests
     [TestMethod]
     public async Task BWritesToA_AReceivesData()
     {
-        var (connectionA, connectionB) = ConnectionTestHelpers.CreateDuplexConnectionPair();
+        var (connectionA, connectionB) = ConnectionTestHelpers.CreateDuplexInMemoryConnectionPair();
         var ct = TestContext.CancellationToken;
 
         var data = new byte[] { 0xAA, 0xBB, 0xCC };
@@ -70,7 +70,7 @@ public sealed class InMemoryConnectionPairDuplexTests
         // Uses ReadExactAsync (known byte count) so neither connection needs to be
         // disposed before reading — disposing a connection prevents further ReadAsync
         // calls on that same endpoint in the new design.
-        var (connectionA, connectionB) = ConnectionTestHelpers.CreateDuplexConnectionPair();
+        var (connectionA, connectionB) = ConnectionTestHelpers.CreateDuplexInMemoryConnectionPair();
         var ct = TestContext.CancellationToken;
 
         var dataAtoB = new byte[] { 0x01, 0x02, 0x03 };
@@ -103,7 +103,7 @@ public sealed class InMemoryConnectionPairDuplexTests
         // Start reading before writing so reads and writes proceed concurrently.
         // Uses ReadExactAsync (known total byte count) — disposing a connection
         // prevents further ReadAsync on that same endpoint in the new design.
-        var (connectionA, connectionB) = ConnectionTestHelpers.CreateDuplexConnectionPair();
+        var (connectionA, connectionB) = ConnectionTestHelpers.CreateDuplexInMemoryConnectionPair();
         var ct = TestContext.CancellationToken;
 
         const int messageCount = 500;
@@ -159,7 +159,7 @@ public sealed class InMemoryConnectionPairDuplexTests
     {
         // Disposing connectionA completes only the A→B buffer.
         // connectionB must still be able to write in the B→A direction.
-        var (connectionA, connectionB) = ConnectionTestHelpers.CreateDuplexConnectionPair();
+        var (connectionA, connectionB) = ConnectionTestHelpers.CreateDuplexInMemoryConnectionPair();
         var ct = TestContext.CancellationToken;
 
         // Dispose A — signals EOF in A→B; B's reader will see 0
@@ -181,7 +181,7 @@ public sealed class InMemoryConnectionPairDuplexTests
     {
         // Disposing connectionB completes only the B→A buffer.
         // connectionA must still be able to write in the A→B direction.
-        var (connectionA, connectionB) = ConnectionTestHelpers.CreateDuplexConnectionPair();
+        var (connectionA, connectionB) = ConnectionTestHelpers.CreateDuplexInMemoryConnectionPair();
         var ct = TestContext.CancellationToken;
 
         connectionB.Dispose();
@@ -204,7 +204,7 @@ public sealed class InMemoryConnectionPairDuplexTests
     [TestMethod]
     public async Task ManySequentialMessages_DeliveredInWriteOrder()
     {
-        var (connectionA, connectionB) = ConnectionTestHelpers.CreateDuplexConnectionPair();
+        var (connectionA, connectionB) = ConnectionTestHelpers.CreateDuplexInMemoryConnectionPair();
         var ct = TestContext.CancellationToken;
 
         const int messageCount = 1000;

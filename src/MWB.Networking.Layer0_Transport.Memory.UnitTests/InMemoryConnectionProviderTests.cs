@@ -46,7 +46,7 @@ public sealed class InMemoryConnectionProviderTests
     [TestMethod]
     public async Task OpenConnectionAsync_ReturnsNonNullConnection()
     {
-        var (providerA, _) = ConnectionTestHelpers.CreateDuplexProviders();
+        var (providerA, _) = ConnectionTestHelpers.CreateDuplexInMemoryProviders();
 
         var conn = await providerA.OpenConnectionAsync(
             new ObservableConnectionStatus(), TestContext.CancellationToken);
@@ -55,14 +55,28 @@ public sealed class InMemoryConnectionProviderTests
     }
 
     [TestMethod]
-    public async Task OpenConnectionAsync_ConnectionIsInConnectedState()
+    public async Task OpenConnectionAsync_ConnectionIsEventuallyInConnectedState()
     {
-        // OpenConnectionAsync binds the status and immediately transitions it
+        // OpenConnectionAsync binds the status and the TransportStack *eventually* transitions it
         // through Connecting → Connected. The status must be Connected on return.
-        var (providerA, _) = ConnectionTestHelpers.CreateDuplexProviders();
+        var (providerA, _) = ConnectionTestHelpers.CreateDuplexInMemoryProviders();
         var status = new ObservableConnectionStatus();
 
         await providerA.OpenConnectionAsync(status, TestContext.CancellationToken);
+
+        // Explicitly wait for Connected
+        if (status.State != TransportConnectionState.Connected)
+        {
+            var tcs = new TaskCompletionSource();
+            void OnConnected(object? _, EventArgs __)
+            {
+                status.Connected -= OnConnected;
+                tcs.TrySetResult();
+            }
+            status.Connected += OnConnected;
+            await tcs.Task
+                .WaitAsync(new TimeSpan(10),TestContext.CancellationToken);
+        }
 
         Assert.AreEqual(TransportConnectionState.Connected, status.State);
     }
@@ -70,7 +84,7 @@ public sealed class InMemoryConnectionProviderTests
     [TestMethod]
     public async Task OpenConnectionAsync_RaisesConnectingThenConnectedEvents()
     {
-        var (providerA, _) = ConnectionTestHelpers.CreateDuplexProviders();
+        var (providerA, _) = ConnectionTestHelpers.CreateDuplexInMemoryProviders();
         var status = new ObservableConnectionStatus();
         var events = new List<string>();
 
@@ -87,7 +101,7 @@ public sealed class InMemoryConnectionProviderTests
     [TestMethod]
     public async Task OpenConnectionAsync_BothSides_ReturnDistinctConnections()
     {
-        var (providerA, providerB) = ConnectionTestHelpers.CreateDuplexProviders();
+        var (providerA, providerB) = ConnectionTestHelpers.CreateDuplexInMemoryProviders();
         var ct = TestContext.CancellationToken;
 
         var (connA, connB) = await ConnectionTestHelpers.OpenBothAsync(providerA, providerB, ct);
@@ -103,7 +117,7 @@ public sealed class InMemoryConnectionProviderTests
     [TestMethod]
     public async Task OpenConnectionAsync_CalledTwice_ThrowsInvalidOperationException()
     {
-        var (providerA, _) = ConnectionTestHelpers.CreateDuplexProviders();
+        var (providerA, _) = ConnectionTestHelpers.CreateDuplexInMemoryProviders();
         var ct = TestContext.CancellationToken;
 
         await providerA.OpenConnectionAsync(new ObservableConnectionStatus(), ct);
@@ -115,7 +129,7 @@ public sealed class InMemoryConnectionProviderTests
     [TestMethod]
     public async Task OpenConnectionAsync_WithAlreadyCancelledToken_ThrowsOperationCanceledException()
     {
-        var (providerA, _) = ConnectionTestHelpers.CreateDuplexProviders();
+        var (providerA, _) = ConnectionTestHelpers.CreateDuplexInMemoryProviders();
 
         using var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -128,7 +142,7 @@ public sealed class InMemoryConnectionProviderTests
     public async Task OpenConnectionAsync_CalledOncePerSide_BothSucceed()
     {
         // Each side has its own "opened" guard; opening SideA once and SideB once is legal.
-        var (providerA, providerB) = ConnectionTestHelpers.CreateDuplexProviders();
+        var (providerA, providerB) = ConnectionTestHelpers.CreateDuplexInMemoryProviders();
         var ct = TestContext.CancellationToken;
 
         var connA = await providerA.OpenConnectionAsync(new ObservableConnectionStatus(), ct);
@@ -145,7 +159,7 @@ public sealed class InMemoryConnectionProviderTests
     [TestMethod]
     public async Task DuplexProviders_AtoB_DataDeliveredToB()
     {
-        var (providerA, providerB) = ConnectionTestHelpers.CreateDuplexProviders();
+        var (providerA, providerB) = ConnectionTestHelpers.CreateDuplexInMemoryProviders();
         var ct = TestContext.CancellationToken;
 
         var (connA, connB) = await ConnectionTestHelpers.OpenBothAsync(providerA, providerB, ct);
@@ -165,7 +179,7 @@ public sealed class InMemoryConnectionProviderTests
     [TestMethod]
     public async Task DuplexProviders_BtoA_DataDeliveredToA()
     {
-        var (providerA, providerB) = ConnectionTestHelpers.CreateDuplexProviders();
+        var (providerA, providerB) = ConnectionTestHelpers.CreateDuplexInMemoryProviders();
         var ct = TestContext.CancellationToken;
 
         var (connA, connB) = await ConnectionTestHelpers.OpenBothAsync(providerA, providerB, ct);
@@ -187,7 +201,7 @@ public sealed class InMemoryConnectionProviderTests
     {
         // Uses ReadExactAsync (known byte count) to avoid needing an EOF signal
         // mid-test, so neither connection needs to be disposed early.
-        var (providerA, providerB) = ConnectionTestHelpers.CreateDuplexProviders();
+        var (providerA, providerB) = ConnectionTestHelpers.CreateDuplexInMemoryProviders();
         var ct = TestContext.CancellationToken;
 
         var (connA, connB) = await ConnectionTestHelpers.OpenBothAsync(providerA, providerB, ct);
@@ -218,7 +232,7 @@ public sealed class InMemoryConnectionProviderTests
     public async Task DuplexProviders_SequentialExchange_RoundTrip()
     {
         // Simple ping-pong: A sends, B receives and replies, A receives reply.
-        var (providerA, providerB) = ConnectionTestHelpers.CreateDuplexProviders();
+        var (providerA, providerB) = ConnectionTestHelpers.CreateDuplexInMemoryProviders();
         var ct = TestContext.CancellationToken;
 
         var (connA, connB) = await ConnectionTestHelpers.OpenBothAsync(providerA, providerB, ct);
@@ -254,7 +268,7 @@ public sealed class InMemoryConnectionProviderTests
     [TestMethod]
     public async Task OpenConnectionAsync_EachSideHasIndependentStatus()
     {
-        var (providerA, providerB) = ConnectionTestHelpers.CreateDuplexProviders();
+        var (providerA, providerB) = ConnectionTestHelpers.CreateDuplexInMemoryProviders();
         var ct = TestContext.CancellationToken;
 
         var statusA = new ObservableConnectionStatus();
@@ -281,7 +295,7 @@ public sealed class InMemoryConnectionProviderTests
     [TestMethod]
     public void Dispose_IsIdempotentAndDoesNotThrow()
     {
-        var (providerA, providerB) = ConnectionTestHelpers.CreateDuplexProviders();
+        var (providerA, providerB) = ConnectionTestHelpers.CreateDuplexInMemoryProviders();
 
         providerA.Dispose();
         providerA.Dispose();
@@ -291,7 +305,7 @@ public sealed class InMemoryConnectionProviderTests
     [TestMethod]
     public async Task Dispose_AfterOpenConnection_DoesNotThrow()
     {
-        var (providerA, _) = ConnectionTestHelpers.CreateDuplexProviders();
+        var (providerA, _) = ConnectionTestHelpers.CreateDuplexInMemoryProviders();
 
         await providerA.OpenConnectionAsync(
             new ObservableConnectionStatus(), TestContext.CancellationToken);

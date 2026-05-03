@@ -31,7 +31,7 @@ internal static class ConnectionTestHelpers
     /// and vice-versa.
     /// </summary>
     internal static (InMemoryNetworkConnection connectionA, InMemoryNetworkConnection connectionB)
-        CreateDuplexConnectionPair()
+        CreateDuplexInMemoryConnectionPair()
     {
         var buffer = new SegmentedDuplexBuffer();
         return (buffer.ConnectionA, buffer.ConnectionB);
@@ -41,7 +41,7 @@ internal static class ConnectionTestHelpers
     /// Creates two providers that share an in-memory duplex buffer.
     /// </summary>
     internal static (InMemoryNetworkConnectionProvider providerA, InMemoryNetworkConnectionProvider providerB)
-        CreateDuplexProviders()
+        CreateDuplexInMemoryProviders()
     {
         var buffer = new SegmentedDuplexBuffer();
         return (
