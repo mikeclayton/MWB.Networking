@@ -38,12 +38,11 @@ public sealed class ExecutionScope : IDisposable
 
     public void Dispose()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposed, true))
         {
+            // was already disposed
             return;
         }
-
-        _disposed = true;
 
         _onEndScope();
         _innerScope?.Dispose();

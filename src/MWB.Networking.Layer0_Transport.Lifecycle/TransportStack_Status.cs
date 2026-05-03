@@ -63,12 +63,14 @@ public sealed partial class TransportStack
 
     private void OnDisconnected(object? _, TransportDisconnectedEventArgs e)
     {
-        this.CleanupOnDisconnected(e);
+        this.CleanupConnection();
+        this.CleanupConnectionOnDisconnect();
         this.RaiseConnectionStateChanged(TransportConnectionState.Disconnected);
     }
 
     private void OnFaulted(object? _, TransportFaultedEventArgs e)
     {
+        this.CleanupConnection();
         this.RaiseFaultedEvent(e);
         this.RaiseConnectionStateChanged(TransportConnectionState.Faulted);
     }

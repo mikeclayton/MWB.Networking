@@ -1,5 +1,6 @@
 ﻿using MWB.Networking.Layer0_Transport.Encoding;
 using MWB.Networking.Layer0_Transport.Lifecycle.Abstractions;
+using MWB.Networking.Layer0_Transport.Lifecycle.Exceptions;
 using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
 
 namespace MWB.Networking.Layer0_Transport.Lifecycle.Internal;
@@ -51,37 +52,96 @@ internal sealed class LogicalConnection : IDisposable
     /// <param name="ct">
     /// A cancellation token used to abort the wait.
     /// </param>
+
     private async Task AwaitConnectedAsync(CancellationToken ct)
     {
+        // Fast-path
         if (_status.State == TransportConnectionState.Connected)
-        {
             return;
-        }
 
         var tcs = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
 
-        void OnConnected(object? sender, EventArgs e)
-            => tcs.TrySetResult();
+        void Cleanup()
+        {
+            _status.Connected -= OnConnected;
+            _status.Faulted -= OnFaulted;
+            _status.Disconnected -= OnDisconnected;
+        }
 
+        void OnConnected(object? _, EventArgs __)
+        {
+            Cleanup();
+            tcs.TrySetResult();
+        }
+
+        void OnFaulted(object? _, TransportFaultedEventArgs e)
+        {
+            Cleanup();
+            tcs.TrySetException(
+                new TransportFaultException(
+                    "Logical connection faulted while awaiting connection.",
+                    e));
+        }
+
+        void OnDisconnected(object? _, TransportDisconnectedEventArgs e)
+        {
+            Cleanup();
+            tcs.TrySetException(
+                new TransportDisconnectedException(
+                    "Logical connection disconnected while awaiting connection.",
+                    e));
+        }
+
+        // Subscribe FIRST
         _status.Connected += OnConnected;
+        _status.Faulted += OnFaulted;
+        _status.Disconnected += OnDisconnected;
+
         try
         {
-            if (_status.State == TransportConnectionState.Connected)
+            // Re-check state AFTER subscribing (closes race window)
+            switch (_status.State)
             {
-                return;
+                case TransportConnectionState.Connected:
+                    Cleanup();
+                    return;
+
+                case TransportConnectionState.Faulted:
+                    Cleanup();
+                    throw new TransportFaultException(
+                        "Logical connection faulted before becoming connected.",
+                        new TransportFaultedEventArgs(
+                            "Logical connection faulted before becoming connected."));
+
+                case TransportConnectionState.Disconnected:
+                    Cleanup();
+                    throw new TransportDisconnectedException(
+                        "Logical connection disconnected before becoming connected.",
+                        new TransportDisconnectedEventArgs(
+                            "Logical connection disconnected before becoming connected."));
+
+                default:
+                    // Connecting / Disconnecting: wait for events
+                    break;
             }
 
-            using (ct.Register(() => tcs.TrySetCanceled(ct)))
+            using (ct.Register(() =>
+            {
+                Cleanup();
+                tcs.TrySetCanceled(ct);
+            }))
             {
                 await tcs.Task.ConfigureAwait(false);
             }
         }
         finally
         {
-            _status.Connected -= OnConnected;
+            // Safety-net: ensure no leaked handlers
+            Cleanup();
         }
     }
+
 
     /// <summary>
     /// Reads raw bytes from the underlying network connection.
@@ -146,10 +206,12 @@ internal sealed class LogicalConnection : IDisposable
     /// </remarks>
     public void Dispose()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposed, true))
+        {
+            // we were already disposed
             return;
+        }
 
-        _disposed = true;
         _connection.Dispose();
     }
 

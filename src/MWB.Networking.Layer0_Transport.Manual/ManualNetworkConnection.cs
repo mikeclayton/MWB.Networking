@@ -31,7 +31,7 @@ public sealed class ManualNetworkConnection : INetworkConnection, IDisposable
 
     private bool _started;
     private bool _isDisconnected;
-    private bool _isDisposed;
+    private bool _disposed;
 
     public ManualNetworkConnection(ObservableConnectionStatus status)
     {
@@ -70,7 +70,9 @@ public sealed class ManualNetworkConnection : INetworkConnection, IDisposable
 
         _readChannel.Writer.TryComplete();
 
-        _status.OnDisconnected();
+        _status.OnDisconnected(
+            new TransportDisconnectedEventArgs(
+                reason ?? "Manual transport disconnected by local request."));
     }
 
     // ------------------------------------------------------------------
@@ -81,7 +83,7 @@ public sealed class ManualNetworkConnection : INetworkConnection, IDisposable
         Memory<byte> buffer,
         CancellationToken ct)
     {
-        if (_isDisposed || _isDisconnected)
+        if (_disposed || _isDisconnected)
             return 0; // EOF
 
         ReadOnlyMemory<byte> data;
@@ -105,7 +107,7 @@ public sealed class ManualNetworkConnection : INetworkConnection, IDisposable
         CancellationToken ct)
     {
         ObjectDisposedException.ThrowIf(
-            _isDisposed,
+            _disposed,
             nameof(ManualNetworkConnection));
 
         if (_isDisconnected)
@@ -126,7 +128,7 @@ public sealed class ManualNetworkConnection : INetworkConnection, IDisposable
     /// </summary>
     public void InjectFrame(ReadOnlyMemory<byte> frame)
     {
-        if (_isDisposed || _isDisconnected)
+        if (_disposed || _isDisconnected)
             return;
 
         _readChannel.Writer.TryWrite(frame);
@@ -149,12 +151,18 @@ public sealed class ManualNetworkConnection : INetworkConnection, IDisposable
 
     public void Dispose()
     {
-        if (_isDisposed)
+        if (Interlocked.Exchange(ref _disposed, true))
+        {
+            // was already disposed
             return;
+        }
 
-        _isDisposed = true;
+        _disposed = true;
 
         _readChannel.Writer.TryComplete();
-        _status.OnDisconnected();
+
+        _status.OnDisconnected(
+                new TransportDisconnectedEventArgs(
+                    "Manual transport disposed."));
     }
 }

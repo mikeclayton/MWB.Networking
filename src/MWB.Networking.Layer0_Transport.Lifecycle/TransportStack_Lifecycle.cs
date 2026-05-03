@@ -16,24 +16,31 @@ public sealed partial class TransportStack
     // Lifecycle operations
     // -----------------------------
 
-    /// <summary>
-    /// Handles transition of the stack to the Disconnected state.
-    ///
-    /// This method is intentionally idempotent. It is the single cleanup path
-    /// for provider-initiated and remote disconnects.
-    ///
-    /// In the voluntary DisconnectAsync path, the stack may already have
-    /// nulled internal fields before the lifecycle raises Disconnected.
-    /// In that case, HandleDisconnected will run redundantly and must remain
-    /// safe to do so.
-    /// </summary>
-    private void CleanupOnDisconnected(TransportDisconnectedEventArgs e)
+    private void CleanupConnection()
     {
         lock (_sync)
         {
             _logicalConnection = null;
+            // ConnectionStatus handled separately (see below)
+        }
+    }
+
+    private void CleanupConnectionOnDisconnect()
+    {
+        ObservableConnectionStatus? status;
+
+        lock (_sync)
+        {
+            status = this.ConnectionStatus;
             this.ConnectionStatus = null;
         }
+
+        if (status is null)
+        {
+            return;
+        }
+
+        UnregisterConnectionStatusEvents(status);
     }
 
     private void RaiseFaultedEvent(TransportFaultedEventArgs e)
@@ -58,16 +65,13 @@ public sealed partial class TransportStack
         lock (_sync)
         {
             this.ThrowIfDisposed();
-
             if (_logicalConnection is not null || this.ConnectionStatus is not null)
             {
                 throw new InvalidOperationException(
                     "Transport is already connecting or connected.");
             }
-
             status = new ObservableConnectionStatus();
             this.ConnectionStatus = status;
-
             // Wire lifecycle events *inside* the lock so that the stack
             // is fully prepared to observe transitions immediately.
             this.RegisterConnectionStatusEvents(this.ConnectionStatus);
@@ -75,27 +79,60 @@ public sealed partial class TransportStack
 
         try
         {
-            // Request a physical connection attempt.
-            // The provider may synchronously signal lifecycle events.
+            // Initiate the connection attempt. The provider may
+            // synchronously or asynchronously raise lifecycle events
+            // (Connecting / Connected / Faulted / Disconnected).
             physicalConnection =
                 await _connectionProvider
                     .OpenConnectionAsync(status, cancellationToken)
                     .ConfigureAwait(false);
-        }
-        catch
-        {
-            // Failed before a logical connection existed – reset state.
+
+            logical = new LogicalConnection(physicalConnection, status);
+
             lock (_sync)
             {
-                if (this.ConnectionStatus is null)
+
+                // The stack may have been disposed while the connection was
+                // being established. In that case we must not publish a live
+                // logical connection.
+                if (_disposed)
                 {
-                    return;
+                    logical.Dispose();
+                    throw new ObjectDisposedException(nameof(TransportStack));
                 }
-                this.UnregisterConnectionStatusEvents(this.ConnectionStatus);
-                this.ConnectionStatus = null;
+
+                _logicalConnection = logical;
             }
+
+        }
+        catch (Exception ex)
+        {
+            // IMPORTANT:
+            // If OpenConnectionAsync throws before a terminal lifecycle event
+            // is raised, observers may have already seen Connecting().
+            // We must explicitly close the lifecycle stream with a terminal
+            // Faulted state before tearing everything down.
+            //
+            // This preserves the invariant that every lifecycle stream
+            // ends in a terminal state.
+
+            status.OnFaulted(
+                new TransportFaultedEventArgs(
+                    "Connection attempt failed before establishment.",
+                    ex));
+
+            // Cleanup after terminal signalling
+            UnregisterConnectionStatusEvents(status);
+
+            lock (_sync)
+            {
+                this.ConnectionStatus = null;
+                _logicalConnection = null;
+            }
+
             throw;
         }
+
 
         logical = new LogicalConnection(physicalConnection, status);
 
@@ -138,7 +175,6 @@ public sealed partial class TransportStack
         var tcs = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
 
-        CancellationTokenRegistration ctr = default;
         var cleanedUp = false;
 
         void Cleanup()
@@ -153,8 +189,6 @@ public sealed partial class TransportStack
             statusEventSource.Connected -= OnConnected;
             statusEventSource.Faulted -= OnFaulted;
             statusEventSource.Disconnected -= OnDisconnected;
-
-            ctr.Dispose();
         }
 
         void OnConnected(object? _, EventArgs __)

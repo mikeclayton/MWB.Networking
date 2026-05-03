@@ -134,12 +134,11 @@ public sealed class CodecBuffer : IDisposable
 
     public void Dispose()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposed, true))
         {
+            // was already disposed
             return;
         }
-
-        _disposed = true;
 
         // Disposal is a terminal state; treat the buffer as completed
         // to prevent misleading post-dispose errors.

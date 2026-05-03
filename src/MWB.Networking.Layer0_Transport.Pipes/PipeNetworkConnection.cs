@@ -88,7 +88,9 @@ public sealed class PipeNetworkConnection : INetworkConnection, IDisposable
                 {
                     // EOF
                     this.Reader.AdvanceTo(sequence.End);
-                    this.Status.OnDisconnected();
+                    this.Status.OnDisconnected(
+                        new TransportDisconnectedEventArgs(
+                            "Pipe completed (remote closed connection)."));
                     return 0;
                 }
 
@@ -98,7 +100,10 @@ public sealed class PipeNetworkConnection : INetworkConnection, IDisposable
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            this.Status.OnFaulted("Pipe read failed", ex);
+            this.Status.OnFaulted(
+                new TransportFaultedEventArgs(
+                    "Pipe read failed.",
+                    ex));
             throw;
         }
     }
@@ -131,17 +136,21 @@ public sealed class PipeNetworkConnection : INetworkConnection, IDisposable
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            this.Status.OnFaulted("Pipe write failed", ex);
+            this.Status.OnFaulted(
+                new TransportFaultedEventArgs(
+                    "Pipe write failed.",
+                    ex));
             throw;
         }
     }
 
     public void Dispose()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposed, true))
+        {
+            // was already disposed
             return;
-
-        _disposed = true;
+        }
 
         try
         {
@@ -157,9 +166,11 @@ public sealed class PipeNetworkConnection : INetworkConnection, IDisposable
         }
         finally
         {
-            // Disposal is an observable fact:
+            // Disposal is an observable, orderly termination:
             // the connection is no longer usable.
-            this.Status.OnDisconnected();
+            this.Status.OnDisconnected(
+                new TransportDisconnectedEventArgs(
+                    "Pipe transport disposed."));
         }
     }
 }

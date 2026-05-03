@@ -57,8 +57,9 @@ public sealed class ManualNetworkConnectionProvider
 
     public void Dispose()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposed, true))
         {
+            // was already disposed
             return;
         }
 

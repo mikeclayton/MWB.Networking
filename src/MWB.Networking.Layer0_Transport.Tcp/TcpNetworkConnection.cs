@@ -78,8 +78,10 @@ public sealed class TcpNetworkConnection
 
             if (bytesRead == 0)
             {
-                // EOF
-                _status?.OnDisconnected();
+                // EOF: orderly remote shutdown
+                _status?.OnDisconnected(
+                    new TransportDisconnectedEventArgs(
+                        "Remote endpoint closed the TCP connection."));
             }
 
             return bytesRead;
@@ -91,8 +93,9 @@ public sealed class TcpNetworkConnection
         catch (Exception ex)
         {
             _status?.OnFaulted(
-                "TCP read failed",
-                ex);
+                new TransportFaultedEventArgs(
+                    "TCP read failed.",
+                    ex));
             throw;
         }
     }
@@ -124,8 +127,9 @@ public sealed class TcpNetworkConnection
         catch (Exception ex)
         {
             _status?.OnFaulted(
-                "TCP write failed",
-                ex);
+                new TransportFaultedEventArgs(
+                    "TCP write failed.",
+                    ex));
             throw;
         }
     }
@@ -136,10 +140,11 @@ public sealed class TcpNetworkConnection
 
     public void Dispose()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposed, true))
+        {
+            // was already disposed
             return;
-
-        _disposed = true;
+        }
 
         try
         {
@@ -148,14 +153,17 @@ public sealed class TcpNetworkConnection
         }
         finally
         {
-            // Disposal is an observable fact
-            _status?.OnDisconnected();
+
+            // Disposal is an observable, orderly termination:
+            // the TCP connection is no longer usable.
+            _status?.OnDisconnected(
+                new TransportDisconnectedEventArgs(
+                    "TCP transport disposed."));
         }
     }
 
     private void ThrowIfDisposed()
     {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(TcpNetworkConnection));
+        ObjectDisposedException.ThrowIf(_disposed, nameof(TcpNetworkConnection));
     }
 }

@@ -49,11 +49,14 @@ public sealed class NullConnection : INetworkConnection
 
     public void Dispose()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposed, true))
+        {
+            // was already disposed
             return;
+        }
 
-        _disposed = true;
-
-        _status.OnDisconnected();
+        _status.OnDisconnected(
+              new TransportDisconnectedEventArgs(
+                  "Null transport disposed."));
     }
 }

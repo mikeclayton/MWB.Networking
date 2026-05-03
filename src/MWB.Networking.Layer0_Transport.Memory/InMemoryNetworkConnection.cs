@@ -98,15 +98,17 @@ public sealed class InMemoryNetworkConnection :
 
     public void Dispose()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposed, true))
         {
+            // was already disposed
             return;
         }
 
-        _disposed = true;
-
         _writer.Complete();
-        _status?.OnDisconnected();
+
+        _status?.OnDisconnected(
+              new TransportDisconnectedEventArgs(
+                  "In-memory transport disposed."));
     }
 
     private void ThrowIfDisposed()

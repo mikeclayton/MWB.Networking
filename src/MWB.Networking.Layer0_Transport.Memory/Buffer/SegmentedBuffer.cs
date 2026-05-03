@@ -87,12 +87,12 @@ internal sealed class SegmentedBuffer : IDisposable
 
     public void Dispose()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposed, true))
         {
+            // was already disposed
             return;
         }
 
-        _disposed = true;
         _completed = true;
 
         // Unblock any waiting readers

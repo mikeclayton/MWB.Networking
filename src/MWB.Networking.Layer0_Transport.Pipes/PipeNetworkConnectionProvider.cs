@@ -45,10 +45,11 @@ public sealed class PipeNetworkConnectionProvider
 
     public void Dispose()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposed, true))
+        {
+            // was already disposed
             return;
-
-        _disposed = true;
+        }
 
         // Provider owns the pipes, so it disposes them
         _reader.Complete();
