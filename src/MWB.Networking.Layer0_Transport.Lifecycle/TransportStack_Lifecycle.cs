@@ -164,11 +164,9 @@ public sealed partial class TransportStack
         {
             if (Interlocked.CompareExchange(ref cleanedUp, true, false))
             {
-                // already cleaned up
+                // was already cleaned up
                 return;
             }
-
-            cleanedUp = true;
 
             statusEventSource.Connected -= OnConnected;
             statusEventSource.Faulted -= OnFaulted;
