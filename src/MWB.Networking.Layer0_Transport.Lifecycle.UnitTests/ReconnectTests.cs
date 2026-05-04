@@ -50,7 +50,7 @@ public sealed class ReconnectTests
             .WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
 
         Assert.IsTrue(stack.IsConnected, "Should be reconnected.");
-        Assert.AreEqual(2, provider.Instrumentation.Connections.Count,
+        Assert.HasCount(2, provider.Instrumentation.Connections,
             "Provider should have created two distinct connections.");
     }
 
@@ -90,7 +90,7 @@ public sealed class ReconnectTests
             .WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
 
         Assert.IsTrue(stack.IsConnected, "Should be connected after fault-recovery.");
-        Assert.AreEqual(2, provider.Instrumentation.Connections.Count);
+        Assert.HasCount(2, provider.Instrumentation.Connections);
     }
 
     /// <summary>

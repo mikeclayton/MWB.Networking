@@ -14,21 +14,7 @@ public sealed partial class TransportStack
     /// to avoid raising duplicate events
     /// </summary>
     private TransportConnectionState? _lastRaisedConnectionState;
-
-    /// <summary>
-    /// Set by both the provider-initiated and stack-initiated disconnect paths
-    /// so that ReadAsync can return EOF (0) after any terminal event, regardless
-    /// of which side initiated the disconnect.
-    /// </summary>
-    private bool _hasTerminated;
-
-    /// <summary>
-    /// Volatile flag kept in sync with the Connected lifecycle state so that
-    /// <see cref="IsConnected"/> is a single volatile read with no lock acquisition.
-    /// Updated inside <see cref="RaiseConnectionStateChanged"/> which already holds _sync.
-    /// </summary>
-    private volatile bool _isConnected;
-
+      
     /// <summary>
     /// Gets the current connection status.
     /// </summary>
@@ -52,7 +38,16 @@ public sealed partial class TransportStack
     /// <summary>
     /// True if the stack is currently connected.
     /// </summary>
-    public bool IsConnected => _isConnected;
+    public bool IsConnected
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _state == StackState.Connected;
+            }
+        }
+    }
 
     // -----------------------------
     // Connection state changed events
@@ -76,31 +71,129 @@ public sealed partial class TransportStack
         remove { lock (_sync) { _connectionStateChanged -= value; } }
     }
 
-    private void OnConnecting(object? _, EventArgs __) =>
+    private void OnConnecting(object? _, EventArgs __)
+    {
+        lock (_sync)
+        {
+            // Only meaningful when starting a new connection attempt
+            if (_state != StackState.Connecting)
+                return;
+        }
+
         this.RaiseConnectionStateChanged(TransportConnectionState.Connecting);
+    }
 
-    private void OnConnected(object? _, EventArgs __) =>
+    private void OnConnected(object? _, EventArgs __)
+    {
+        lock (_sync)
+        {
+            // Only a connecting stack can become connected.
+            // Ignore stray / late signals.
+            if (_state != StackState.Connecting)
+            {
+                return;
+            }
+
+            _state = StackState.Connected;
+
+            // Record that we have successfully established
+            // a logical connection at least once.
+            _hasEverConnected = true;
+        }
         this.RaiseConnectionStateChanged(TransportConnectionState.Connected);
+    }
 
-    private void OnDisconnecting(object? _, EventArgs __) =>
+    private void OnDisconnecting(object? _, EventArgs __)
+    {
+        lock (_sync)
+        {
+            // Disconnecting is valid exactly once during an active attempt
+            if (_state != StackState.Connected &&
+                _state != StackState.Connecting)
+            {
+                return;
+            }
+
+            _state = StackState.Disconnecting;
+        }
         this.RaiseConnectionStateChanged(TransportConnectionState.Disconnecting);
+    }
 
     private void OnDisconnected(object? _, TransportDisconnectedEventArgs e)
     {
+        bool shouldRaise;
+
+        lock (_sync)
+        {
+            // Terminal events are idempotent
+            if (_state == StackState.Terminated)
+            {
+                return;
+            }
+
+            shouldRaise =
+                _state == StackState.Connected ||
+                _state == StackState.Connecting ||
+                _state == StackState.Disconnecting;
+
+            // IMPORTANT:
+            // Immediately leave Connected so IsConnected becomes false
+            _state = StackState.Terminated;
+        }
+
+        // CleanupForTerminalEvent transitions state → Terminated
         this.CleanupForTerminalEvent();
-        this.RaiseConnectionStateChanged(TransportConnectionState.Disconnected);
+
+        if (shouldRaise)
+        {
+            this.RaiseConnectionStateChanged(TransportConnectionState.Disconnected);
+        }
+
+        // Provider disconnects are recoverable → reset to Idle
+        lock (_sync)
+        {
+            _state = StackState.Idle;
+        }
     }
 
     private void OnFaulted(object? _, TransportFaultedEventArgs e)
     {
-        // IMPORTANT:
+        bool shouldRaise;
+
+        lock (_sync)
+        {
+            if (_state == StackState.Terminated)
+            {
+                return;
+            }
+
+            shouldRaise =
+                _state == StackState.Connecting ||
+                _state == StackState.Connected ||
+                _state == StackState.Disconnecting;
+
+            // IMPORTANT:
+            // Immediately leave Connected/Connecting so IsConnected becomes false
+            _state = StackState.Terminated;
+        }
+
         // A faulted connection attempt is complete and must
         // not block subsequent ConnectAsync calls.
         this.CleanupForTerminalEvent();
 
         this.RaiseFaultedEvent(e);
-        this.RaiseConnectionStateChanged(TransportConnectionState.Faulted);
+        if (shouldRaise)
+        {
+            this.RaiseConnectionStateChanged(TransportConnectionState.Faulted);
+        }
+
+        // Provider faults are recoverable → reset to Idle
+        lock (_sync)
+        {
+            _state = StackState.Idle;
+        }
     }
+
 
     private void RaiseFaultedEvent(TransportFaultedEventArgs e)
     {
@@ -124,7 +217,6 @@ public sealed partial class TransportStack
             }
 
             _lastRaisedConnectionState = newState;
-            _isConnected = newState == TransportConnectionState.Connected;
             handler = _connectionStateChanged;
         }
 
@@ -142,8 +234,6 @@ public sealed partial class TransportStack
         // is always raised, even if it matches the terminal state of the
         // previous one (e.g. Fault → reconnect → Fault again).
         _lastRaisedConnectionState = null;
-        _hasTerminated = false;
-        _isConnected = false;
 
         connectionStatus.Connecting += this.OnConnecting;
         connectionStatus.Connected += this.OnConnected;

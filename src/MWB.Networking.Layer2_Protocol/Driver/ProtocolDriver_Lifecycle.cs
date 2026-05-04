@@ -2,7 +2,6 @@
 
 public sealed partial class ProtocolDriver
 {
-
     /// <summary>
     /// Encapsulates the execution lifecycle of a <see cref="ProtocolDriver"/>.
     /// </summary>

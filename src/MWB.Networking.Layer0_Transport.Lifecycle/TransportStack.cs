@@ -72,21 +72,24 @@ public sealed partial class TransportStack : IDisposable, IAsyncDisposable
         CancellationToken cancellationToken = default)
     {
         LogicalConnection? conn;
-        bool terminated;
+        bool hasEverConnected;
+
         lock (_sync)
         {
             conn = _logicalConnection;
-            terminated = _hasTerminated;
+            hasEverConnected = _hasEverConnected;
         }
+
         if (conn is null)
         {
-            // _hasTerminated distinguishes a real terminal disconnect (return EOF)
-            // from the initial not-yet-connected state (throw).
-            if (!terminated)
-                throw new InvalidOperationException("Transport is not connected.");
-
-            // Was connected, now disconnected → EOF
-            return new ValueTask<int>(0);
+            // distinguish "never connected" vs "EOF"
+            if (hasEverConnected)
+            {
+                return new ValueTask<int>(0); // EOF
+            }
+            // Otherwise this is a logic error: read before connected
+            throw new InvalidOperationException(
+                "Transport is not connected.");
         }
         return conn.ReadAsync(buffer, cancellationToken);
     }
