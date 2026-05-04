@@ -22,7 +22,7 @@ public sealed class TcpNetworkConnection
 
     private ObservableConnectionStatus? _status;
     private bool _started;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     public TcpNetworkConnection(
         TcpClient client,

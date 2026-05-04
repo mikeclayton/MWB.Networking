@@ -22,7 +22,7 @@ public sealed class InMemoryNetworkConnection :
 
     private ObservableConnectionStatus? _status;
     private bool _started;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     internal InMemoryNetworkConnection(
         SegmentedBufferReader reader,

@@ -28,7 +28,7 @@ public sealed class CodecBuffer : IDisposable
     private readonly Queue<ReadOnlyMemory<byte>> _segments = new();
 
     private bool _writeCompleted;
-    private bool _disposed;
+    private volatile bool _disposed;
     private long _length = 0;
 
     public CodecBuffer()

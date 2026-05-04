@@ -56,7 +56,26 @@ public sealed partial class TransportStack : IDisposable, IAsyncDisposable
     public ValueTask<int> ReadAsync(
         Memory<byte> buffer,
         CancellationToken cancellationToken = default)
-        => this.LogicalConnection.ReadAsync(buffer, cancellationToken);
+    {
+        LogicalConnection? conn;
+        bool terminated;
+        lock (_sync)
+        {
+            conn = _logicalConnection;
+            terminated = this.ConnectionStatus?.HasTerminated ?? false;
+        }
+        if (conn is null)
+        {
+            // ConnectionStatus.HasTerminated distinguishes a real terminal
+            // disconnect from the initial Disconnected state.
+            if (!terminated)
+                throw new InvalidOperationException("Transport is not connected.");
+
+            // Was connected, now disconnected → EOF
+            return new ValueTask<int>(0);
+        }
+        return conn.ReadAsync(buffer, cancellationToken);
+    }
 
     /// <summary>
     /// Asynchronously writes bytes to the connection.

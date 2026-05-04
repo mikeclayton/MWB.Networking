@@ -32,7 +32,7 @@ public sealed partial class InstrumentedNetworkConnection : INetworkConnection, 
     /// </summary>
     internal void InjectBytes(ReadOnlyMemory<byte> frame)
     {
-        if (_disposed || _isDisconnected)
+        if (_disposed || _isDisconnected || _isFaulted)
             return;
 
         _readChannel.Writer.TryWrite(frame);
@@ -56,12 +56,19 @@ public sealed partial class InstrumentedNetworkConnection : INetworkConnection, 
         => _status.OnDisconnecting();
 
     internal void SignalDisconnected(string reason)
-        => _status.OnDisconnected(
-            new TransportDisconnectedEventArgs(reason));
+        => this.Disconnect(reason);
 
     internal void SignalFaulted(string reason, Exception? exception = null)
-        => _status.OnFaulted(
-            new TransportFaultedEventArgs(reason, exception));
+    {
+        if (_isFaulted)
+            return;
+
+        _isFaulted = true;
+
+        _readChannel.Writer.TryComplete();
+
+        _status.OnFaulted(new TransportFaultedEventArgs(reason, exception));
+    }
 
     /// <summary>
     /// Configures the next <see cref="OpenConnectionAsync"/> call to throw

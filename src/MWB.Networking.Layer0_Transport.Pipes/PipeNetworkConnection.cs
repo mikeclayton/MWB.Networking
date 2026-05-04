@@ -10,7 +10,7 @@ namespace MWB.Networking.Layer0_Transport.Pipes;
 public sealed class PipeNetworkConnection : INetworkConnection, IDisposable
 {
     private bool _started;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     public PipeNetworkConnection(ILogger logger, PipeReader reader, PipeWriter writer, ObservableConnectionStatus status)
     {

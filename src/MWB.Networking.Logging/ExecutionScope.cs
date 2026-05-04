@@ -4,7 +4,7 @@ public sealed class ExecutionScope : IDisposable
 {
     private readonly Action _onEndScope;
     private readonly IDisposable? _innerScope;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     private ExecutionScope(IDisposable? innerScope, Action onEndScope)
     {

@@ -32,7 +32,11 @@ public sealed partial class TransportStack
         lock (_sync)
         {
             status = this.ConnectionStatus;
-            this.ConnectionStatus = null;
+            // Intentionally do NOT null ConnectionStatus here.
+            // It survives with HasTerminated == true so that callers
+            // (e.g. ReadAsync) can distinguish a real terminal disconnect
+            // from the initial Disconnected state.
+            //this.ConnectionStatus = null;
         }
 
         if (status is null)
@@ -62,7 +66,10 @@ public sealed partial class TransportStack
         lock (_sync)
         {
             this.ThrowIfDisposed();
-            if (_logicalConnection is not null || this.ConnectionStatus is not null)
+            // Allow a new connection if the previous status has already
+            // terminated (disconnected/faulted); reject if still active.
+            if (_logicalConnection is not null ||
+                (this.ConnectionStatus is not null && !this.ConnectionStatus.HasTerminated))
             {
                 throw new InvalidOperationException(
                     "Transport is already connecting or connected.");

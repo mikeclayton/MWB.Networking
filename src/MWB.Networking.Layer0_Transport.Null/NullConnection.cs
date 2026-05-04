@@ -8,7 +8,7 @@ public sealed class NullConnection : INetworkConnection
 {
     private readonly ObservableConnectionStatus _status;
     private bool _started;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     public NullConnection(ObservableConnectionStatus status)
     {

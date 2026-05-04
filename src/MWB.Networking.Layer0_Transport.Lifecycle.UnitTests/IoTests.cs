@@ -237,7 +237,7 @@ public sealed class IoTests
 
         cts.Cancel();
 
-        await Assert.ThrowsExactlyAsync<OperationCanceledException>(
+        await Assert.ThrowsExactlyAsync<TaskCanceledException>(
             () => readTask.WaitAsync(TimeSpan.FromSeconds(5)));
     }
 

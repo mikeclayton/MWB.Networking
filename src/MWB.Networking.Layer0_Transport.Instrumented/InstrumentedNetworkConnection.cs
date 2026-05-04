@@ -29,9 +29,9 @@ public sealed partial class InstrumentedNetworkConnection : INetworkConnection, 
 
     private readonly ConcurrentQueue<ByteSegments> _writes = new();
 
-    private bool _started;
     private bool _isDisconnected;
-    private bool _disposed;
+    private bool _isFaulted;
+    private volatile bool _disposed;
 
     public InstrumentedNetworkConnection(ObservableConnectionStatus status)
     {
@@ -49,13 +49,6 @@ public sealed partial class InstrumentedNetworkConnection : INetworkConnection, 
     /// </summary>
     internal void OnStarted()
     {
-        if (_started)
-        {
-            return;
-        }
-
-        _started = true;
-
         _status.OnConnecting();
         _status.OnConnected();
     }
@@ -86,8 +79,16 @@ public sealed partial class InstrumentedNetworkConnection : INetworkConnection, 
         Memory<byte> buffer,
         CancellationToken ct)
     {
-        if (_disposed || _isDisconnected)
+        if (_disposed || _isDisconnected || _isFaulted)
+        {
             return 0; // EOF
+        }
+
+        if (_nextReadFailure is { } ex)
+        {
+            _nextReadFailure = null;
+            throw ex;
+        }
 
         ReadOnlyMemory<byte> data;
         try
@@ -117,6 +118,10 @@ public sealed partial class InstrumentedNetworkConnection : INetworkConnection, 
             throw new InvalidOperationException(
                 "Connection is disconnected.");
 
+        if (_isFaulted)
+            throw new InvalidOperationException(
+                "Connection is faulted.");
+
         _writes.Enqueue(segments);
         return ValueTask.CompletedTask;
     }
@@ -132,8 +137,6 @@ public sealed partial class InstrumentedNetworkConnection : INetworkConnection, 
             // was already disposed
             return;
         }
-
-        _disposed = true;
 
         _readChannel.Writer.TryComplete();
 

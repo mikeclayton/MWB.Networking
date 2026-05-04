@@ -55,6 +55,7 @@ public sealed partial class InstrumentedNetworkConnectionProvider
 
         // Expose to test code
         this.Connection = connection;
+        _connections.Add(connection);
 
         // NOTE:
         // We deliberately do NOT call OnStarted() here.
@@ -62,8 +63,8 @@ public sealed partial class InstrumentedNetworkConnectionProvider
         //
         // To drive the connection to Connected, call:
         //   provider.Connection!.OnStarted();          // Connecting + Connected
-        //   provider.Connection!.SimulateConnecting();  // Connecting only
-        //   provider.Connection!.SimulateConnected();   // Connected only
+        //   provider.Connection!.SignalConnecting();   // Connecting only
+        //   provider.Connection!.SignalConnected();    // Connected only
 
         return Task.FromResult<INetworkConnection>(connection);
     }

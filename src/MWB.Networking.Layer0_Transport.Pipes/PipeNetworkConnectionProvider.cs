@@ -11,7 +11,7 @@ public sealed class PipeNetworkConnectionProvider
     private readonly ILogger _logger;
     private readonly PipeReader _reader;
     private readonly PipeWriter _writer;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     public PipeNetworkConnectionProvider(
         ILogger logger,
