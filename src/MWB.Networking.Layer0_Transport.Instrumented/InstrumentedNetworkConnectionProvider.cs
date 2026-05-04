@@ -87,6 +87,6 @@ public sealed partial class InstrumentedNetworkConnectionProvider
 
     private void ThrowIfDisposed()
     {
-        ObjectDisposedException.ThrowIf(_disposed, nameof(InstrumentedNetworkConnectionProvider));
+        ObjectDisposedException.ThrowIf(_disposed, this);
     }
 }

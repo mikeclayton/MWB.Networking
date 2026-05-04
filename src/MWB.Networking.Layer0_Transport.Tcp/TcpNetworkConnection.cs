@@ -164,6 +164,6 @@ public sealed class TcpNetworkConnection
 
     private void ThrowIfDisposed()
     {
-        ObjectDisposedException.ThrowIf(_disposed, nameof(TcpNetworkConnection));
+        ObjectDisposedException.ThrowIf(_disposed, this);
     }
 }

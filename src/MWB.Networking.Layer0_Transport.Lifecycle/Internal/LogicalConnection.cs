@@ -59,11 +59,30 @@ internal sealed class LogicalConnection : IDisposable
         if (_status.State == TransportConnectionState.Connected)
             return;
 
-        var tcs = new TaskCompletionSource(
-            TaskCreationOptions.RunContinuationsAsynchronously);
+        // Lazily allocated only if we actually need to wait.
+        // The handlers and ct.Register all call GetOrCreateTcs() which
+        // uses Interlocked.CompareExchange to guarantee a single instance
+        // even if multiple threads race to create it.
+        TaskCompletionSource? tcs = null;
+
+        TaskCompletionSource GetOrCreateTcs()
+        {
+            if (tcs is not null) return tcs;
+            var newTcs = new TaskCompletionSource(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            return Interlocked.CompareExchange(ref tcs, newTcs, null) ?? newTcs;
+        }
+
+        var cleanedUp = false;
 
         void Cleanup()
         {
+            if (Interlocked.CompareExchange(ref cleanedUp, true, false))
+            {
+                // was already cleaned up
+                return;
+            }
+
             _status.Connected -= OnConnected;
             _status.Faulted -= OnFaulted;
             _status.Disconnected -= OnDisconnected;
@@ -72,13 +91,13 @@ internal sealed class LogicalConnection : IDisposable
         void OnConnected(object? _, EventArgs __)
         {
             Cleanup();
-            tcs.TrySetResult();
+            GetOrCreateTcs().TrySetResult();
         }
 
         void OnFaulted(object? _, TransportFaultedEventArgs e)
         {
             Cleanup();
-            tcs.TrySetException(
+            GetOrCreateTcs().TrySetException(
                 new TransportFaultException(
                     "Logical connection faulted while awaiting connection.",
                     e));
@@ -87,7 +106,7 @@ internal sealed class LogicalConnection : IDisposable
         void OnDisconnected(object? _, TransportDisconnectedEventArgs e)
         {
             Cleanup();
-            tcs.TrySetException(
+            GetOrCreateTcs().TrySetException(
                 new TransportDisconnectedException(
                     "Logical connection disconnected while awaiting connection.",
                     e));
@@ -105,7 +124,7 @@ internal sealed class LogicalConnection : IDisposable
             {
                 case TransportConnectionState.Connected:
                     Cleanup();
-                    return;
+                    return; // no TCS allocated
 
                 case TransportConnectionState.Faulted:
                     Cleanup();
@@ -136,10 +155,10 @@ internal sealed class LogicalConnection : IDisposable
             using (ct.Register(() =>
             {
                 Cleanup();
-                tcs.TrySetCanceled(ct);
+                GetOrCreateTcs().TrySetCanceled(ct);
             }))
             {
-                await tcs.Task.ConfigureAwait(false);
+                await GetOrCreateTcs().Task.ConfigureAwait(false);
             }
         }
         finally
@@ -224,6 +243,6 @@ internal sealed class LogicalConnection : IDisposable
 
     private void ThrowIfDisposed()
     {
-        ObjectDisposedException.ThrowIf(_disposed, nameof(LogicalConnection));
+        ObjectDisposedException.ThrowIf(_disposed, this);
     }
 }

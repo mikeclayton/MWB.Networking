@@ -113,6 +113,6 @@ public sealed class InMemoryNetworkConnection :
 
     private void ThrowIfDisposed()
     {
-        ObjectDisposedException.ThrowIf(_disposed, nameof(InMemoryNetworkConnection));
+        ObjectDisposedException.ThrowIf(_disposed, this);
     }
 }

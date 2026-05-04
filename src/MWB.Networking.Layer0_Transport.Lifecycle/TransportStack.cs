@@ -17,15 +17,29 @@ public sealed partial class TransportStack : IDisposable, IAsyncDisposable
 
     private readonly INetworkConnectionProvider _connectionProvider;
     private readonly object _sync = new();
+    private readonly bool _ownsProvider;
 
     private LogicalConnection? _logicalConnection;
     private volatile bool _disposed;
 
+    /// <summary>
+    /// Initializes a new <see cref="TransportStack"/> with the given connection provider.
+    /// </summary>
+    /// <param name="connectionProvider">
+    /// The provider used to open physical network connections.
+    /// </param>
+    /// <param name="ownsProvider">
+    /// <see langword="true"/> (the default) if this stack should dispose
+    /// <paramref name="connectionProvider"/> when the stack itself is disposed;
+    /// <see langword="false"/> if the caller retains ownership of the provider's lifetime.
+    /// </param>
     public TransportStack(
-        INetworkConnectionProvider connectionProvider)
+        INetworkConnectionProvider connectionProvider,
+        bool ownsProvider = true)
     {
         _connectionProvider =
             connectionProvider ?? throw new ArgumentNullException(nameof(connectionProvider));
+        _ownsProvider = ownsProvider;
     }
 
     /// <summary>
@@ -62,12 +76,12 @@ public sealed partial class TransportStack : IDisposable, IAsyncDisposable
         lock (_sync)
         {
             conn = _logicalConnection;
-            terminated = this.ConnectionStatus?.HasTerminated ?? false;
+            terminated = _hasTerminated;
         }
         if (conn is null)
         {
-            // ConnectionStatus.HasTerminated distinguishes a real terminal
-            // disconnect from the initial Disconnected state.
+            // _hasTerminated distinguishes a real terminal disconnect (return EOF)
+            // from the initial not-yet-connected state (throw).
             if (!terminated)
                 throw new InvalidOperationException("Transport is not connected.");
 
@@ -102,7 +116,10 @@ public sealed partial class TransportStack : IDisposable, IAsyncDisposable
         }
 
         await this.DisconnectCoreAsync().ConfigureAwait(false);
-        _connectionProvider.Dispose();
+        if (_ownsProvider)
+        {
+            _connectionProvider.Dispose();
+        }
     }
 
     private void ThrowIfDisposed()

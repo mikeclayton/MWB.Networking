@@ -16,27 +16,16 @@ public sealed partial class TransportStack
     // Lifecycle operations
     // -----------------------------
 
-    private void CleanupConnection()
-    {
-        lock (_sync)
-        {
-            _logicalConnection = null;
-            // ConnectionStatus handled separately (see below)
-        }
-    }
-
-    private void CleanupConnectionOnDisconnect()
+    private void CleanupForTerminalEvent()
     {
         ObservableConnectionStatus? status;
 
         lock (_sync)
         {
+            _logicalConnection = null;
             status = this.ConnectionStatus;
-            // Intentionally do NOT null ConnectionStatus here.
-            // It survives with HasTerminated == true so that callers
-            // (e.g. ReadAsync) can distinguish a real terminal disconnect
-            // from the initial Disconnected state.
-            //this.ConnectionStatus = null;
+            this.ConnectionStatus = null;
+            _hasTerminated = true;
         }
 
         if (status is null)
@@ -46,9 +35,6 @@ public sealed partial class TransportStack
 
         UnregisterConnectionStatusEvents(status);
     }
-
-    private void RaiseFaultedEvent(TransportFaultedEventArgs e)
-        => this.Faulted?.Invoke(this, e);
 
     /// <summary>
     /// Initiates a new transport connection attempt using the configured provider.
@@ -66,10 +52,7 @@ public sealed partial class TransportStack
         lock (_sync)
         {
             this.ThrowIfDisposed();
-            // Allow a new connection if the previous status has already
-            // terminated (disconnected/faulted); reject if still active.
-            if (_logicalConnection is not null ||
-                (this.ConnectionStatus is not null && !this.ConnectionStatus.HasTerminated))
+            if (_logicalConnection is not null || this.ConnectionStatus is not null)
             {
                 throw new InvalidOperationException(
                     "Transport is already connecting or connected.");
@@ -119,20 +102,15 @@ public sealed partial class TransportStack
             //
             // This preserves the invariant that every lifecycle stream
             // ends in a terminal state.
-
+            //
+            // The registered OnFaulted handler (TransportStack_Status) takes
+            // care of all cleanup: CleanupConnection, CleanupConnectionOnDisconnect,
+            // and UnregisterConnectionStatusEvents. We must not repeat any of
+            // that work here.
             status.OnFaulted(
                 new TransportFaultedEventArgs(
                     "Connection attempt failed before establishment.",
                     ex));
-
-            // Cleanup after terminal signalling
-            UnregisterConnectionStatusEvents(status);
-
-            lock (_sync)
-            {
-                this.ConnectionStatus = null;
-                _logicalConnection = null;
-            }
 
             throw;
         }
@@ -162,8 +140,16 @@ public sealed partial class TransportStack
             return Task.CompletedTask;
         }
 
-        var tcs = new TaskCompletionSource(
-            TaskCreationOptions.RunContinuationsAsynchronously);
+        // Lazily allocated only if we actually need to wait.
+        TaskCompletionSource? tcs = null;
+
+        TaskCompletionSource GetOrCreateTcs()
+        {
+            if (tcs is not null) return tcs;
+            var newTcs = new TaskCompletionSource(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            return Interlocked.CompareExchange(ref tcs, newTcs, null) ?? newTcs;
+        }
 
         var cleanedUp = false;
 
@@ -183,13 +169,13 @@ public sealed partial class TransportStack
         void OnConnected(object? _, EventArgs __)
         {
             Cleanup();
-            tcs.TrySetResult();
+            GetOrCreateTcs().TrySetResult();
         }
 
         void OnFaulted(object? _, TransportFaultedEventArgs e)
         {
             Cleanup();
-            tcs.TrySetException(new TransportFaultException(
+            GetOrCreateTcs().TrySetException(new TransportFaultException(
                 "Transport faulted while awaiting connection establishment.",
                 e));
         }
@@ -197,7 +183,7 @@ public sealed partial class TransportStack
         void OnDisconnected(object? _, TransportDisconnectedEventArgs e)
         {
             Cleanup();
-            tcs.TrySetException(new TransportDisconnectedException(
+            GetOrCreateTcs().TrySetException(new TransportDisconnectedException(
                 "Transport disconnected while awaiting connection establishment.",
                 e));
         }
@@ -212,7 +198,7 @@ public sealed partial class TransportStack
         {
             case TransportConnectionState.Connected:
                 Cleanup();
-                return Task.CompletedTask;
+                return Task.CompletedTask; // no TCS allocated
 
             case TransportConnectionState.Faulted:
                 Cleanup();
@@ -221,7 +207,7 @@ public sealed partial class TransportStack
                     new TransportFaultException(
                         faultMessage,
                         new TransportFaultedEventArgs(
-                            faultMessage)));
+                            faultMessage))); // no TCS allocated
 
             case TransportConnectionState.Disconnected:
                 if (!statusEventSource.HasTerminated)
@@ -236,7 +222,7 @@ public sealed partial class TransportStack
                     new TransportDisconnectedException(
                         disconnectMessage,
                         new TransportDisconnectedEventArgs(
-                            disconnectMessage)));
+                            disconnectMessage))); // no TCS allocated
 
             default:
                 // Connecting / Disconnecting:
@@ -244,7 +230,7 @@ public sealed partial class TransportStack
                 break;
         }
 
-        return tcs.Task;
+        return GetOrCreateTcs().Task;
     }
 
     /// <summary>
@@ -270,6 +256,7 @@ public sealed partial class TransportStack
 
             _logicalConnection = null;
             this.ConnectionStatus = null;
+            _hasTerminated = true;
         }
 
         // Voluntary disconnect: drive lifecycle explicitly

@@ -77,10 +77,26 @@ public sealed class ObservableConnectionStatus
 
     public void OnDisconnecting()
     {
-        this.Transition(
-            expected: TransportConnectionState.Connected,
-            newState: TransportConnectionState.Disconnecting,
-            onTransition: () => Disconnecting?.Invoke(this, EventArgs.Empty));
+        // Disconnecting is valid from any state where a connection was
+        // actively in progress — Connected or Connecting. It is not
+        // emitted from the initial Disconnected state (nothing started)
+        // or from states that are already terminal or already Disconnecting.
+        bool shouldFire;
+        lock (_sync)
+        {
+            shouldFire =
+                !_hasTerminated &&
+                (_state == TransportConnectionState.Connected ||
+                 _state == TransportConnectionState.Connecting);
+            if (shouldFire)
+            {
+                _state = TransportConnectionState.Disconnecting;
+            }
+        }
+        if (shouldFire)
+        {
+            Disconnecting?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     // ---------- Terminal transitions ----------
