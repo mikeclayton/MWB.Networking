@@ -247,6 +247,11 @@ public sealed partial class TransportStack
     public Task DisconnectAsync()
     {
         this.ThrowIfDisposed();
+        return this.DisconnectCoreAsync();
+    }
+
+    private Task DisconnectCoreAsync()
+    {
 
         LogicalConnection? logical;
         ObservableConnectionStatus? connectionStatus;

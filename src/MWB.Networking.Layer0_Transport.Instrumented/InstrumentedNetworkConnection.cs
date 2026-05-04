@@ -36,6 +36,7 @@ public sealed partial class InstrumentedNetworkConnection : INetworkConnection, 
     public InstrumentedNetworkConnection(ObservableConnectionStatus status)
     {
         _status = status ?? throw new ArgumentNullException(nameof(status));
+        this.Instrumentation = new ConnectionInstrumentation(this);
     }
 
     // ------------------------------------------------------------------
@@ -49,7 +50,9 @@ public sealed partial class InstrumentedNetworkConnection : INetworkConnection, 
     internal void OnStarted()
     {
         if (_started)
+        {
             return;
+        }
 
         _started = true;
 
@@ -119,28 +122,6 @@ public sealed partial class InstrumentedNetworkConnection : INetworkConnection, 
     }
 
     // ------------------------------------------------------------------
-    // Test instrumentation
-    // ------------------------------------------------------------------
-
-    /// <summary>
-    /// Injects raw bytes that will be returned by the next
-    /// <see cref="ReadAsync"/> call.
-    /// </summary>
-    public void InjectBytes(ReadOnlyMemory<byte> frame)
-    {
-        if (_disposed || _isDisconnected)
-            return;
-
-        _readChannel.Writer.TryWrite(frame);
-    }
-
-    /// <summary>
-    /// Returns all data written via <see cref="WriteAsync"/>.
-    /// </summary>
-    public IReadOnlyCollection<ByteSegments> GetWrites()
-        => _writes.ToArray();
-
-    // ------------------------------------------------------------------
     // Disposal
     // ------------------------------------------------------------------
 
@@ -157,7 +138,7 @@ public sealed partial class InstrumentedNetworkConnection : INetworkConnection, 
         _readChannel.Writer.TryComplete();
 
         _status.OnDisconnected(
-                new TransportDisconnectedEventArgs(
-                    "Manual transport disposed."));
+            new TransportDisconnectedEventArgs(
+                "Manual transport disposed."));
     }
 }

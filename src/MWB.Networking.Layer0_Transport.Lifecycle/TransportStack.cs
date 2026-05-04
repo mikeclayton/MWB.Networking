@@ -72,7 +72,7 @@ public sealed partial class TransportStack : IDisposable, IAsyncDisposable
 
     void IDisposable.Dispose()
     {
-        DisposeAsync().AsTask().GetAwaiter().GetResult();
+        this.DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 
     public async ValueTask DisposeAsync()
@@ -82,12 +82,12 @@ public sealed partial class TransportStack : IDisposable, IAsyncDisposable
             return;
         }
 
-        await this.DisconnectAsync().ConfigureAwait(false);
+        await this.DisconnectCoreAsync().ConfigureAwait(false);
         _connectionProvider.Dispose();
     }
 
     private void ThrowIfDisposed()
     {
-        ObjectDisposedException.ThrowIf(_disposed, nameof(TransportStack));
+        ObjectDisposedException.ThrowIf(_disposed, this);
     }
 }

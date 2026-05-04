@@ -11,7 +11,7 @@ namespace MWB.Networking.Layer0_Transport.Instrumented;
 /// Returns a <see cref="InstrumentedNetworkConnection"/> whose behavior
 /// is fully controlled by the test.
 /// </summary>
-public sealed class InstrumentedNetworkConnectionProvider
+public sealed partial class InstrumentedNetworkConnectionProvider
     : INetworkConnectionProvider, IDisposable
 {
     private readonly ILogger _logger;
@@ -20,24 +20,36 @@ public sealed class InstrumentedNetworkConnectionProvider
     public InstrumentedNetworkConnectionProvider(ILogger logger)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        this.Instrumentation = new ProviderInstrumentation(this);
     }
 
     /// <summary>
     /// Gets the most recently created manual connection.
     /// Tests use this to drive lifecycle and I/O deterministically.
     /// </summary>
-    public InstrumentedNetworkConnection? Connection
+    internal InstrumentedNetworkConnection? Connection
     {
         get;
         private set;
     }
 
+    // ------------------------------------------------------------------
+    // INetworkConnectionProvider implementation
+    // ------------------------------------------------------------------
+    
     public Task<INetworkConnection> OpenConnectionAsync(
-        ObservableConnectionStatus status,
+    ObservableConnectionStatus status,
         CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         this.ThrowIfDisposed();
+
+        // Simulate a provider-level connection failure if configured.
+        if (_nextOpenConnectionFailure is { } failure)
+        {
+            _nextOpenConnectionFailure = null;
+            throw failure;
+        }
 
         var connection = new InstrumentedNetworkConnection(status);
 
@@ -48,13 +60,18 @@ public sealed class InstrumentedNetworkConnectionProvider
         // We deliberately do NOT call OnStarted() here.
         // Tests control exactly *when* the connection becomes connected.
         //
-        // If you want auto-start behavior, uncomment:
-        //
-        // connection.OnStarted();
+        // To drive the connection to Connected, call:
+        //   provider.Connection!.OnStarted();          // Connecting + Connected
+        //   provider.Connection!.SimulateConnecting();  // Connecting only
+        //   provider.Connection!.SimulateConnected();   // Connected only
 
         return Task.FromResult<INetworkConnection>(connection);
     }
 
+    // ------------------------------------------------------------------
+    // Disposal
+    // ------------------------------------------------------------------
+    
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, true))
