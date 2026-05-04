@@ -145,7 +145,7 @@ public sealed partial class TransportStack
         _hasTerminated = false;
         _isConnected = false;
 
-        connectionStatus.Connecting += OnConnecting;
+        connectionStatus.Connecting += this.OnConnecting;
         connectionStatus.Connected += this.OnConnected;
         connectionStatus.Disconnecting += this.OnDisconnecting;
         connectionStatus.Disconnected += this.OnDisconnected;

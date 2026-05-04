@@ -78,14 +78,22 @@ public sealed partial class TransportStack
 
             lock (_sync)
             {
-
-                // The stack may have been disposed while the connection was
-                // being established. In that case we must not publish a live
-                // logical connection.
-                if (_disposed)
+                // Guard against two racing terminal conditions:
+                // 1. The stack was disposed while the connection was being established.
+                // 2. DisconnectAsync was called concurrently — it will have nulled
+                //    ConnectionStatus before we got here, so status != this.ConnectionStatus.
+                //    Publishing the logical connection in that case would leave the stack in
+                //    a zombie state (live _logicalConnection, null ConnectionStatus).
+                if (_disposed || this.ConnectionStatus != status)
                 {
                     logical.Dispose();
-                    throw new ObjectDisposedException(nameof(TransportStack));
+                    if (_disposed)
+                        throw new ObjectDisposedException(nameof(TransportStack));
+
+                    // Concurrent disconnect won the race.
+                    // The Disconnected lifecycle events were already fired by DisconnectCoreAsync;
+                    // the physical connection has been cleaned up above. Return silently.
+                    return;
                 }
 
                 _logicalConnection = logical;
@@ -107,6 +115,15 @@ public sealed partial class TransportStack
             // care of all cleanup: CleanupConnection, CleanupConnectionOnDisconnect,
             // and UnregisterConnectionStatusEvents. We must not repeat any of
             // that work here.
+            //
+            // NOTE — concurrent-disconnect safety:
+            // If DisconnectCoreAsync raced ahead and already called
+            // status.OnDisconnected(), _hasTerminated is already true.
+            // ObservableConnectionStatus.Terminal() will silently absorb this
+            // OnFaulted call as a no-op. We intentionally do NOT guard with an
+            // explicit HasTerminated check here: that would introduce a TOCTOU
+            // race (the flag could flip between the read and the call), and
+            // Terminal() is already the authoritative idempotency guard.
             status.OnFaulted(
                 new TransportFaultedEventArgs(
                     "Connection attempt failed before establishment.",
