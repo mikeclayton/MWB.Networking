@@ -1,12 +1,12 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer1_Framing.Pipeline;
+using MWB.Networking.Layer2_Protocol.Adapter;
 using MWB.Networking.Layer2_Protocol.Frames;
-using MWB.Networking.Layer2_Protocol.Session.Api;
 using MWB.Networking.Logging;
 using System.Buffers;
 using System.Diagnostics;
 
-namespace MWB.Networking.Layer2_Protocol.Driver;
+namespace MWB.Networking.Layer2_Protocol.Adapter;
 
 /// <summary>
 /// Drivers a protocol session over a transport by running
@@ -18,107 +18,8 @@ namespace MWB.Networking.Layer2_Protocol.Driver;
 /// - Does NOT own lifecycle policy
 /// - Does NOT define protocol semantics
 /// </summary>
-public sealed partial class ProtocolDriver
+public sealed partial class SessionAdapter
 {
-    // ------------------------------------------------------------------
-    // Construction
-    // ------------------------------------------------------------------
-
-    internal ProtocolDriver(
-        ILogger logger,
-        IProtocolSessionProcessor processor,
-        NetworkPipeline pipeline)
-    {
-        this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        this.Processor = processor ?? throw new ArgumentNullException(nameof(processor));
-        this.Pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
-    }
-
-#if ENABLE_PROTOCOL_FRAME_DIAGNOSTICS
-    private RingBuffer<ProtocolFrame> RecentInboundFrames
-    {
-        get;
-    } = new(capacity: 100_000);
-
-    private RingBuffer<ProtocolFrame> RecentOutboundFrames
-    {
-        get;
-    } = new(capacity: 100_000);
-#endif
-
-    // ------------------------------------------------------------------
-    // Dependencies
-    // ------------------------------------------------------------------
-
-    public ILogger Logger
-    {
-        get;
-    }
-
-    private IProtocolSessionProcessor Processor
-    {
-        get;
-    }
-
-    private NetworkPipeline Pipeline
-    {
-        get;
-    }
-
-    /// <summary>
-    /// Serializes semantic execution against the runtime.
-    /// Ensures protocol state is single-threaded even though
-    /// multiple driver loops are running.
-    /// </summary>
-    private SemaphoreSlim ProcessorGate
-    {
-        get;
-    } = new(1, 1);
-
-    // ------------------------------------------------------------------
-    // Lifecycle
-    // ------------------------------------------------------------------
-
-    private readonly DriverLifecycle _lifecycle = new();
-
-    private readonly TaskCompletionSource _whenStartedSource =
-        new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-    /// <summary>
-    /// Completes when the driver execution loops have been scheduled.
-    /// </summary>
-    public Task WhenStarted => _whenStartedSource.Task;
-
-    /// <summary>
-    /// Starts executing the driver loops. May be called once.
-    /// </summary>
-    public Task RunAsync(CancellationToken ct)
-    {
-        using var scope = this.Logger.BeginMethodLoggingScope(this);
-
-        return _lifecycle.Start(token =>
-        {
-            var linkedCts =
-                CancellationTokenSource.CreateLinkedTokenSource(ct, token);
-
-            return this.RunInternalAsync(linkedCts.Token);
-        });
-    }
-
-    /// <summary>
-    /// Requests cooperative shutdown of the driver and waits for execution
-    /// to complete. Safe to call multiple times.
-    /// </summary>
-    public Task StopAsync()
-    {
-        return _lifecycle.StopAsync();
-    }
-
-    private void SignalStarted()
-    {
-        _whenStartedSource.TrySetResult();
-    }
-
     // ------------------------------------------------------------------
     // Execution
     // ------------------------------------------------------------------

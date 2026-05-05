@@ -100,7 +100,7 @@ internal sealed class StreamManagerInbound
 
         // peer-owned stream aborted by local peer
         // so notify the remote peer to abort the stream as well
-        this.Session.EnqueueOutboundFrame(
+        this.Session.SendOutboundFrame(
             ProtocolFrames.StreamAbort(streamId));
 
         this.StreamManager.RemoveStream(streamId);

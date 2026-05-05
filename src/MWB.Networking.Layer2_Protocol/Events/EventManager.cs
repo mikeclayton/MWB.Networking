@@ -29,7 +29,7 @@ internal sealed partial class EventManager : IHasLogger
 
     internal void SendOutboundEvent(uint? eventType, ReadOnlyMemory<byte> payload)
     {
-        this.Session.EnqueueOutboundFrame(
+        this.Session.SendOutboundFrame(
             ProtocolFrames.Event(eventType, payload));
     }
 

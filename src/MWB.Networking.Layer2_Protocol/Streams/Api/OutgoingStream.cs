@@ -45,7 +45,7 @@ public sealed class OutgoingStream : IProtocolStream
     {
         this.EnsureOpen();
 
-        this.Session.EnqueueOutboundFrame(
+        this.Session.SendOutboundFrame(
             ProtocolFrames.StreamData(this.StreamId, payload));
     }
 
@@ -76,7 +76,7 @@ public sealed class OutgoingStream : IProtocolStream
         }
 
         this.State = OutgoingStreamState.Aborted;
-        this.Session.EnqueueOutboundFrame(
+        this.Session.SendOutboundFrame(
             ProtocolFrames.StreamAbort(this.StreamId));
         this.Session.StreamManager.TearDownStream(this.StreamId);
     }

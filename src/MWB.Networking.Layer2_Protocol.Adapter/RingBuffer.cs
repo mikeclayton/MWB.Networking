@@ -1,4 +1,4 @@
-﻿namespace MWB.Networking.Layer2_Protocol.Driver;
+﻿namespace MWB.Networking.Layer2_Protocol.Adapter;
 
 /// <summary>
 /// Fixed-size ring buffer for diagnostics and observability.

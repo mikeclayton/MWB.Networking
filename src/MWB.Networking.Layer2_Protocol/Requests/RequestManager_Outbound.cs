@@ -49,7 +49,7 @@ internal sealed class RequestManagerOutbound
         this.RequestContexts.AddRequestContext(context);
 
         // Emit the protocol request frame to the peer
-        this.Session.EnqueueOutboundFrame(
+        this.Session.SendOutboundFrame(
             ProtocolFrames.Request(requestId, requestType, payload));
 
         // Return an application-facing handle
@@ -64,7 +64,7 @@ internal sealed class RequestManagerOutbound
         context.Close();
 
         // 2. Emit terminal response frame
-        this.Session.EnqueueOutboundFrame(ProtocolFrames.Response(context.RequestId, null, payload));
+        this.Session.SendOutboundFrame(ProtocolFrames.Response(context.RequestId, null, payload));
 
         // 3. Remove request + close any request-scoped streams
         this.RequestManager.RemoveRequest(context.RequestId);
@@ -76,7 +76,7 @@ internal sealed class RequestManagerOutbound
     {
         context.Close();
 
-        this.Session.EnqueueOutboundFrame(ProtocolFrames.Error(context.RequestId, payload));
+        this.Session.SendOutboundFrame(ProtocolFrames.Error(context.RequestId, payload));
 
         this.RequestManager.RemoveRequest(context.RequestId);
     }

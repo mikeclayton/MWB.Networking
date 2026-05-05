@@ -8,7 +8,16 @@
 /// </summary>
 public struct FrameDiagnostics
 {
-    public long EnqueuedTimestamp;
+    /// <summary>
+    /// Timestamp recorded when the protocol session sends (emits) this frame.
+    /// This represents a semantic protocol event, not transport transmission.
+    /// </summary>
+    public long SentTimestamp;
+
+    /// <summary>
+    /// Timestamp recorded when the protocol session receives (accepts) this frame.
+    /// This represents a semantic protocol event, not network ingress or byte-level IO.
+    /// </summary>
     public long ReceivedTimestamp;
 }
 #endif

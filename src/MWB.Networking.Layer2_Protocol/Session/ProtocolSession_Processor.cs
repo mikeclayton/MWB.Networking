@@ -45,21 +45,4 @@ public sealed partial class ProtocolSession : IProtocolSessionProcessor
                     $"Unknown frame kind: {frame.Kind}");
         }
     }
-
-    Task IProtocolSessionProcessor.WaitForOutboundFrameAsync(CancellationToken ct)
-    {
-        return this.WaitForOutboundFrameAsync(ct);
-    }
-
-    bool IProtocolSessionProcessor.TryDequeueOutboundFrame([NotNullWhen(true)] out ProtocolFrame frame)
-    {
-        if (this.OutboundFrames.TryDequeue(out var result))
-        {
-            frame = result;
-            return true;
-        }
-
-        frame = default!;
-        return false;
-    }
 }

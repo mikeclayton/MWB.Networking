@@ -68,7 +68,7 @@ internal sealed class StreamManagerOutbound
         );
 
         // Emit protocol frame (request-scoped)
-        this.Session.EnqueueOutboundFrame(
+        this.Session.SendOutboundFrame(
             ProtocolFrames.StreamOpen(
                 streamId,
                 requestId: owningRequest.RequestId
@@ -94,7 +94,7 @@ internal sealed class StreamManagerOutbound
             new StreamEntry(context, stream)
         );
 
-        this.Session.EnqueueOutboundFrame(
+        this.Session.SendOutboundFrame(
             ProtocolFrames.StreamOpen(streamId, metadata: metadata));
 
         return stream;
@@ -109,7 +109,7 @@ internal sealed class StreamManagerOutbound
 
         entry.Context.Close();
 
-        this.Session.EnqueueOutboundFrame(
+        this.Session.SendOutboundFrame(
             ProtocolFrames.StreamClose(streamId));
 
         this.StreamManager.RemoveStream(streamId);
@@ -126,7 +126,7 @@ internal sealed class StreamManagerOutbound
 
         // locally-owned stream aborted by local peer
         // so notify the remote peer to abort the stream as well
-        this.Session.EnqueueOutboundFrame(
+        this.Session.SendOutboundFrame(
             ProtocolFrames.StreamAbort(streamId));
 
         this.StreamManager.RemoveStream(streamId);

@@ -1,7 +1,7 @@
 ﻿using MWB.Networking.Layer1_Framing.Codec.Frames;
 using MWB.Networking.Layer2_Protocol.Frames;
 
-namespace MWB.Networking.Layer2_Protocol.Driver;
+namespace MWB.Networking.Layer2_Protocol.Adapter;
 
 internal static class FrameConverter
 {
@@ -16,8 +16,7 @@ internal static class FrameConverter
             NetworkFrameKind.StreamData => ProtocolFrameKind.StreamData,
             NetworkFrameKind.StreamClose => ProtocolFrameKind.StreamClose,
             NetworkFrameKind.StreamAbort => ProtocolFrameKind.StreamAbort,
-            _ =>
-                throw new InvalidOperationException()
+            _ => throw new InvalidOperationException()
         };
         return protocolFrameKind;
     }
@@ -34,8 +33,7 @@ internal static class FrameConverter
             ProtocolFrameKind.StreamData => NetworkFrameKind.StreamData,
             ProtocolFrameKind.StreamClose => NetworkFrameKind.StreamClose,
             ProtocolFrameKind.StreamAbort => NetworkFrameKind.StreamAbort,
-            _ =>
-                throw new InvalidOperationException()
+            _ => throw new InvalidOperationException()
         };
         return protocolFrameKind;
     }

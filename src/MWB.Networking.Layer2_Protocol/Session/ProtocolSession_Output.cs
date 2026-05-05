@@ -1,30 +1,42 @@
 ﻿using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Session.Api;
 using MWB.Networking.Layer2_Protocol.Requests;
 using System.Diagnostics;
 
 namespace MWB.Networking.Layer2_Protocol.Session;
 
-public sealed partial class ProtocolSession
+public sealed partial class ProtocolSession : IProtocolSessionOutput
 {
     // ------------------------------------------------------------------
-    // Outbound queue coordination
+    // Outbound frame event
     // ------------------------------------------------------------------
 
-    /// <summary>
-    /// Thread-safe outbound frame queue. Enqueue/dequeue operations are
-    /// internally synchronized - callers do not need to coordinate access.
-    /// </summary>
-    private OutboundFrameQueue OutboundFrames
-    {
-        get;
-    } = new();
+    private Action<ProtocolFrame>? _outboundFrameReady;
 
-    internal Task WaitForOutboundFrameAsync(CancellationToken ct)
+    /// <summary>
+    /// Explicit implementation of <see cref="IProtocolSessionOutput.OutboundFrameReady"/>.
+    ///
+    /// This member is implemented explicitly to keep the frame-level session API
+    /// intentionally less visible in the public surface of <see cref="ProtocolSession"/>.
+    /// It is intended for infrastructure components (e.g. SessionAdapter), not for
+    /// application-level protocol usage.
+    /// </summary>
+    event Action<ProtocolFrame> IProtocolSessionOutput.OutboundFrameReady
     {
-        return this.OutboundFrames.WaitForFrameAsync(ct);
+        add => _outboundFrameReady += value;
+        remove => _outboundFrameReady -= value;
     }
 
-    internal void EnqueueOutboundFrame(ProtocolFrame frame)
+    private void RaiseOutboundFrameReady(ProtocolFrame frame)
+    {
+        _outboundFrameReady?.Invoke(frame);
+    }
+
+    // ------------------------------------------------------------------
+    // Outbound frame coordination
+    // ------------------------------------------------------------------
+
+    internal void SendOutboundFrame(ProtocolFrame frame)
     {
         ArgumentNullException.ThrowIfNull(frame);
 
@@ -34,8 +46,8 @@ public sealed partial class ProtocolSession
         if (frame.RequestId is not null)
         {
             if (!this.RequestManager.TryGetRequestContext(
-                    frame.RequestId.Value,
-                    out var requestContext))
+                frame.RequestId.Value,
+                out var requestContext))
             {
                 throw ProtocolException.InvalidFrameSequence(
                     frame,
@@ -72,13 +84,13 @@ public sealed partial class ProtocolSession
         }
 
         // --------------------------------------------------------------
-        // Enqueue outbound frame
+        // send outbound frame
         // --------------------------------------------------------------
 #if ENABLE_PROTOCOL_FRAME_DIAGNOSTICS
-        frame.Diagnostics.EnqueuedTimestamp =
+        frame.Diagnostics.SentTimestamp =
             Stopwatch.GetTimestamp();
 #endif
 
-        this.OutboundFrames.Enqueue(frame);
+        this.RaiseOutboundFrameReady(frame);
     }
 }
