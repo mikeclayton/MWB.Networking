@@ -85,7 +85,6 @@ public sealed class StreamManager : IHasLogger
         {
             if (entry.Context.OwningRequest?.RequestId == requestId)
             {
-                entry.Context.Close();
                 this.TearDownStream(entry.StreamId);
             }
         }

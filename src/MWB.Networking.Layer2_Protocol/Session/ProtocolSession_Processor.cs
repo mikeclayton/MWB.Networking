@@ -1,6 +1,5 @@
 ﻿using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Session.Api;
-using System.Diagnostics.CodeAnalysis;
 
 namespace MWB.Networking.Layer2_Protocol.Session;
 

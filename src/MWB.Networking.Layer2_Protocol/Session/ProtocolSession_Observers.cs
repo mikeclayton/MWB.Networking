@@ -43,6 +43,8 @@ public sealed partial class ProtocolSession : IProtocolSessionObserver
 
     public event Action<IncomingStream, StreamMetadata>? StreamClosed;
 
+    public event Action<IncomingStream, StreamMetadata>? StreamAborted;
+
     internal void OnStreamOpened(IncomingStream stream, StreamMetadata metadata)
         => this.StreamOpened?.Invoke(stream, metadata);
 
@@ -51,4 +53,7 @@ public sealed partial class ProtocolSession : IProtocolSessionObserver
 
     internal void OnStreamClosed(IncomingStream stream, StreamMetadata metadata)
         => this.StreamClosed?.Invoke(stream, metadata);
+
+    internal void OnStreamAborted(IncomingStream stream, StreamMetadata metadata)
+        => this.StreamAborted?.Invoke(stream, metadata);
 }
