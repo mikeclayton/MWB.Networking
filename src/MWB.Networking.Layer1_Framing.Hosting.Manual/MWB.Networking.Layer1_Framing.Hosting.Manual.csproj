@@ -10,8 +10,4 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.7" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Manual\MWB.Networking.Layer0_Transport.Manual.csproj" />
-  </ItemGroup>
-
 </Project>

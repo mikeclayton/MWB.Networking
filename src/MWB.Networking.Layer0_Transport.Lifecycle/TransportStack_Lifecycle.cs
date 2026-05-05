@@ -296,8 +296,15 @@ public sealed partial class TransportStack
 
         this.Apply(transition);
 
-        // Provider-level teardown is mechanical, not semantic
-        _logicalConnection?.Dispose();
+        // Signal the physical connection to close so the provider will
+        // eventually fire ProviderDisconnected, which drives TearDownConnection.
+        // Capture under lock to avoid racing with TearDownConnection nulling the field.
+        LogicalConnection? conn;
+        lock (_sync)
+        {
+            conn = _logicalConnection;
+        }
+        conn?.Dispose();
 
         return Task.CompletedTask;
     }
