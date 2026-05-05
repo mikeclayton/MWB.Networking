@@ -120,6 +120,9 @@ internal sealed class StreamManagerInbound
             case ProtocolFrameKind.StreamClose:
                 this.ProcessIncomingStreamCloseFrame(frame);
                 break;
+            case ProtocolFrameKind.StreamAbort:
+                this.ProcessIncomingStreamAbortFrame(frame);
+                break;
             default:
                 throw ProtocolException.InvalidFrameSequence(frame, "Invalid stream frame kind");
         }
@@ -138,10 +141,6 @@ internal sealed class StreamManagerInbound
             if (!this.Session.RequestManager.TryGetRequestEntry(frame.RequestId.Value, out owningRequestEntry))
             {
                 throw ProtocolException.InvalidFrameSequence(frame, "Unknown RequestId for StreamOpen");
-            }
-            if (!owningRequestEntry.IsOutgoing)
-            {
-                throw ProtocolException.InvalidFrameSequence(frame, "Not an outgoing request for StreamOpen");
             }
         }
 
@@ -188,5 +187,14 @@ internal sealed class StreamManagerInbound
         this.Session.OnStreamClosed(incomingStream, new StreamMetadata(frame.Payload));
 
         this.StreamManager.RemoveStream(streamId);
+    }
+
+    private void ProcessIncomingStreamAbortFrame(ProtocolFrame frame)
+    {
+        // validate the frame
+        this.EnsureFrameHasStreamId(frame, out var streamId);
+        this.EnsureStreamEntryExists(frame, streamId, out var streamEntry);
+
+        throw new NotImplementedException("not implemented yet");
     }
 }

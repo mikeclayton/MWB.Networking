@@ -29,11 +29,6 @@ internal sealed class RequestManagerInbound
         get;
     }
 
-    //private IncomingRequests IncomingRequests
-    //{
-    //    get;
-    //} = new();
-
     // ------------------------------------------------------------------
     // Utility methods
     // ------------------------------------------------------------------

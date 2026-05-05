@@ -37,9 +37,7 @@ internal sealed partial class EventManager : IHasLogger
     {
         if (frame.EventType is null)
         {
-            throw new ProtocolException(
-                ProtocolErrorKind.InvalidFrameSequence,
-                "Event frame missing EventType");
+            // we allow null event types
         }
 
         var eventType = frame.EventType;
