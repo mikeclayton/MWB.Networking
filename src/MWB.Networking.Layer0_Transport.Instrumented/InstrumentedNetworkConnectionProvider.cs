@@ -51,7 +51,7 @@ public sealed partial class InstrumentedNetworkConnectionProvider
             throw failure;
         }
 
-        var connection = new InstrumentedNetworkConnection(status);
+        var connection = new InstrumentedNetworkConnection(status, this.UseLoopback);
 
         // Expose to test code
         this.Connection = connection;

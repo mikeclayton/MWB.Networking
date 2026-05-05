@@ -26,6 +26,16 @@ public sealed class ConnectionInstrumentation
     // ------------------------------------------------------------------
 
     /// <summary>
+    /// <see langword="true"/> when the connection was created in loopback mode:
+    /// bytes written via <see cref="WriteAsync"/> are routed directly to the
+    /// read channel and returned by <see cref="ReadAsync"/>.
+    /// <see langword="false"/> when in normal mode: writes are recorded in the
+    /// write buffer (inspectable via <see cref="GetWrites"/>) and the read
+    /// channel is fed only by explicit <see cref="InjectBytes"/> calls.
+    /// </summary>
+    public bool IsLoopback => this.Connection.IsLoopback;
+
+    /// <summary>
     /// Injects raw bytes that will be returned by the next
     /// <see cref="ReadAsync"/> call.
     /// </summary>

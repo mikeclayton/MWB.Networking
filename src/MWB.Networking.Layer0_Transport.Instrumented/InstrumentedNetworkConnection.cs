@@ -33,9 +33,12 @@ public sealed partial class InstrumentedNetworkConnection : INetworkConnection, 
     private bool _isFaulted;
     private volatile bool _disposed;
 
-    public InstrumentedNetworkConnection(ObservableConnectionStatus status)
+    private readonly bool _isLoopback;
+
+    public InstrumentedNetworkConnection(ObservableConnectionStatus status, bool isLoopback = false)
     {
         _status = status ?? throw new ArgumentNullException(nameof(status));
+        _isLoopback = isLoopback;
         this.Instrumentation = new ConnectionInstrumentation(this);
     }
 
@@ -79,10 +82,16 @@ public sealed partial class InstrumentedNetworkConnection : INetworkConnection, 
         Memory<byte> buffer,
         CancellationToken ct)
     {
-        if (_disposed || _isDisconnected || _isFaulted)
+        if (_disposed || _isFaulted)
         {
             return 0; // EOF
         }
+
+        // NOTE: _isDisconnected is intentionally NOT checked here.
+        // When Disconnect() is called it calls TryComplete() on the channel writer,
+        // which lets any data already in the channel drain before the reader
+        // gets ChannelClosedException (→ 0 / EOF).
+        // Checking _isDisconnected upfront would cause buffered data to be lost.
 
         if (_nextReadFailure is { } ex)
         {
@@ -122,7 +131,23 @@ public sealed partial class InstrumentedNetworkConnection : INetworkConnection, 
             throw new InvalidOperationException(
                 "Connection is faulted.");
 
-        _writes.Enqueue(segments);
+        if (_isLoopback)
+        {
+            // Loopback mode: route bytes directly to the read channel so that
+            // ReadAsync returns them, simulating a round-trip transport.
+            // _writes is NOT populated in this mode; each mode owns one buffer.
+            foreach (var segment in segments.Segments)
+            {
+                _readChannel.Writer.TryWrite(segment);
+            }
+        }
+        else
+        {
+            // Normal mode: record bytes for test inspection via GetWrites().
+            // _readChannel is only fed by explicit InjectBytes() calls.
+            _writes.Enqueue(segments);
+        }
+
         return ValueTask.CompletedTask;
     }
 

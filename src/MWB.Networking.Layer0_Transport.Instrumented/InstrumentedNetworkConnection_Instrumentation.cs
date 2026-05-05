@@ -26,6 +26,8 @@ public sealed partial class InstrumentedNetworkConnection : INetworkConnection, 
         get;
     }
 
+    internal bool IsLoopback => _isLoopback;
+
     /// <summary>
     /// Injects raw bytes that will be returned by the next
     /// <see cref="ReadAsync"/> call.

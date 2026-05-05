@@ -5,6 +5,18 @@ public sealed partial class InstrumentedNetworkConnectionProvider
     private readonly List<InstrumentedNetworkConnection> _connections = new();
     private Exception? _nextOpenConnectionFailure;
 
+    /// <summary>
+    /// When <see langword="true"/>, every connection created by
+    /// <see cref="OpenConnectionAsync"/> will be in loopback mode: bytes
+    /// written via <see cref="INetworkConnection.WriteAsync"/> are routed
+    /// directly to the read channel and returned by
+    /// <see cref="INetworkConnection.ReadAsync"/>.
+    /// When <see langword="false"/> (the default), writes are recorded in
+    /// the write buffer and the read channel is fed only by explicit
+    /// <see cref="ConnectionInstrumentation.InjectBytes"/> calls.
+    /// </summary>
+    internal bool UseLoopback { get; set; }
+
     public ProviderInstrumentation Instrumentation
     {
         get;

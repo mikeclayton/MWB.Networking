@@ -97,6 +97,7 @@ public sealed class RandomFuzzTest
         using var loggerScope = logger.BeginMethodLoggingScope(this);
 
         var provider = new InstrumentedNetworkConnectionProvider(logger);
+        provider.Instrumentation.UseLoopback = true;
         using var stack = new TransportStack(logger, provider);
 
         var expected = new List<byte[]>(BlockCount);
