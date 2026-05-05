@@ -94,10 +94,12 @@ public sealed partial class TransportStack
             lock (_sync)
             {
                 // Dispose may have raced
-                if (_disposed)
+                if (_disposed || (_connectionAttemptId != attemptId))
                 {
                     logical.Dispose();
-                    throw new ObjectDisposedException(nameof(TransportStack));
+                    ObjectDisposedException.ThrowIf(_disposed, this);
+                    // concurrent disconnect won the race — abandon silently
+                    return;
                 }
 
                 // ✅ Publish logical connection for *this* attempt
