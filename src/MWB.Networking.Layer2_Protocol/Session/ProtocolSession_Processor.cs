@@ -35,6 +35,7 @@ public sealed partial class ProtocolSession : IProtocolSessionProcessor
             case ProtocolFrameKind.StreamOpen:
             case ProtocolFrameKind.StreamData:
             case ProtocolFrameKind.StreamClose:
+            case ProtocolFrameKind.StreamAbort:
                 this.StreamManager.Inbound.ProcessStreamFrame(frame);
                 break;
 

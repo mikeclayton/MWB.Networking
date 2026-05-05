@@ -139,9 +139,9 @@ internal sealed class StreamManagerInbound
             {
                 throw ProtocolException.InvalidFrameSequence(frame, "Unknown RequestId for StreamOpen");
             }
-            if (!owningRequestEntry.IsIncoming)
+            if (!owningRequestEntry.IsOutgoing)
             {
-                throw ProtocolException.InvalidFrameSequence(frame, "Not an incoming request for StreamOpen");
+                throw ProtocolException.InvalidFrameSequence(frame, "Not an outgoing request for StreamOpen");
             }
         }
 

@@ -78,7 +78,7 @@ internal sealed class RequestManagerInbound
     // Incoming Request wrappers
     // ------------------------------------------------------------------
 
-    internal void RemoveInboundRequest(RequestEntry entry)
+    internal void RemoveRequestEntry(RequestEntry entry)
     {
         this.RequestEntries.RemoveRequestEntry(entry.RequestId);
     }

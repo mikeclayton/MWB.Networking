@@ -74,7 +74,6 @@ internal sealed class RequestManager : IHasLogger
         // auto-close streams owned by the request
         this.Session.StreamManager.TearDownRequestStreams(requestId);
 
-        this.Inbound.RemoveInboundRequest(entry);
-        this.RequestEntries.RemoveRequestEntry(requestId);
+        this.Inbound.RemoveRequestEntry(entry);
     }
 }
