@@ -3,6 +3,7 @@ using MWB.Networking.Layer0_Transport.Encoding;
 using MWB.Networking.Layer0_Transport.Instrumented;
 using MWB.Networking.Layer0_Transport.Lifecycle.Exceptions;
 using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
+using MWB.Networking.Logging;
 using MWB.Networking.Logging.Loggers;
 
 namespace MWB.Networking.Layer0_Transport.Lifecycle.UnitTests.Fuzz;
@@ -93,6 +94,7 @@ public sealed class RandomFuzzTest
 
         //var logger = NullLogger.Instance;
         var (logger, loggerFactory) = DebugLoggerFactory.Create();
+        using var loggerScope = logger.BeginMethodLoggingScope(this);
 
         var provider = new InstrumentedNetworkConnectionProvider(logger);
         using var stack = new TransportStack(logger, provider);

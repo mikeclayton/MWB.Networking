@@ -71,62 +71,65 @@ public sealed partial class TransportStack
     private void OnConnecting(object? _, EventArgs __)
     {
         using var loggerScope = this.Logger.BeginMethodLoggingScope(this);
+        TransportStackTransition transition;
         lock (_sync)
         {
-            this.Apply(
-                _machine.Process(
-                    TransportStackInputKind.ProviderConnecting));
+            transition = _machine.Process(
+                TransportStackInputKind.ProviderConnecting);
         }
+        this.Apply(transition);
     }
 
 
     private void OnConnected(object? _, EventArgs __)
     {
         using var loggerScope = this.Logger.BeginMethodLoggingScope(this);
+        TransportStackTransition transition;
         lock (_sync)
         {
             // History flag remains orthogonal to lifecycle
             _hasEverConnected = true;
 
-            this.Apply(
-                _machine.Process(
-                    TransportStackInputKind.ProviderConnected));
+            transition = _machine.Process(
+                TransportStackInputKind.ProviderConnected);
         }
-
+        this.Apply(transition);
     }
 
     private void OnDisconnecting(object? _, EventArgs __)
     {
         using var loggerScope = this.Logger.BeginMethodLoggingScope(this);
+        TransportStackTransition transition;
         lock (_sync)
         {
-            this.Apply(
-                _machine.Process(
-                    TransportStackInputKind.DisconnectRequested));
+            transition = _machine.Process(
+                TransportStackInputKind.DisconnectRequested);
         }
+        this.Apply(transition);
     }
 
     private void OnDisconnected(object? _, TransportDisconnectedEventArgs e)
     {
         using var loggerScope = this.Logger.BeginMethodLoggingScope(this);
+        TransportStackTransition transition;
         lock (_sync)
         {
-            this.Apply(
-                _machine.Process(
-                    TransportStackInputKind.ProviderDisconnected));
+            transition = _machine.Process(
+                TransportStackInputKind.ProviderDisconnected);
         }
+        this.Apply(transition);
     }
 
     private void OnFaulted(object? _, TransportFaultedEventArgs e)
     {
         using var loggerScope = this.Logger.BeginMethodLoggingScope(this);
+        TransportStackTransition transition;
         lock (_sync)
         {
-            this.Apply(
-                _machine.Process(
-                    TransportStackInputKind.ProviderFaulted, e));
+            transition = _machine.Process(
+                TransportStackInputKind.ProviderFaulted, e);
         }
-
+        this.Apply(transition);
     }
 
     private void RaiseFaultedEvent(TransportFaultedEventArgs e)

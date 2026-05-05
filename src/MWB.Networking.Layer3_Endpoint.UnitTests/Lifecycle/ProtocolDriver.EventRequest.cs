@@ -44,11 +44,13 @@ public sealed class EventRequests
 
         using var serverConnection =
             new PipeNetworkConnection(
+                logger,
                 reader: serverPipe.Reader,
                 writer: clientPipe.Writer);
 
         using var clientConnection =
             new PipeNetworkConnection(
+                logger,
                 reader: clientPipe.Reader,
                 writer: serverPipe.Writer);
 
