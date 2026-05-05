@@ -1,4 +1,5 @@
 ﻿using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Requests.Api;
 using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.Streams.Api;
@@ -131,19 +132,23 @@ internal sealed class StreamManagerInbound
         this.EnsureStreamEntryDoesNotExist(frame, streamId);
 
         // if the frame is associated with a request, make sure the request exists and get its context
-        RequestContext? owningRequestContext = null;
+        RequestEntry? owningRequestEntry = null;
         if (frame.RequestId is not null)
         {
-            if (!this.Session.RequestManager.TryGetRequestContext(frame.RequestId.Value, out owningRequestContext))
+            if (!this.Session.RequestManager.TryGetRequestEntry(frame.RequestId.Value, out owningRequestEntry))
             {
                 throw ProtocolException.InvalidFrameSequence(frame, "Unknown RequestId for StreamOpen");
+            }
+            if (!owningRequestEntry.IsIncoming)
+            {
+                throw ProtocolException.InvalidFrameSequence(frame, "Not an incoming request for StreamOpen");
             }
         }
 
         // build the context and create the IncomingStream instance
         var streamType = frame.StreamType;
-        var streamContext = new StreamContext(streamId, streamType, owningRequestContext);
-        var incomingStream = new IncomingStream(this.Session, streamContext);
+        var streamContext = new StreamContext(streamId, streamType, owningRequestEntry?.Context);
+        var incomingStream = new IncomingStream(this.Session, streamContext, owningRequestEntry?.IncomingRequest);
 
         // add a new stream entry into the entry cache
         var streamEntry = new StreamEntry(

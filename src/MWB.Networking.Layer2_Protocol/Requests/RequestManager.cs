@@ -11,12 +11,10 @@ internal sealed class RequestManager : IHasLogger
 {
     internal RequestManager(ILogger logger, ProtocolSession session)
     {
-        ArgumentNullException.ThrowIfNull(logger);
-        ArgumentNullException.ThrowIfNull(session);
         this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         this.Session = session ?? throw new ArgumentNullException(nameof(session));
-        this.Inbound = new RequestManagerInbound(session, this, this.RequestContexts);
-        this.Outbound = new RequestManagerOutbound(session, this, this.RequestContexts);
+        this.Inbound = new RequestManagerInbound(session, this, this.RequestEntries);
+        this.Outbound = new RequestManagerOutbound(session, this, this.RequestEntries);
     }
 
     public ILogger Logger
@@ -29,7 +27,7 @@ internal sealed class RequestManager : IHasLogger
         get;
     }
 
-    private RequestContexts RequestContexts
+    private RequestEntries RequestEntries
     {
         get;
     } = new();
@@ -56,18 +54,18 @@ internal sealed class RequestManager : IHasLogger
 
     internal IEnumerable<uint> GetRequestIds()
     {
-        return this.RequestContexts.GetRequestContextIds();
+        return this.RequestEntries.GetRequestEntryIds();
     }
 
-    internal bool TryGetRequestContext(uint requestId, [NotNullWhen(true)] out RequestContext? result)
+    internal bool TryGetRequestEntry(uint requestId, [NotNullWhen(true)] out RequestEntry? result)
     {
-        return this.RequestContexts.TryGetRequestContext(requestId, out result);
+        return this.RequestEntries.TryGetRequestEntry(requestId, out result);
     }
 
     internal void RemoveRequest(uint requestId)
     {
         // Look up the request context first
-        if (!this.RequestContexts.TryGetRequestContext(requestId, out var context))
+        if (!this.RequestEntries.TryGetRequestEntry(requestId, out var entry))
         {
             // not a valid request
             throw new InvalidOperationException();
@@ -76,7 +74,7 @@ internal sealed class RequestManager : IHasLogger
         // auto-close streams owned by the request
         this.Session.StreamManager.TearDownRequestStreams(requestId);
 
-        this.Inbound.RemoveIncomingRequest(context);
-        this.RequestContexts.RemoveRequestContext(requestId);
+        this.Inbound.RemoveInboundRequest(entry);
+        this.RequestEntries.RemoveRequestEntry(requestId);
     }
 }

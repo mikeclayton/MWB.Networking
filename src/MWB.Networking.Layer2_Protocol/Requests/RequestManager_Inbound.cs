@@ -7,11 +7,11 @@ namespace MWB.Networking.Layer2_Protocol.Requests;
 
 internal sealed class RequestManagerInbound
 {
-    internal RequestManagerInbound(ProtocolSession session, RequestManager requestManager, RequestContexts requestContexts)
+    internal RequestManagerInbound(ProtocolSession session, RequestManager requestManager, RequestEntries requestEntries)
     {
         this.Session = session ?? throw new ArgumentNullException(nameof(session));
         this.RequestManager = requestManager ?? throw new ArgumentNullException(nameof(requestManager));
-        this.RequestContexts = requestContexts ?? throw new ArgumentNullException(nameof(requestContexts));
+        this.RequestEntries = requestEntries ?? throw new ArgumentNullException(nameof(requestEntries));
     }
 
     private ProtocolSession Session
@@ -24,15 +24,15 @@ internal sealed class RequestManagerInbound
         get;
     }
 
-    private RequestContexts RequestContexts
+    private RequestEntries RequestEntries
     {
         get;
     }
 
-    private IncomingRequests IncomingRequests
-    {
-        get;
-    } = new();
+    //private IncomingRequests IncomingRequests
+    //{
+    //    get;
+    //} = new();
 
     // ------------------------------------------------------------------
     // Utility methods
@@ -49,25 +49,25 @@ internal sealed class RequestManagerInbound
     }
 
 
-    private void EnsureRequestContextDoesNotExist(
+    private void EnsureInboundRequestDoesNotExist(
         ProtocolFrame frame,
         uint requestId)
     {
-        if (this.RequestContexts.RequestContextExists(requestId))
+        if (this.RequestEntries.RequestEntryExists(requestId))
         {
             throw ProtocolException.InvalidFrameSequence(
                 frame, "Duplicate RequestId");
         }
     }
 
-    private void EnsureRequestContextExists(
+    private void EnsureInboundRequestExists(
         ProtocolFrame frame,
         uint requestId,
-        out RequestContext requestContext)
+        out RequestEntry requestEntry)
     {
-        if (this.RequestContexts.TryGetRequestContext(requestId, out var result))
+        if (this.RequestEntries.TryGetRequestEntry(requestId, out var result))
         {
-            requestContext = result;
+            requestEntry = result;
             return;
         }
         throw ProtocolException.InvalidFrameSequence(
@@ -78,9 +78,9 @@ internal sealed class RequestManagerInbound
     // Incoming Request wrappers
     // ------------------------------------------------------------------
 
-    internal void RemoveIncomingRequest(RequestContext context)
+    internal void RemoveInboundRequest(RequestEntry entry)
     {
-        this.IncomingRequests.RemoveIncomingRequest(context);
+        this.RequestEntries.RemoveRequestEntry(entry.RequestId);
     }
 
     // ------------------------------------------------------------------
@@ -90,32 +90,31 @@ internal sealed class RequestManagerInbound
     internal void ProcessInboundRequestFrame(ProtocolFrame frame)
     {
         this.EnsureFrameHasRequestId(frame, out var requestId);
-        this.EnsureRequestContextDoesNotExist(frame, requestId);
+        this.EnsureInboundRequestDoesNotExist(frame, requestId);
 
         var requestType = frame.RequestType;
 
         var requestContext = new RequestContext(requestId, requestType);
-        this.RequestContexts.AddRequestContext(requestContext);
+        var incomingRequest = new IncomingRequest(this.Session, requestContext);
+        var requestEntry = new RequestEntry(requestContext, incomingRequest);
 
-        var request = new IncomingRequest(this.Session, requestContext);
-        this.IncomingRequests.AddIncomingRequest(request);
-
-        this.Session.OnRequestReceived(request, frame.Payload);
+        this.RequestEntries.AddRequestEntry(requestEntry);
+        this.Session.OnRequestReceived(incomingRequest, frame.Payload);
     }
 
     internal void ProcessInboundResponseFrame(ProtocolFrame frame)
     {
         this.EnsureFrameHasRequestId(frame, out var requestId);
-        this.EnsureRequestContextExists(frame, requestId, out var requestContext);
+        this.EnsureInboundRequestExists(frame, requestId, out var requestEntry);
 
         // Close the Request based on a terminal frame received from the peer.
         // This MUST NOT emit any protocol frames.
-        requestContext.CloseFromInbound(frame);
+        requestEntry.Context.CloseFromInbound(frame);
 
         // Tear down all request-scoped streams
         this.Session.StreamManager.TearDownRequestStreams(requestId);
 
         // Remove the request (terminal)
-        this.RequestContexts.RemoveRequestContext(requestId);
+        this.RequestEntries.RemoveRequestEntry(requestId);
     }
 }

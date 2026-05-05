@@ -23,7 +23,7 @@ public sealed class OddEvenStreamIdProvider
         this.NextStreamId = this.OutboundParity switch
         {
             OddEvenStreamIdParity.Odd => 1,
-            OddEvenStreamIdParity.Even => 0,
+            OddEvenStreamIdParity.Even => 2,
             _ => throw new ArgumentException("Invalid stream id parity", nameof(outboundParity))
         };
     }

@@ -10,7 +10,7 @@ internal sealed partial class EventManager : IHasLogger
 {
     internal EventManager(ILogger logger, ProtocolSession session)
     {
-        this.Logger = logger ?? throw new ArgumentOutOfRangeException(nameof(logger));
+        this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         this.Session = session ?? throw new ArgumentNullException(nameof(session));
     }
 

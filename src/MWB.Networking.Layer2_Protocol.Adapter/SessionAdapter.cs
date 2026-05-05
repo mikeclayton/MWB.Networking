@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer1_Framing.Pipeline;
 using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Session.Api;
 
 namespace MWB.Networking.Layer2_Protocol.Adapter;
 
@@ -22,11 +23,12 @@ public sealed partial class SessionAdapter
 
     internal SessionAdapter(
         ILogger logger,
-        IProtocolSessionProcessor processor,
+        IProtocolSessionFrameIO frameIO,
         NetworkPipeline pipeline)
     {
         this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        this.Processor = processor ?? throw new ArgumentNullException(nameof(processor));
+        this.SessionInput = frameIO ?? throw new ArgumentNullException(nameof(frameIO));
+        this.SessionOutput = frameIO ?? throw new ArgumentNullException(nameof(frameIO));
         this.Pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
     }
 
@@ -51,7 +53,12 @@ public sealed partial class SessionAdapter
         get;
     }
 
-    private IProtocolSessionProcessor Processor
+    private IProtocolSessionInput SessionInput
+    {
+        get;
+    }
+
+    private IProtocolSessionOutput SessionOutput
     {
         get;
     }

@@ -16,7 +16,7 @@ namespace MWB.Networking.Layer2_Protocol.Session;
 /// - requests and streams are coordinated
 /// - application intent is translated into protocol actions
 /// </summary>
-public sealed partial class ProtocolSession : IHasLogger
+public sealed partial class ProtocolSession : IHasLogger, IProtocolSessionFrameIO
 {
     internal ProtocolSession(
         ILogger logger,

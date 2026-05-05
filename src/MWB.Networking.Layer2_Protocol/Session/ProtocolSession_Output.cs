@@ -45,9 +45,9 @@ public sealed partial class ProtocolSession : IProtocolSessionOutput
         // --------------------------------------------------------------
         if (frame.RequestId is not null)
         {
-            if (!this.RequestManager.TryGetRequestContext(
+            if (!this.RequestManager.TryGetRequestEntry(
                 frame.RequestId.Value,
-                out var requestContext))
+                out var requestEntry))
             {
                 throw ProtocolException.InvalidFrameSequence(
                     frame,
@@ -57,7 +57,7 @@ public sealed partial class ProtocolSession : IProtocolSessionOutput
             // Ensure the Request is still open
             if (!RequestManager.IsTerminalRequestFrame(frame))
             {
-                requestContext.EnsureOpen();
+                requestEntry.Context.EnsureOpen();
             }
         }
 

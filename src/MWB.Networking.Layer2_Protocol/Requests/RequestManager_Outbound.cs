@@ -7,11 +7,11 @@ namespace MWB.Networking.Layer2_Protocol.Requests;
 
 internal sealed class RequestManagerOutbound
 {
-    internal RequestManagerOutbound(ProtocolSession session, RequestManager requestManager, RequestContexts requestContexts)
+    internal RequestManagerOutbound(ProtocolSession session, RequestManager requestManager, RequestEntries requestEntries)
     {
         this.Session = session ?? throw new ArgumentNullException(nameof(session));
         this.RequestManager = requestManager ?? throw new ArgumentNullException(nameof(requestManager));
-        this.RequestContexts = requestContexts ?? throw new ArgumentNullException(nameof(requestContexts));
+        this.RequestEntries = requestEntries ?? throw new ArgumentNullException(nameof(requestEntries));
     }
 
     private ProtocolSession Session
@@ -24,7 +24,7 @@ internal sealed class RequestManagerOutbound
         get;
     }
 
-    private RequestContexts RequestContexts
+    private RequestEntries RequestEntries
     {
         get;
     }
@@ -46,14 +46,16 @@ internal sealed class RequestManagerOutbound
 
         // Create and track request context
         var context = new RequestContext(requestId, requestType);
-        this.RequestContexts.AddRequestContext(context);
+        var outgoingRequest = new OutgoingRequest(this.Session, context);
+        var requestEntry = new RequestEntry(context, outgoingRequest);
+        this.RequestEntries.AddRequestEntry(requestEntry);
 
         // Emit the protocol request frame to the peer
         this.Session.SendOutboundFrame(
             ProtocolFrames.Request(requestId, requestType, payload));
 
         // Return an application-facing handle
-        return new OutgoingRequest(this.Session, context);
+        return outgoingRequest;
     }
 
     internal void CloseRequestWithResponse(

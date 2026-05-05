@@ -150,7 +150,7 @@ internal static class ProtocolFrames
         ReadOnlyMemory<byte> metadata = default)
     {
         return new ProtocolFrame(
-            kind: ProtocolFrameKind.StreamClose,
+            kind: ProtocolFrameKind.StreamAbort,
             eventType: null,
             requestId: null,
             requestType: null,

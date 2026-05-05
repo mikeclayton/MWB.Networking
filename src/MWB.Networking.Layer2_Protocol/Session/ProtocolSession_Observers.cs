@@ -51,9 +51,4 @@ public sealed partial class ProtocolSession : IProtocolSessionObserver
 
     internal void OnStreamClosed(IncomingStream stream, StreamMetadata metadata)
         => this.StreamClosed?.Invoke(stream, metadata);
-
-    public OutgoingStream OpenSessionStream(ReadOnlyMemory<byte> metadata)
-    {
-        return this.StreamManager.Outbound.OpenSessionStream(metadata: metadata);
-    }
 }
