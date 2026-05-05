@@ -44,6 +44,9 @@ public sealed class ConnectionInstrumentation
         this.Connection.InjectBytes(frame);
     }
 
+    public int ReadChannelCount
+        => this.Connection.ReadChannelCount;
+
     /// <summary>
     /// Returns all data written via <see cref="WriteAsync"/>.
     /// </summary>

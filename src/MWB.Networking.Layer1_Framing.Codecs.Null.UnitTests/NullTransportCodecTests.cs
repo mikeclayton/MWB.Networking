@@ -1,5 +1,5 @@
 using MWB.Networking.Layer1_Framing.Codec.Buffer;
-using MWB.Networking.Layer1_Framing.Codecs.NullCodecs.Transport;
+using MWB.Networking.Layer1_Framing.Codecs.Null.Transport;
 using System.Buffers;
 
 namespace MWB.Networking.Layer1_Framing.Codecs.Null.UnitTests;
@@ -96,7 +96,7 @@ public sealed class NullTransportCodecTests
         new NullTransportCodec().Encode(input.Reader, output.Writer);
         output.Writer.Complete();
 
-        Assert.AreEqual(0, ReadAll(output).Length);
+        Assert.IsEmpty(ReadAll(output));
     }
 
     // -------------------------------------------------------------------------

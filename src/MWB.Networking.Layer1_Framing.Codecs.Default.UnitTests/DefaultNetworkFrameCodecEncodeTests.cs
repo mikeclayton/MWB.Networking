@@ -58,7 +58,7 @@ public sealed class DefaultNetworkFrameCodecEncodeTests
         var frame = NetworkFrames.Event(eventType: null);
         var output = Encode(frame);
 
-        Assert.AreEqual(2, output.Length,
+        Assert.HasCount(2, output,
             "Minimal frame must produce exactly 2 bytes (kind + flags).");
     }
 
@@ -221,7 +221,7 @@ public sealed class DefaultNetworkFrameCodecEncodeTests
         var frame = NetworkFrames.Event(eventType: 0x12345678);
         var output = Encode(frame);
 
-        Assert.AreEqual(6, output.Length, "kind(1) + flags(1) + eventType(4) = 6 bytes.");
+        Assert.HasCount(6, output, "kind(1) + flags(1) + eventType(4) = 6 bytes.");
         CollectionAssert.AreEqual(
             new byte[] { 0x12, 0x34, 0x56, 0x78 },
             output[2..6],
@@ -235,7 +235,7 @@ public sealed class DefaultNetworkFrameCodecEncodeTests
         var output = Encode(frame);
 
         // kind(1) + flags(1) + requestId(4) = 6 bytes
-        Assert.AreEqual(6, output.Length);
+        Assert.HasCount(6, output);
         CollectionAssert.AreEqual(
             new byte[] { 0xDE, 0xAD, 0xBE, 0xEF },
             output[2..6],
@@ -260,7 +260,7 @@ public sealed class DefaultNetworkFrameCodecEncodeTests
         var output = Encode(frame);
 
         // Layout: kind(1) + flags(1) + 6 fields × 4 bytes = 26 bytes total.
-        Assert.AreEqual(26, output.Length,
+        Assert.HasCount(26, output,
             "2 header bytes + 6 optional fields × 4 bytes = 26 bytes.");
 
         CollectionAssert.AreEqual(new byte[] { 0x00, 0x00, 0x00, 0x01 }, output[2..6],
@@ -288,7 +288,7 @@ public sealed class DefaultNetworkFrameCodecEncodeTests
         var frame = NetworkFrames.Event(eventType: null, payload: default);
         var output = Encode(frame);
 
-        Assert.AreEqual(2, output.Length,
+        Assert.HasCount(2, output,
             "No payload bytes should appear when the payload is empty.");
     }
 
@@ -300,7 +300,7 @@ public sealed class DefaultNetworkFrameCodecEncodeTests
         var output = Encode(frame);
 
         // 2-byte header + 5-byte payload = 7 bytes
-        Assert.AreEqual(7, output.Length);
+        Assert.HasCount(7, output);
         CollectionAssert.AreEqual(payload, output[2..],
             "Payload must follow the header byte-for-byte.");
     }
@@ -314,7 +314,7 @@ public sealed class DefaultNetworkFrameCodecEncodeTests
         var output = Encode(frame);
 
         // 2-byte header + 4-byte streamId + 64KB payload
-        Assert.AreEqual(2 + 4 + payload.Length, output.Length);
+        Assert.HasCount(2 + 4 + payload.Length, output);
         CollectionAssert.AreEqual(payload, output[6..],
             "All payload bytes must be preserved exactly for large payloads.");
     }

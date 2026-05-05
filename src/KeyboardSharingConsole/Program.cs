@@ -21,7 +21,7 @@ var logger = NullLogger.Instance;
 //var logger = LoggingHelper.CreateLogger();
 using var cts = new CancellationTokenSource();
 
-logger.LogDebug(Console.Title);
+logger.LogDebug("{Title}", Console.Title);
 
 // ------------------------------------------------------------
 // Determine role

@@ -53,7 +53,7 @@ public sealed class DisconnectTests
         // Disconnecting must precede Disconnected
         var idxDisconnecting = states.ToList().IndexOf(TransportConnectionState.Disconnecting);
         var idxDisconnected = states.ToList().IndexOf(TransportConnectionState.Disconnected);
-        Assert.IsTrue(idxDisconnecting < idxDisconnected,
+        Assert.IsLessThan(idxDisconnected, idxDisconnecting,
             "Disconnecting must be emitted before Disconnected.");
     }
 

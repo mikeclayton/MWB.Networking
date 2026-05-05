@@ -57,7 +57,7 @@ public sealed class LengthPrefixedTransportEncoderTests
         var input = CodecTestHelpers.CreateInputBuffer([]);
         var output = Encode(input);
 
-        Assert.AreEqual(4, output.Length,
+        Assert.HasCount(4, output,
             "Encoding an empty payload must produce exactly the 4-byte header.");
         CollectionAssert.AreEqual(new byte[] { 0x00, 0x00, 0x00, 0x00 }, output);
     }
@@ -68,7 +68,7 @@ public sealed class LengthPrefixedTransportEncoderTests
         var input = CodecTestHelpers.CreateInputBuffer(new byte[] { 0x42 });
         var output = Encode(input);
 
-        Assert.AreEqual(5, output.Length);
+        Assert.HasCount(5, output);
         // Header must be big-endian 1
         CollectionAssert.AreEqual(
             new byte[] { 0x00, 0x00, 0x00, 0x01 },
@@ -82,7 +82,7 @@ public sealed class LengthPrefixedTransportEncoderTests
         var input = CodecTestHelpers.CreateInputBuffer(payload);
         var output = Encode(input);
 
-        Assert.AreEqual(7, output.Length, "Output must be header(4) + payload(3).");
+        Assert.HasCount(7, output, "Output must be header(4) + payload(3).");
         // Big-endian 3
         CollectionAssert.AreEqual(
             new byte[] { 0x00, 0x00, 0x00, 0x03 },
@@ -156,7 +156,7 @@ public sealed class LengthPrefixedTransportEncoderTests
         var input = CodecTestHelpers.CreateInputBuffer(payload);
         var output = Encode(input);
 
-        Assert.AreEqual(4 + payload.Length, output.Length);
+        Assert.HasCount(4 + payload.Length, output);
         CollectionAssert.AreEqual(payload, output[4..]);
     }
 
@@ -202,7 +202,7 @@ public sealed class LengthPrefixedTransportEncoderTests
         var input = CodecTestHelpers.CreateInputBuffer(segments);
         var output = Encode(input);
 
-        Assert.AreEqual(4 + expected.Length, output.Length);
+        Assert.HasCount(4 + expected.Length, output);
         CollectionAssert.AreEqual(expected, output[4..]);
     }
 

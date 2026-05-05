@@ -1,4 +1,4 @@
-﻿namespace MWB.Networking.Layer2_Protocol.Lifecycle.Infrastructure;
+﻿namespace MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
 
 public enum OddEvenStreamIdParity
 {

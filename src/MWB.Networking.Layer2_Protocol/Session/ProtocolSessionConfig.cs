@@ -1,4 +1,4 @@
-﻿using MWB.Networking.Layer2_Protocol.Lifecycle.Infrastructure;
+﻿using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
 
 namespace MWB.Networking.Layer2_Protocol.Session;
 

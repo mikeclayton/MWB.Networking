@@ -147,9 +147,9 @@ public sealed class NetworkPipelineEncodeTests
 
         var result = pipeline.Encode(NetworkFrames.Event(null));
 
-        Assert.IsTrue(result.Segments.Length > 0,
+        Assert.IsNotEmpty(result.Segments,
             "Encode must produce at least one ByteSegments entry.");
-        Assert.IsTrue(PipelineTestHelpers.ToBytes(result).Length >= 4,
+        Assert.IsGreaterThanOrEqualTo(4, PipelineTestHelpers.ToBytes(result).Length,
             "Encoded output must be at least 4 bytes (length prefix).");
     }
 }

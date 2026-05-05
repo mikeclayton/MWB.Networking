@@ -193,7 +193,7 @@ public sealed partial class DefaultNetworkFrameCodec : INetworkFrameCodec
                 return FrameDecodeResult.InvalidFrameEncoding;
             }
 
-            payload = mem.Slice(0, (int)remaining).ToArray();
+            payload = mem[..(int)remaining].ToArray();
             inputReader.Advance((int)remaining);
         }
 

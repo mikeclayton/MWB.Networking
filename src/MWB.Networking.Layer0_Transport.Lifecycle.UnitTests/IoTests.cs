@@ -44,7 +44,7 @@ public sealed class IoTests
         var writes = provider.Instrumentation
             .Connection!.Instrumentation
             .GetWrites();
-        Assert.AreEqual(1, writes.Count, "Exactly one write should be captured.");
+        Assert.HasCount(1, writes, "Exactly one write should be captured.");
 
         var segments = writes.First().Segments;
         CollectionAssert.AreEqual(payload, segments[0].ToArray());

@@ -110,7 +110,7 @@ public sealed partial class InstrumentedNetworkConnection : INetworkConnection, 
         }
 
         var length = Math.Min(data.Length, buffer.Length);
-        data.Slice(0, length).CopyTo(buffer);
+        data[..length].CopyTo(buffer);
 
         return length;
     }
@@ -136,10 +136,10 @@ public sealed partial class InstrumentedNetworkConnection : INetworkConnection, 
             // Loopback mode: route bytes directly to the read channel so that
             // ReadAsync returns them, simulating a round-trip transport.
             // _writes is NOT populated in this mode; each mode owns one buffer.
-            foreach (var segment in segments.Segments)
-            {
-                _readChannel.Writer.TryWrite(segment);
-            }
+
+            // write the block as a single buffer to preserve segment boundaries in the loopback channel.
+            segments = segments.Collapse();
+            _readChannel.Writer.TryWrite(segments.Segments[0]);
         }
         else
         {

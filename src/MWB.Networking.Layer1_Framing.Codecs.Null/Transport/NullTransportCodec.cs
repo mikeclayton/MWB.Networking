@@ -2,7 +2,7 @@
 using MWB.Networking.Layer1_Framing.Codec.Buffer;
 using System.Buffers;
 
-namespace MWB.Networking.Layer1_Framing.Codecs.NullCodecs.Transport;
+namespace MWB.Networking.Layer1_Framing.Codecs.Null.Transport;
 
 public sealed class NullTransportCodec : ITransportCodec
 {

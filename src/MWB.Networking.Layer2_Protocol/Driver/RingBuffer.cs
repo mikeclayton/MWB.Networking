@@ -23,8 +23,7 @@ public sealed class RingBuffer<T>
 
     public RingBuffer(int capacity)
     {
-        if (capacity <= 0)
-            throw new ArgumentOutOfRangeException(nameof(capacity));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(capacity);
 
         _capacity = capacity;
         _buffer = new T[capacity];

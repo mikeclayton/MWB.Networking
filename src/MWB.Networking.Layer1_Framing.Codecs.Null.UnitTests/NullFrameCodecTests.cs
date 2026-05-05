@@ -1,6 +1,6 @@
 using MWB.Networking.Layer1_Framing.Codec;
 using MWB.Networking.Layer1_Framing.Codec.Buffer;
-using MWB.Networking.Layer1_Framing.Codecs.NullCodecs.Frame;
+using MWB.Networking.Layer1_Framing.Codecs.Null.Frame;
 
 namespace MWB.Networking.Layer1_Framing.Codecs.Null.UnitTests;
 
@@ -63,7 +63,7 @@ public sealed class NullFrameCodecTests
         new NullFrameCodec().Encode(input.Reader, output.Writer);
         output.Writer.Complete();
 
-        Assert.AreEqual(0, ReadAll(output).Length);
+        Assert.IsEmpty(ReadAll(output));
     }
 
     [TestMethod]
@@ -128,6 +128,6 @@ public sealed class NullFrameCodecTests
         new NullFrameCodec().Decode(input.Reader, output.Writer);
         output.Writer.Complete();
 
-        Assert.AreEqual(0, ReadAll(output).Length);
+        Assert.IsEmpty(ReadAll(output));
     }
 }

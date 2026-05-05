@@ -1,18 +1,20 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Logging.Formatters;
 using MWB.Networking.Logging.Scopes;
-using System.Diagnostics;
 using System.Text;
+using VsTestContext = Microsoft.VisualStudio.TestTools.UnitTesting.TestContext;
 
-namespace MWB.Networking.Logging.Loggers;
+namespace MWB.Networking.Logging.TestContext;
 
-public sealed class DebugLogger : ILogger
+internal sealed class TestContextLogger : ILogger
 {
+    private readonly VsTestContext _testContext;
     private readonly string _category;
     private readonly IExternalScopeProvider? _scopeProvider;
 
-    public DebugLogger(string category, IExternalScopeProvider? scopeProvider)
+    public TestContextLogger(VsTestContext testContext, string category, IExternalScopeProvider? scopeProvider)
     {
+        _testContext = testContext;
         _category = category;
         _scopeProvider = scopeProvider;
     }
@@ -20,17 +22,16 @@ public sealed class DebugLogger : ILogger
     public IDisposable? BeginScope<TState>(TState state) where TState : notnull
         => NullScope.Instance;
 
-    public bool IsEnabled(LogLevel level) => true;
+    public bool IsEnabled(LogLevel logLevel) => true;
 
     public void Log<TState>(
-        LogLevel level,
+        LogLevel logLevel,
         EventId eventId,
         TState state,
         Exception? exception,
         Func<TState, Exception?, string> formatter)
     {
-
-        if (!this.IsEnabled(level))
+        if (!this.IsEnabled(logLevel))
         {
             return;
         }
@@ -38,14 +39,14 @@ public sealed class DebugLogger : ILogger
         var sb = new StringBuilder();
 
         // append the prefix
-        var prefix = MethodPrefixFormatter.FormatFromScope(level, _scopeProvider);
+        var prefix = MethodPrefixFormatter.FormatFromScope(logLevel, _scopeProvider);
         sb.Append(prefix);
 
         // append the message
         var message = formatter(state, exception);
         if (!string.IsNullOrEmpty(message))
         {
-            if(!string.IsNullOrEmpty(prefix))
+            if (!string.IsNullOrEmpty(prefix))
             {
                 sb.Append(' ');
             }
@@ -59,12 +60,6 @@ public sealed class DebugLogger : ILogger
             sb.Append(exception);
         }
 
-        var result = sb.ToString();
-        if (result == "Network: Debug: Entering method")
-        {
-            Debugger.Break();
-        }
-
-        Debug.WriteLine(sb.ToString());
+        _testContext.WriteLine(sb.ToString());
     }
 }

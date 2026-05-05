@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 
-namespace MWB.Networking.Logging.Loggers;
+namespace MWB.Networking.Logging.Debug;
 
 public sealed class DebugLoggerProvider :
     ILoggerProvider,

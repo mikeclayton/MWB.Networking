@@ -33,7 +33,7 @@ public sealed class ConnectTests
         await stack.ConnectAsync();
 
         Assert.IsNotNull(provider.Instrumentation.Connection, "Provider should expose the created connection.");
-        Assert.AreEqual(1, provider.Instrumentation.Connections.Count);
+        Assert.HasCount(1, provider.Instrumentation.Connections);
     }
 
     /// <summary>

@@ -1,6 +1,6 @@
 ﻿using MWB.Networking.Layer1_Framing.Pipeline.Hosting;
 
-namespace MWB.Networking.Layer1_Framing.Codecs.NullCodecs.Transport;
+namespace MWB.Networking.Layer1_Framing.Codecs.Null.Transport;
 
 public static class NetworkPipelineBuilderExtensions
 {

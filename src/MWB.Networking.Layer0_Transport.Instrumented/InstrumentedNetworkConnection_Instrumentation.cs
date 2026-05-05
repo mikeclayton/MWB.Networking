@@ -40,6 +40,9 @@ public sealed partial class InstrumentedNetworkConnection : INetworkConnection, 
         _readChannel.Writer.TryWrite(frame);
     }
 
+    internal int ReadChannelCount
+        => _readChannel.Reader.Count;
+
     /// <summary>
     /// Returns all data written via <see cref="WriteAsync"/>.
     /// </summary>

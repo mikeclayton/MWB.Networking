@@ -3,7 +3,6 @@ using MWB.Networking.Layer0_Transport.Encoding;
 using MWB.Networking.Layer0_Transport.Lifecycle.Abstractions;
 using MWB.Networking.Layer0_Transport.Lifecycle.Fsm;
 using MWB.Networking.Layer0_Transport.Lifecycle.Internal;
-using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
 
 namespace MWB.Networking.Layer0_Transport.Lifecycle;
 

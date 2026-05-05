@@ -2,7 +2,7 @@
 using MWB.Networking.Layer1_Framing.Codec.Abstractions;
 using MWB.Networking.Layer1_Framing.Codec.Buffer;
 
-namespace MWB.Networking.Layer1_Framing.Codecs.NullCodecs.Frame;
+namespace MWB.Networking.Layer1_Framing.Codecs.Null.Frame;
 
 public sealed class NullFrameCodec : IFrameCodec
 {

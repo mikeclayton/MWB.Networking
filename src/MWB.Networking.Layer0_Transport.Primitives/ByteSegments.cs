@@ -21,7 +21,7 @@ public readonly struct ByteSegments
         get;
     }
 
-    internal ByteSegments Collapse()
+    public ByteSegments Collapse()
     {
         // Fast path: already a single segment
         if (this.Segments.Length <= 1)
@@ -44,7 +44,7 @@ public readonly struct ByteSegments
         var offset = 0;
         foreach (var segment in this.Segments)
         {
-            segment.Span.CopyTo(destination.Slice(offset));
+            segment.Span.CopyTo(destination[offset..]);
             offset += segment.Length;
         }
 

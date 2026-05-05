@@ -11,6 +11,7 @@
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Instrumented\MWB.Networking.Layer0_Transport.Instrumented.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Lifecycle\MWB.Networking.Layer0_Transport.Lifecycle.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Primitives\MWB.Networking.Layer0_Transport.Encoding.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Logging.TestContext\MWB.Networking.Logging.TestContext.csproj" />
   </ItemGroup>
 
 </Project>

@@ -84,7 +84,7 @@ public sealed class EventTests
         await Task.Yield();
 
         var states = recorder.States.ToList();
-        Assert.IsTrue(states.Last() == TransportConnectionState.Faulted,
+        Assert.AreEqual(TransportConnectionState.Faulted, states.Last(),
             "Last emitted state must be Faulted.");
         CollectionAssert.DoesNotContain(states, TransportConnectionState.Disconnected,
             "Disconnected must not appear in fault path.");

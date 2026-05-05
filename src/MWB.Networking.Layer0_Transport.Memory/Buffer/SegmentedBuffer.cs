@@ -32,10 +32,7 @@ internal sealed class SegmentedBuffer : IDisposable
 
     internal void Enqueue(byte[] segment)
     {
-        if (_disposed)
-        {
-            throw new ObjectDisposedException(nameof(SegmentedBuffer));
-        }
+        ObjectDisposedException.ThrowIf(_disposed, this);
 
         if (_completed)
         {

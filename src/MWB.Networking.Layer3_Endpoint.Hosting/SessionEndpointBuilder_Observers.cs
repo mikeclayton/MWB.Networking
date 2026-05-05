@@ -1,6 +1,6 @@
 ﻿using MWB.Networking.Layer2_Protocol.Events.Api;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
-using MWB.Networking.Layer2_Protocol.Lifecycle.Api;
+using MWB.Networking.Layer2_Protocol.Streams.Api;
 
 namespace MWB.Networking.Layer3_Endpoint.Hosting;
 

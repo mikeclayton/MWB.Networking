@@ -1,11 +1,11 @@
 ﻿using Microsoft.Extensions.Logging;
 using System.Runtime.CompilerServices;
 
-namespace MWB.Networking.Logging.Loggers;
+namespace MWB.Networking.Logging.Debug;
 
 public static class DebugLoggerFactory
 {
-    public static (ILogger, ILoggerFactory) Create(
+    public static (ILogger, ILoggerFactory) CreateLogger(
         [CallerMemberName] string category = "")
     {
         var factory = LoggerFactory.Create(builder =>
@@ -18,7 +18,7 @@ public static class DebugLoggerFactory
         return (logger, factory);
     }
 
-    public static (ILogger<T>, ILoggerFactory) Create<T>()
+    public static (ILogger<T>, ILoggerFactory) CreateLogger<T>()
     {
         var factory = LoggerFactory.Create(builder =>
         {

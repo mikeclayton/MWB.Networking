@@ -1,4 +1,4 @@
-﻿using MWB.Networking.Layer2_Protocol.Lifecycle.Api;
+﻿using MWB.Networking.Layer2_Protocol.Streams.Api;
 
 namespace MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 

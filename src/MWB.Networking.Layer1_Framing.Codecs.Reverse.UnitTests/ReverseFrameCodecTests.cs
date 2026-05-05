@@ -92,7 +92,7 @@ public sealed class ReverseFrameCodecTests
         new ReverseFrameCodec().Encode(input.Reader, output.Writer);
         output.Writer.Complete();
 
-        Assert.AreEqual(0, ReadAll(output).Length);
+        Assert.IsEmpty(ReadAll(output));
     }
 
     [TestMethod]
@@ -124,7 +124,7 @@ public sealed class ReverseFrameCodecTests
 
         var segments = ReadSegments(output);
 
-        Assert.AreEqual(2, segments.Count, "Output must contain the same number of segments as input.");
+        Assert.HasCount(2, segments, "Output must contain the same number of segments as input.");
         CollectionAssert.AreEqual(new byte[] { 0xDD, 0xCC }, segments[0], "First output segment must be the reversed last input segment.");
         CollectionAssert.AreEqual(new byte[] { 0xBB, 0xAA }, segments[1], "Second output segment must be the reversed first input segment.");
     }
@@ -147,7 +147,7 @@ public sealed class ReverseFrameCodecTests
 
         var segments = ReadSegments(output);
 
-        Assert.AreEqual(3, segments.Count);
+        Assert.HasCount(3, segments);
         CollectionAssert.AreEqual(new byte[] { 0xC3, 0xC2, 0xC1 }, segments[0]);
         CollectionAssert.AreEqual(new byte[] { 0xB2, 0xB1 },       segments[1]);
         CollectionAssert.AreEqual(new byte[] { 0xA1 },             segments[2]);
@@ -238,7 +238,7 @@ public sealed class ReverseFrameCodecTests
 
         var segments = ReadSegments(after2);
 
-        Assert.AreEqual(2, segments.Count);
+        Assert.HasCount(2, segments);
         CollectionAssert.AreEqual(new byte[] { 0x01, 0x02 },       segments[0]);
         CollectionAssert.AreEqual(new byte[] { 0x03, 0x04, 0x05 }, segments[1]);
     }
