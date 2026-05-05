@@ -1,6 +1,4 @@
-﻿using MWB.Networking.Layer1_Framing.Codec.Frames;
-
-namespace MWB.Networking.Layer2_Protocol.Frames;
+﻿namespace MWB.Networking.Layer2_Protocol.Frames;
 
 public enum ProtocolFrameKind : byte
 {
@@ -27,7 +25,7 @@ public enum ProtocolFrameKind : byte
     /// where ordering is preserved by the transport but application-level acknowledgment
     /// is not required.
     /// </summary>
-    Event = NetworkFrameKind.Event,
+    Event = 0x01,
 
     /// <summary>
     /// Initiates a correlated request identified by a RequestId. A request represents
