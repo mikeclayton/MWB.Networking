@@ -1,17 +1,32 @@
-﻿namespace MWB.Networking.Layer0_Transport.Lifecycle;
+﻿using MWB.Networking.Layer0_Transport.Lifecycle.Fsm;
+
+namespace MWB.Networking.Layer0_Transport.Lifecycle;
 
 public sealed partial class TransportStack
 {
-    private enum StackState
+    private readonly TransportStateMachine _machine = new();
+    private readonly object _sync = new();
+
+    private void Apply(TransportStackTransition transition)
     {
-        Idle,           // Never connected, or fully reset
-        Connecting,     // ConnectAsync in progress
-        Connected,      // Logical connection established
-        Disconnecting,  // Local or remote teardown in progress
-        Terminated      // Final terminal state (EOF / disposed)
+        // Execute side-effects first (cleanup, disposal, etc.)
+        switch (transition.SideEffect)
+        {
+            case TransportStackSideEffect.TearDownConnection:
+                this.TearDownConnection();
+                break;
+        }
+
+        // Raise fault event (if present)
+        if (transition.Fault is not null)
+        {
+            this.RaiseFaultedEvent(transition.Fault);
+        }
+
+        // Raise public connection state change
+        if (transition.PublicState is not null)
+        {
+            this.RaiseConnectionStateChanged(transition.PublicState.Value);
+        }
     }
-
-    private StackState _state = StackState.Idle;
-
-    private bool _hasEverConnected;
 }

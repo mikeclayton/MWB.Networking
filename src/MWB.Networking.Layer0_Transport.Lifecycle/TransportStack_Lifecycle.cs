@@ -1,5 +1,5 @@
-﻿using MWB.Networking.Layer0_Transport.Lifecycle.Abstractions;
-using MWB.Networking.Layer0_Transport.Lifecycle.Exceptions;
+﻿using MWB.Networking.Layer0_Transport.Lifecycle.Exceptions;
+using MWB.Networking.Layer0_Transport.Lifecycle.Fsm;
 using MWB.Networking.Layer0_Transport.Lifecycle.Internal;
 using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
 
@@ -16,16 +16,22 @@ public sealed partial class TransportStack
     // Lifecycle operations
     // -----------------------------
 
-    private void CleanupForTerminalEvent()
+    private void TearDownConnection()
     {
+        LogicalConnection? logical;
         ObservableConnectionStatus? status;
 
         lock (_sync)
         {
-            _logicalConnection = null;
+            logical = _logicalConnection;
             status = this.ConnectionStatus;
+
+            _logicalConnection = null;
+            // ensures ConnectionState == null
             this.ConnectionStatus = null;
         }
+
+        logical?.Dispose();
 
         if (status is not null)
         {
@@ -42,104 +48,90 @@ public sealed partial class TransportStack
     public async Task ConnectAsync(
         CancellationToken cancellationToken = default)
     {
+
         ObservableConnectionStatus status;
-        INetworkConnection physicalConnection;
-        LogicalConnection logical;
+        int attemptId;
 
         // ------------------------------------------------------------
-        // Phase 1: validate state and move to Connecting
+        // Phase 1: request transition
         // ------------------------------------------------------------
+        TransportStackTransition transition;
         lock (_sync)
         {
             this.ThrowIfDisposed();
 
-            if (_state != StackState.Idle)
+            transition = _machine.Process(
+                TransportStackInputKind.ConnectRequested);
+
+            if (transition.NextState is not TransportStackState.Connecting)
             {
                 throw new InvalidOperationException(
-                $"Cannot connect while in state {_state}.");
+                    $"Connect not allowed in state {_machine.State}.");
             }
 
-            _state = StackState.Connecting;
-
-            status = new ObservableConnectionStatus();
-            this.ConnectionStatus = status;
-
-            // Wire lifecycle events *inside* the lock so that the stack
-            // is fully prepared to observe transitions immediately.
-            this.RegisterConnectionStatusEvents(this.ConnectionStatus);
+            // Start a new connection attempt
+            attemptId = ++_connectionAttemptId;
         }
+
+        this.Apply(transition);
+
+
+        // ------------------------------------------------------------
+        // Phase 2: initiate provider connection attempt
+        // ------------------------------------------------------------
+        status = new ObservableConnectionStatus();
+        this.RegisterConnectionStatusEvents(status);
 
         try
         {
-            // --------------------------------------------------------
-            // Phase 2: initiate provider connection attempt
-            // --------------------------------------------------------
-            
-            // The provider may synchronously or asynchronously raise
-            // lifecycle events (Connecting / Connected / Faulted / Disconnected).
-            physicalConnection =
+            var physical =
                 await _connectionProvider
                     .OpenConnectionAsync(status, cancellationToken)
                     .ConfigureAwait(false);
 
-            logical = new LogicalConnection(physicalConnection, status);
+            var logical = new LogicalConnection(physical, status);
 
-            // --------------------------------------------------------
-            // Phase 3: publish logical connection (race-proof)
-            // --------------------------------------------------------
             lock (_sync)
             {
-                // Dispose may have raced while awaiting provider
+                // Dispose may have raced
                 if (_disposed)
                 {
-                    _state = StackState.Terminated;
                     logical.Dispose();
                     throw new ObjectDisposedException(nameof(TransportStack));
                 }
 
-                // A provider lifecycle callback may have already
-                // transitioned us to a terminal state.
-                if (_state != StackState.Connecting)
-                {
-                    logical.Dispose();
-                    throw new InvalidOperationException(
-                        "Connection attempt terminated before completion.");
-                }
-
+                // ✅ Publish logical connection for *this* attempt
+                // Connected state is still driven by provider events
                 _logicalConnection = logical;
-                // NOTE: we do NOT set Connected here.
-                // Connected is driven only by lifecycle events.
+                this.ConnectionStatus = status;
             }
         }
         catch (OperationCanceledException)
         {
-            // ----------------------------------------------------
-            // Cancellation is NON-terminal:
-            // reset stack so it is reconnectable
-            // ----------------------------------------------------
-
+            // Cancellation is NON-terminal
             lock (_sync)
             {
-                _state = StackState.Idle;
-                ConnectionStatus = null;
+                this.Apply(
+                    _machine.Process(
+                        TransportStackInputKind.ProviderDisconnected));
             }
 
             this.UnregisterConnectionStatusEvents(status);
-
             throw;
         }
         catch (Exception ex)
         {
-            // ----------------------------------------------------
-            // Real failure: terminal
-            // ----------------------------------------------------
-            status.OnFaulted(
-                new TransportFaultedEventArgs(
-                    "Connection attempt failed before establishment.",
-                    ex));
+            // REAL FAILURE → lifecycle fault
+            lock (_sync)
+            {
+                this.Apply(
+                    _machine.Process(
+                        TransportStackInputKind.ProviderFaulted,
+                        new TransportFaultedEventArgs(
+                            "Connection attempt failed.", ex)));
+            }
 
-            this.CleanupForTerminalEvent();
-
+            this.UnregisterConnectionStatusEvents(status);
             throw;
         }
     }
@@ -149,125 +141,139 @@ public sealed partial class TransportStack
     /// Completes with an exception if the connection faults or disconnects
     /// before becoming connected.
     /// </summary>
-    public Task AwaitConnectedAsync()
+    public Task AwaitConnectedAsync(CancellationToken cancellationToken = default)
     {
-        ObservableConnectionStatus status;
+        TaskCompletionSource<bool>? tcs = null;
+        int attemptId;
 
-        // determine whether it is meaningful and valid to wait for a connection:
-        // - if the transport is already connected, we can complete immediately.
-        // - if the transport is currently connecting, capture the active
-        //   ConnectionStatus so we can await its lifecycle events.
-        // - in any other state (idle, disconnecting, terminated), awaiting
-        //   a connection would be a logic error because no successful connection
-        //   can occur.
-        lock (_sync)
+        TaskCompletionSource<bool> GetTcs()
         {
-            this.ThrowIfDisposed();
-            switch (_state)
-            {
-                case StackState.Connected:
-                    return Task.CompletedTask;
-                case StackState.Connecting:
-                    status = this.ConnectionStatus
-                        ?? throw new InvalidOperationException(
-                            "ConnectionStatus unexpectedly missing while connecting.");
-                    break;
-                case StackState.Terminated:
-                    throw new InvalidOperationException(
-                        "Cannot await connection after the transport has been disconnected.");
-                default:
-                    throw new InvalidOperationException(
-                        $"Cannot await connection while in state {_state}.");
-            }
-        }
-
-        // Lazily allocated only if we actually need to wait.
-        TaskCompletionSource? tcs = null;
-
-        TaskCompletionSource GetOrCreateTcs()
-        {
-            if (tcs is not null)
-                return tcs;
-
-            var created = new TaskCompletionSource(
+            return tcs ??= new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-
-            return Interlocked.CompareExchange(ref tcs, created, null)
-                ?? created;
         }
-
-        var cleanedUp = false;
 
         void Cleanup()
         {
-            if (Interlocked.Exchange(ref cleanedUp, true))
+            this.ConnectionStateChanged -= OnStateChanged;
+            this.Faulted -= OnFaulted;
+        }
+
+        bool AbortIfSuperseded(
+            int attemptId,
+            Action fail)
+        {
+            lock (_sync)
+            {
+                if (attemptId == _connectionAttemptId)
+                {
+                    return false;
+                }
+            }
+
+            fail();
+            return true;
+        }
+
+        void FailDisconnected(string message)
+        {
+            Cleanup();
+            GetTcs().TrySetException(
+                new TransportDisconnectedException(
+                    message,
+                    new TransportDisconnectedEventArgs(message)));
+        }
+
+        void OnStateChanged(object? _, TransportConnectionState state)
+        {
+            if (AbortIfSuperseded(
+                attemptId,
+                () => FailDisconnected(
+                    "Connection attempt was superseded by a new attempt.")))
             {
                 return;
             }
 
-            status.Connected -= OnConnected;
-            status.Faulted -= OnFaulted;
-            status.Disconnected -= OnDisconnected;
-        }
+            switch (state)
+            {
+                case TransportConnectionState.Connected:
+                    Cleanup();
+                    GetTcs().TrySetResult(true);
+                    break;
 
-        void OnConnected(object? _, EventArgs __)
-        {
-            Cleanup();
-            GetOrCreateTcs().TrySetResult();
+                case TransportConnectionState.Disconnected:
+                    FailDisconnected(
+                        "Transport disconnected while awaiting connection establishment.");
+                    break;
+            }
         }
 
         void OnFaulted(object? _, TransportFaultedEventArgs e)
         {
+
+            if (AbortIfSuperseded(
+                attemptId,
+                () => FailDisconnected(
+                    "Connection attempt was superseded by a new attempt.")))
+            {
+                return;
+            }
+
             Cleanup();
-            GetOrCreateTcs().TrySetException(
+            GetTcs().TrySetException(
                 new TransportFaultException(
-                    "Transport faulted while awaiting connection establishment.",
-                    e));
+                    "Transport faulted while awaiting connection establishment.", e));
         }
 
-        void OnDisconnected(object? _, TransportDisconnectedEventArgs e)
-        {
-            Cleanup();
-            GetOrCreateTcs().TrySetException(
-                new TransportDisconnectedException(
-                    "Transport disconnected while awaiting connection establishment.",
-                    e));
-        }
-
-        // Subscribe FIRST to close the race window
-        status.Connected += OnConnected;
-        status.Faulted += OnFaulted;
-        status.Disconnected += OnDisconnected;
-
-        // Re-check AFTER subscribing
         lock (_sync)
         {
-            switch (_state)
+            this.ThrowIfDisposed();
+
+            var state = _machine.State;
+
+            // Fast-path: already connected
+            if (state == TransportStackState.Connected)
             {
-                case StackState.Connected:
-                    Cleanup();
-                    return Task.CompletedTask;
+                return Task.CompletedTask;
+            }
 
-                case StackState.Terminated:
-                    Cleanup();
-                    return Task.FromException(
-                        new TransportDisconnectedException(
-                            "Transport disconnected before connection completed.",
-                            new TransportDisconnectedEventArgs(
-                                "Transport disconnected before connection completed.")));
+            // Precondition: must be inside a connect attempt
+            if (state != TransportStackState.Connecting)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot await connection while in state {state}.");
+            }
 
-                case StackState.Connecting:
-                    // Still in progress — wait for events
-                    break;
+            // Capture attempt identity
+            attemptId = _connectionAttemptId;
 
-                default:
-                    Cleanup();
-                    throw new InvalidOperationException(
-                        $"Invalid state {_state} while awaiting connection.");
+            // Subscribe before re-check to close race window
+            this.ConnectionStateChanged += OnStateChanged;
+            this.Faulted += OnFaulted;
+
+            // If the attempt already ended (FSM left Connecting),
+            // fail immediately so we can never hang.
+            if ((_machine.State != TransportStackState.Connecting)
+                || (attemptId != _connectionAttemptId))
+            {
+                Cleanup();
+                throw new TransportDisconnectedException(
+                    "Transport disconnected before becoming connected.",
+                    new TransportDisconnectedEventArgs(
+                        "Transport disconnected before becoming connected."));
             }
         }
 
-        return GetOrCreateTcs().Task;
+        // Cancellation
+        if (cancellationToken.CanBeCanceled)
+        {
+            cancellationToken.Register(() =>
+            {
+                Cleanup();
+                GetTcs().TrySetCanceled(cancellationToken);
+            });
+        }
+
+        return GetTcs().Task;
     }
 
     /// <summary>
@@ -276,71 +282,20 @@ public sealed partial class TransportStack
     /// </summary>
     public Task DisconnectAsync()
     {
-        this.ThrowIfDisposed();
-        return this.DisconnectCoreAsync();
-    }
-
-    private Task DisconnectCoreAsync()
-    {
-        LogicalConnection? logical;
-        ObservableConnectionStatus? connectionStatus;
-        bool shouldSignalDisconnecting;
+        TransportStackTransition transition;
 
         lock (_sync)
         {
-            // Idempotent: if we're already terminated, nothing to do
-            if (_state == StackState.Terminated)
-            {
-                return Task.CompletedTask;
-            }
+            this.ThrowIfDisposed();
 
-            // Capture current objects
-            logical = _logicalConnection;
-            connectionStatus = ConnectionStatus;
-
-            _logicalConnection = null;
-            this.ConnectionStatus = null;
-
-            // Determine whether Disconnecting should be observed
-            shouldSignalDisconnecting =
-                _state == StackState.Connected ||
-                _state == StackState.Connecting;
-
-            // IMPORTANT:
-            // Do NOT mutate _state here.
-            // State transitions are owned by lifecycle handlers.
+            transition = _machine.Process(
+                TransportStackInputKind.DisconnectRequested);
         }
 
-        // ------------------------------------------------------------
-        // Lifecycle signaling (outside lock)
-        // ------------------------------------------------------------
+        this.Apply(transition);
 
-        // Voluntary disconnect: emit Disconnecting if meaningful
-        if (shouldSignalDisconnecting)
-        {
-            connectionStatus?.OnDisconnecting();
-        }
-
-        // Release transport resources
-        logical?.Dispose();
-
-        // Emit final Disconnected and cleanup lifecycle wiring
-        if (connectionStatus is not null)
-        {
-            connectionStatus.OnDisconnected(
-                new TransportDisconnectedEventArgs(
-                    "Transport disconnected by local request."));
-
-            this.UnregisterConnectionStatusEvents(connectionStatus);
-        }
-
-        // Ensure final terminal state
-        lock (_sync)
-        {
-            // local DisconnectAsync resets the stack to Idle;
-            // only faults or remote disconnects leave it Terminated.
-            _state = StackState.Idle;
-        }
+        // Provider-level teardown is mechanical, not semantic
+        _logicalConnection?.Dispose();
 
         return Task.CompletedTask;
     }

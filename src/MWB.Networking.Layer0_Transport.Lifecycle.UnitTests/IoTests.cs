@@ -29,7 +29,7 @@ public sealed class IoTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
 
         await stack.ConnectAsync();
         provider.Instrumentation
@@ -59,7 +59,7 @@ public sealed class IoTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
 
         await stack.ConnectAsync();
         provider.Instrumentation
@@ -91,7 +91,7 @@ public sealed class IoTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
 
         await stack.ConnectAsync();
         // Not connected yet — do NOT call OnStarted.
@@ -131,7 +131,7 @@ public sealed class IoTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
 
         await stack.ConnectAsync();
         // Not connected yet.
@@ -163,7 +163,7 @@ public sealed class IoTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
 
         await stack.ConnectAsync();
         provider.Instrumentation
@@ -194,7 +194,7 @@ public sealed class IoTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
 
         Assert.ThrowsExactly<InvalidOperationException>(
             () => stack.ReadAsync(new byte[16]));
@@ -209,7 +209,7 @@ public sealed class IoTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
 
         Assert.ThrowsExactly<InvalidOperationException>(
             () => stack.WriteAsync(new ByteSegments(new byte[] { 1 })));
@@ -224,7 +224,7 @@ public sealed class IoTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
 
         await stack.ConnectAsync();
         provider.Instrumentation
@@ -250,7 +250,7 @@ public sealed class IoTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
 
         await stack.ConnectAsync();
         provider.Instrumentation

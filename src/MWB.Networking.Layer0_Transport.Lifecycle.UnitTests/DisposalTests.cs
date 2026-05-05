@@ -29,7 +29,7 @@ public sealed class DisposalTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
 
         await stack.DisposeAsync();
 
@@ -46,7 +46,7 @@ public sealed class DisposalTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
         using var recorder = new StateRecorder(stack);
 
         await stack.ConnectAsync();
@@ -73,7 +73,7 @@ public sealed class DisposalTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        var stack = new TransportStack(provider);
+        var stack = new TransportStack(logger, provider);
 
         // Should not throw on repeated disposal
         await stack.DisposeAsync();
@@ -90,7 +90,7 @@ public sealed class DisposalTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
 
         ((IDisposable)stack).Dispose();
 
@@ -108,7 +108,7 @@ public sealed class DisposalTests
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
 
-        using (var stack = new TransportStack(provider))
+        using (var stack = new TransportStack(logger, provider))
         {
             await stack.ConnectAsync();
             provider.Instrumentation

@@ -1,4 +1,6 @@
-﻿using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
+﻿using MWB.Networking.Layer0_Transport.Lifecycle.Fsm;
+using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
+using MWB.Networking.Logging;
 
 namespace MWB.Networking.Layer0_Transport.Lifecycle;
 
@@ -8,12 +10,7 @@ public sealed partial class TransportStack
     // Public state
     // -----------------------------
 
-    /// <summary>
-    /// Tracks the last emitted connection state in case a connection
-    /// sends multiple identical states in succession. This can be used
-    /// to avoid raising duplicate events
-    /// </summary>
-    private TransportConnectionState? _lastRaisedConnectionState;
+    private bool _hasEverConnected = false;
       
     /// <summary>
     /// Gets the current connection status.
@@ -44,7 +41,7 @@ public sealed partial class TransportStack
         {
             lock (_sync)
             {
-                return _state == StackState.Connected;
+                return _machine.State == TransportStackState.Connected;
             }
         }
     }
@@ -73,130 +70,68 @@ public sealed partial class TransportStack
 
     private void OnConnecting(object? _, EventArgs __)
     {
+        using var loggerScope = this.Logger.BeginMethodLoggingScope(this);
         lock (_sync)
         {
-            // Only meaningful when starting a new connection attempt
-            if (_state != StackState.Connecting)
-                return;
+            this.Apply(
+                _machine.Process(
+                    TransportStackInputKind.ProviderConnecting));
         }
-
-        this.RaiseConnectionStateChanged(TransportConnectionState.Connecting);
     }
+
 
     private void OnConnected(object? _, EventArgs __)
     {
+        using var loggerScope = this.Logger.BeginMethodLoggingScope(this);
         lock (_sync)
         {
-            // Only a connecting stack can become connected.
-            // Ignore stray / late signals.
-            if (_state != StackState.Connecting)
-            {
-                return;
-            }
-
-            _state = StackState.Connected;
-
-            // Record that we have successfully established
-            // a logical connection at least once.
+            // History flag remains orthogonal to lifecycle
             _hasEverConnected = true;
+
+            this.Apply(
+                _machine.Process(
+                    TransportStackInputKind.ProviderConnected));
         }
-        this.RaiseConnectionStateChanged(TransportConnectionState.Connected);
+
     }
 
     private void OnDisconnecting(object? _, EventArgs __)
     {
+        using var loggerScope = this.Logger.BeginMethodLoggingScope(this);
         lock (_sync)
         {
-            // Disconnecting is valid exactly once during an active attempt
-            if (_state != StackState.Connected &&
-                _state != StackState.Connecting)
-            {
-                return;
-            }
-
-            _state = StackState.Disconnecting;
+            this.Apply(
+                _machine.Process(
+                    TransportStackInputKind.DisconnectRequested));
         }
-        this.RaiseConnectionStateChanged(TransportConnectionState.Disconnecting);
     }
 
     private void OnDisconnected(object? _, TransportDisconnectedEventArgs e)
     {
-        bool shouldRaise;
-
+        using var loggerScope = this.Logger.BeginMethodLoggingScope(this);
         lock (_sync)
         {
-            // Terminal events are idempotent
-            if (_state == StackState.Terminated)
-            {
-                return;
-            }
-
-            shouldRaise =
-                _state == StackState.Connected ||
-                _state == StackState.Connecting ||
-                _state == StackState.Disconnecting;
-
-            // IMPORTANT:
-            // Immediately leave Connected so IsConnected becomes false
-            _state = StackState.Terminated;
-        }
-
-        // CleanupForTerminalEvent transitions state → Terminated
-        this.CleanupForTerminalEvent();
-
-        if (shouldRaise)
-        {
-            this.RaiseConnectionStateChanged(TransportConnectionState.Disconnected);
-        }
-
-        // Provider disconnects are recoverable → reset to Idle
-        lock (_sync)
-        {
-            _state = StackState.Idle;
+            this.Apply(
+                _machine.Process(
+                    TransportStackInputKind.ProviderDisconnected));
         }
     }
 
     private void OnFaulted(object? _, TransportFaultedEventArgs e)
     {
-        bool shouldRaise;
-
+        using var loggerScope = this.Logger.BeginMethodLoggingScope(this);
         lock (_sync)
         {
-            if (_state == StackState.Terminated)
-            {
-                return;
-            }
-
-            shouldRaise =
-                _state == StackState.Connecting ||
-                _state == StackState.Connected ||
-                _state == StackState.Disconnecting;
-
-            // IMPORTANT:
-            // Immediately leave Connected/Connecting so IsConnected becomes false
-            _state = StackState.Terminated;
+            this.Apply(
+                _machine.Process(
+                    TransportStackInputKind.ProviderFaulted, e));
         }
 
-        // A faulted connection attempt is complete and must
-        // not block subsequent ConnectAsync calls.
-        this.CleanupForTerminalEvent();
-
-        this.RaiseFaultedEvent(e);
-        if (shouldRaise)
-        {
-            this.RaiseConnectionStateChanged(TransportConnectionState.Faulted);
-        }
-
-        // Provider faults are recoverable → reset to Idle
-        lock (_sync)
-        {
-            _state = StackState.Idle;
-        }
     }
-
 
     private void RaiseFaultedEvent(TransportFaultedEventArgs e)
     {
+        using var loggerScope = this.Logger.BeginMethodLoggingScope(this);
         EventHandler<TransportFaultedEventArgs>? handler;
         lock (_sync)
         {
@@ -207,19 +142,12 @@ public sealed partial class TransportStack
 
     private void RaiseConnectionStateChanged(TransportConnectionState newState)
     {
-        EventHandler<TransportConnectionState>? handler = null;
-
+        using var loggerScope = this.Logger.BeginMethodLoggingScope(this);
+        EventHandler<TransportConnectionState>? handler;
         lock (_sync)
         {
-            if (_lastRaisedConnectionState == newState)
-            {
-                return;
-            }
-
-            _lastRaisedConnectionState = newState;
             handler = _connectionStateChanged;
         }
-
         handler?.Invoke(this, newState);
     }
 
@@ -230,11 +158,7 @@ public sealed partial class TransportStack
     private void RegisterConnectionStatusEvents(
         ObservableConnectionStatus connectionStatus)
     {
-        // Reset per-connection state so the first event of the new connection
-        // is always raised, even if it matches the terminal state of the
-        // previous one (e.g. Fault → reconnect → Fault again).
-        _lastRaisedConnectionState = null;
-
+        using var loggerScope = this.Logger.BeginMethodLoggingScope(this);
         connectionStatus.Connecting += this.OnConnecting;
         connectionStatus.Connected += this.OnConnected;
         connectionStatus.Disconnecting += this.OnDisconnecting;
@@ -245,6 +169,7 @@ public sealed partial class TransportStack
     private void UnregisterConnectionStatusEvents(
         ObservableConnectionStatus connectionStatus)
     {
+        using var loggerScope = this.Logger.BeginMethodLoggingScope(this);
         connectionStatus.Connecting -= this.OnConnecting;
         connectionStatus.Connected -= this.OnConnected;
         connectionStatus.Disconnecting -= this.OnDisconnecting;

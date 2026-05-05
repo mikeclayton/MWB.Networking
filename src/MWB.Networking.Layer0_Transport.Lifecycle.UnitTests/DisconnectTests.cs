@@ -30,7 +30,7 @@ public sealed class DisconnectTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
         using var recorder = new StateRecorder(stack);
 
         await stack.ConnectAsync();
@@ -65,7 +65,7 @@ public sealed class DisconnectTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
 
         // Should not throw
         await stack.DisconnectAsync();
@@ -81,7 +81,7 @@ public sealed class DisconnectTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
 
         await stack.ConnectAsync();
         provider.Instrumentation
@@ -106,7 +106,7 @@ public sealed class DisconnectTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
         using var recorder = new StateRecorder(stack);
 
         var faultedRaised = false;

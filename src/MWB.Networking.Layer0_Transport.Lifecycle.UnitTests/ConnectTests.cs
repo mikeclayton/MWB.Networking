@@ -28,7 +28,7 @@ public sealed class ConnectTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
 
         await stack.ConnectAsync();
 
@@ -45,7 +45,7 @@ public sealed class ConnectTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
 
         await stack.ConnectAsync(); // drives to Disconnected (initial) — no OnStarted yet
 
@@ -62,7 +62,7 @@ public sealed class ConnectTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
 
         await stack.ConnectAsync();
         provider.Instrumentation
@@ -83,7 +83,7 @@ public sealed class ConnectTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
 
         using var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -101,7 +101,7 @@ public sealed class ConnectTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
 
         using var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -129,7 +129,7 @@ public sealed class ConnectTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
         await stack.DisposeAsync();
 
         await Assert.ThrowsExactlyAsync<ObjectDisposedException>(

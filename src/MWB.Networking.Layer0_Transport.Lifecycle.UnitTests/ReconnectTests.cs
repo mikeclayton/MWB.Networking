@@ -28,7 +28,7 @@ public sealed class ReconnectTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
 
         // First connection
         await stack.ConnectAsync();
@@ -63,7 +63,7 @@ public sealed class ReconnectTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
 
         // First connection — faulted by provider
         await stack.ConnectAsync();
@@ -101,7 +101,7 @@ public sealed class ReconnectTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(provider);
+        using var stack = new TransportStack(logger, provider);
 
         // First attempt: provider throws
         provider.Instrumentation.SetNextOpenConnectionFailure(new Exception("Transient failure."));

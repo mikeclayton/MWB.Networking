@@ -1,6 +1,9 @@
-﻿using MWB.Networking.Layer0_Transport.Encoding;
+﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer0_Transport.Encoding;
 using MWB.Networking.Layer0_Transport.Lifecycle.Abstractions;
+using MWB.Networking.Layer0_Transport.Lifecycle.Fsm;
 using MWB.Networking.Layer0_Transport.Lifecycle.Internal;
+using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
 
 namespace MWB.Networking.Layer0_Transport.Lifecycle;
 
@@ -16,10 +19,12 @@ public sealed partial class TransportStack : IDisposable, IAsyncDisposable
     // -----------------------------
 
     private readonly INetworkConnectionProvider _connectionProvider;
-    private readonly object _sync = new();
     private readonly bool _ownsProvider;
 
     private LogicalConnection? _logicalConnection;
+
+    private int _connectionAttemptId;
+
     private volatile bool _disposed;
 
     /// <summary>
@@ -34,12 +39,18 @@ public sealed partial class TransportStack : IDisposable, IAsyncDisposable
     /// <see langword="false"/> if the caller retains ownership of the provider's lifetime.
     /// </param>
     public TransportStack(
+        ILogger logger,
         INetworkConnectionProvider connectionProvider,
         bool ownsProvider = true)
     {
-        _connectionProvider =
-            connectionProvider ?? throw new ArgumentNullException(nameof(connectionProvider));
+        this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _connectionProvider = connectionProvider ?? throw new ArgumentNullException(nameof(connectionProvider));
         _ownsProvider = ownsProvider;
+    }
+
+    public ILogger Logger
+    {
+        get;
     }
 
     /// <summary>
@@ -80,6 +91,7 @@ public sealed partial class TransportStack : IDisposable, IAsyncDisposable
             hasEverConnected = _hasEverConnected;
         }
 
+        // Must throw synchronously
         if (conn is null)
         {
             // distinguish "never connected" vs "EOF"
@@ -91,7 +103,31 @@ public sealed partial class TransportStack : IDisposable, IAsyncDisposable
             throw new InvalidOperationException(
                 "Transport is not connected.");
         }
-        return conn.ReadAsync(buffer, cancellationToken);
+
+        // Delegate async work to helper
+        return TransportStack.ReadAsyncCore(conn, hasEverConnected, buffer, cancellationToken);
+    }
+
+    private static async ValueTask<int> ReadAsyncCore(
+        LogicalConnection conn,
+        bool hasEverConnected,
+        Memory<byte> buffer,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await conn
+                .ReadAsync(buffer, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (ObjectDisposedException)
+        {
+            // ✅ Teardown raced with read
+            if (hasEverConnected)
+                return 0; // EOF
+
+            throw;
+        }
     }
 
     /// <summary>
@@ -111,18 +147,30 @@ public sealed partial class TransportStack : IDisposable, IAsyncDisposable
         this.DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
+        // Idempotent
         if (Interlocked.Exchange(ref _disposed, true))
         {
-            return;
+            return ValueTask.CompletedTask;
         }
 
-        await this.DisconnectCoreAsync().ConfigureAwait(false);
+        TransportStackTransition transition;
+
+        lock (_sync)
+        {
+            transition = _machine.Process(
+                TransportStackInputKind.DisposeRequested);
+        }
+
+        this.Apply(transition);
+
         if (_ownsProvider)
         {
             _connectionProvider.Dispose();
         }
+
+        return ValueTask.CompletedTask;
     }
 
     private void ThrowIfDisposed()
