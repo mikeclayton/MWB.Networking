@@ -47,7 +47,9 @@
   </Folder>
   <Folder Name="/Layer2_Protocol/">
     <Project Path="MWB.Networking.Layer2_Protocol.Adapter/MWB.Networking.Layer2_Protocol.Adapter.csproj" />
-    <Project Path="MWB.Networking.Layer2_Protocol/MWB.Networking.Layer2_Protocol.csproj" Id="defc43f7-f557-4f09-83df-cc2eade268e3" />
+    <Project Path="MWB.Networking.Layer2_Protocol.Session.UnitTests/MWB.Networking.Layer2_Protocol.Session.UnitTests.csproj" />
+    <Project Path="MWB.Networking.Layer2_Protocol.Session/MWB.Networking.Layer2_Protocol.Session.csproj" />
+    <Project Path="MWB.Networking.Layer2_Protocol.UnitTests/MWB.Networking.Layer2_Protocol.UnitTests.csproj" Id="c1583648-6c6d-40ed-83a9-931002c1909d" />
   </Folder>
   <Folder Name="/Layer3_Endpoint/">
     <Project Path="MWB.Networking.Layer3_Endpoint.Hosting/MWB.Networking.Layer3_Endpoint.Hosting.csproj" />
@@ -58,7 +60,6 @@
   </Folder>
   <Folder Name="/UnitTests/">
     <Project Path="MWB.Networking.Layer0_Transport.UnitTests/MWB.Networking.Layer0_Transport.UnitTests.csproj" />
-    <Project Path="MWB.Networking.Layer2_Protocol.UnitTests/MWB.Networking.Layer2_Protocol.UnitTests.csproj" Id="4474b7c6-afc3-4ed1-bc36-e40945c2c5cf" />
     <Project Path="MWB.Networking.Layer3_Endpoint.UnitTests/MWB.Networking.Layer3_Endpoint.UnitTests.csproj" />
     <Project Path="MWB.Networking.PerformanceTests/MWB.Networking.PerformanceTests.csproj" Id="ed377ad1-6a77-48c9-be1f-19b197955fcc" />
   </Folder>

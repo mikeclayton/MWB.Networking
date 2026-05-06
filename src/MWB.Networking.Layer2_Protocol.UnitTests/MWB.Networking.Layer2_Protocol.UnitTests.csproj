@@ -8,13 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Memory\MWB.Networking.Layer0_Transport.Memory.csproj" />
-    <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Pipes\MWB.Networking.Layer0_Transport.Pipes.csproj" />
-    <ProjectReference Include="..\MWB.Networking.Layer2_Protocol\MWB.Networking.Layer2_Protocol.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.7" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Update="Microsoft.Testing.Extensions.CodeCoverage" Version="18.6.2" />
+    <ProjectReference Include="..\MWB.Networking.Layer2_Protocol.Session\MWB.Networking.Layer2_Protocol.Session.csproj" />
   </ItemGroup>
 
 </Project>

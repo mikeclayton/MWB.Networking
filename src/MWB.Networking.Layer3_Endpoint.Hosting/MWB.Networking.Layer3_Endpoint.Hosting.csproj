@@ -12,7 +12,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MWB.Networking.Layer2_Protocol\MWB.Networking.Layer2_Protocol.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.7" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\MWB.Networking.Layer3_Endpoint\MWB.Networking.Layer3_Endpoint.csproj" />
   </ItemGroup>
 

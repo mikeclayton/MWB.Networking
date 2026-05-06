@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer1_Framing.Pipeline;
-using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Session.Api;
+using MWB.Networking.Layer2_Protocol.Session.Frames;
 
 namespace MWB.Networking.Layer2_Protocol.Adapter;
 

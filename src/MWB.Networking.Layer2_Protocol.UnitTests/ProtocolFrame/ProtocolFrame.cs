@@ -1,5 +1,5 @@
-﻿using MWB.Networking.Layer1_Framing.Frames;
-using MWB.Networking.Layer2_Protocol.Frames;
+﻿using MWB.Networking.Layer1_Framing.Codec.Frames;
+using MWB.Networking.Layer2_Protocol.Session.Frames;
 
 namespace _ProtocolFrame;
 
@@ -30,7 +30,7 @@ public sealed class ProtocolFrameTests
     [TestMethod]
     public void Network_and_Protocol_FrameKinds_Must_Be_Name_and_Value_Equivalent()
     {
-        var network = Enum.GetValues(typeof(NetworkFrameKind))
+        var network = Enum.GetValues<NetworkFrameKind>()
             .Cast<NetworkFrameKind>()
             .ToDictionary(
                 k => k.ToString(),

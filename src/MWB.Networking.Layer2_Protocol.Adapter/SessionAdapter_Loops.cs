@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer1_Framing.Pipeline;
 using MWB.Networking.Layer2_Protocol.Adapter;
-using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Session.Frames;
 using MWB.Networking.Logging;
 using System.Buffers;
 using System.Diagnostics;
@@ -32,7 +32,7 @@ public sealed partial class SessionAdapter
         var writeTask = this.RunWriteLoopAsync(ct);
         var consumeTask = this.ConsumeFramesAsync(ct);
 
-        SignalStarted();
+        this.SignalStarted();
 
         await Task
             .WhenAny(
@@ -43,7 +43,7 @@ public sealed partial class SessionAdapter
     }
 
     // ------------------------------------------------------------------
-    // Transport read loop (bytes -> frames)
+    // Transport read loop - pipeline (bytes) -> session (frames)
     // ------------------------------------------------------------------
 
     /// <summary>
@@ -105,7 +105,7 @@ public sealed partial class SessionAdapter
     }
 
     // ------------------------------------------------------------------
-    // Outbound write loop (session -> transport)
+    // Outbound write loop - session (frames) -> pipeline (bytes)
     // ------------------------------------------------------------------
 
     /// <summary>

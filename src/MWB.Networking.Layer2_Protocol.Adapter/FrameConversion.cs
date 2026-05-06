@@ -1,5 +1,5 @@
 ﻿using MWB.Networking.Layer1_Framing.Codec.Frames;
-using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Session.Frames;
 
 namespace MWB.Networking.Layer2_Protocol.Adapter;
 

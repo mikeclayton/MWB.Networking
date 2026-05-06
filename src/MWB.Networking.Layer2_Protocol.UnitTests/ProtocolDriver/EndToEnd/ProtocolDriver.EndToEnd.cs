@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
-using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Session.Frames;
 using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 
 namespace _ProtocolDriver;

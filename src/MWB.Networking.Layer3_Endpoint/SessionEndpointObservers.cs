@@ -1,7 +1,7 @@
-﻿using MWB.Networking.Layer2_Protocol.Events.Api;
-using MWB.Networking.Layer2_Protocol.Requests.Api;
-using MWB.Networking.Layer2_Protocol.Session.Api;
-using MWB.Networking.Layer2_Protocol.Streams.Api;
+﻿using MWB.Networking.Layer2_Protocol.Session.Api;
+using MWB.Networking.Layer2_Protocol.Session.Events.Api;
+using MWB.Networking.Layer2_Protocol.Session.Requests.Api;
+using MWB.Networking.Layer2_Protocol.Session.Streams.Api;
 
 namespace MWB.Networking.Layer3_Endpoint;
 
