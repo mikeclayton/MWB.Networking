@@ -1,9 +1,9 @@
-﻿namespace MWB.Networking.Layer0_Transport.Memory.Buffer;
+﻿namespace MWB.Networking.Layer0_Transport.Segmented;
 
 /// <summary>
 /// Buffered, non-blocking writer for <see cref="SegmentedMemoryBuffer"/>.
 /// </summary>
-internal sealed class SegmentedBufferWriter
+public sealed class SegmentedBufferWriter
 {
     private readonly SegmentedBuffer _buffer;
     private bool _completed;

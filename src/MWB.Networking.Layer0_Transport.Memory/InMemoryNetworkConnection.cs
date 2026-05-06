@@ -1,7 +1,7 @@
 ﻿using MWB.Networking.Layer0_Transport.Encoding;
+using MWB.Networking.Layer0_Transport.Segmented;
 using MWB.Networking.Layer0_Transport.Stack.Abstractions;
 using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
-using MWB.Networking.Layer0_Transport.Memory.Buffer;
 
 namespace MWB.Networking.Layer0_Transport.Memory;
 

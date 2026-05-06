@@ -1,6 +1,8 @@
-﻿namespace MWB.Networking.Layer0_Transport.Memory.Buffer;
+﻿using MWB.Networking.Layer0_Transport.Segmented;
 
-// <summary>
+namespace MWB.Networking.Layer0_Transport.Memory.Buffer;
+
+/// <summary>
 /// Provides two in-memory full-duplex transport endpoints
 /// backed by segmented buffers. This type owns only data
 /// plumbing and has no lifecycle or status semantics.

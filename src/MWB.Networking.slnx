@@ -27,6 +27,9 @@
     <Project Path="MWB.Networking.Layer0_Transport.Tcp.UnitTests/MWB.Networking.Layer0_Transport.Tcp.UnitTests.csproj" />
     <Project Path="MWB.Networking.Layer0_Transport.Tcp/MWB.Networking.Layer0_Transport.Tcp.csproj" Id="78981be3-8731-4c50-977e-5e909ccae117" />
   </Folder>
+  <Folder Name="/Layer0_Transport/Utilities/">
+    <Project Path="MWB.Networking.Layer0_Transport.Segmented/MWB.Networking.Layer0_Transport.Segmented.csproj" />
+  </Folder>
   <Folder Name="/Layer1_Framing/">
     <Project Path="MWB.Networking.Layer1_Framing.Codec/MWB.Networking.Layer1_Framing.Codec.csproj" />
     <Project Path="MWB.Networking.Layer1_Framing.Driver.Abstractions/MWB.Networking.Layer1_Framing.Driver.Abstractions.csproj" />
@@ -50,6 +53,7 @@
     <Project Path="MWB.Networking.Layer1_Framing.Hosting.NullTransport/MWB.Networking.Layer1_Framing.Hosting.NullTransport.csproj" Id="ceb9d3a1-f062-4fed-a3c3-32e613393a1b" />
   </Folder>
   <Folder Name="/Layer2_Protocol/">
+    <Project Path="MWB.Networking.Layer2_Protocol.Adapter.UnitTests/MWB.Networking.Layer2_Protocol.Adapter.UnitTests.csproj" />
     <Project Path="MWB.Networking.Layer2_Protocol.Adapter/MWB.Networking.Layer2_Protocol.Adapter.csproj" />
     <Project Path="MWB.Networking.Layer2_Protocol.Session.UnitTests/MWB.Networking.Layer2_Protocol.Session.UnitTests.csproj" />
     <Project Path="MWB.Networking.Layer2_Protocol.Session/MWB.Networking.Layer2_Protocol.Session.csproj" />
@@ -63,7 +67,6 @@
     <Project Path="KeyboardSharingConsole/KeyboardSharingConsole.csproj" Id="643612fb-44e4-4339-8f89-2c204ec2e1fa" />
   </Folder>
   <Folder Name="/UnitTests/">
-    <Project Path="MWB.Networking.Layer0_Transport.UnitTests/MWB.Networking.Layer0_Transport.UnitTests.csproj" />
     <Project Path="MWB.Networking.Layer3_Endpoint.UnitTests/MWB.Networking.Layer3_Endpoint.UnitTests.csproj" />
     <Project Path="MWB.Networking.PerformanceTests/MWB.Networking.PerformanceTests.csproj" Id="ed377ad1-6a77-48c9-be1f-19b197955fcc" />
   </Folder>

@@ -1,4 +1,6 @@
-﻿namespace MWB.Networking.Layer0_Transport.Encoding;
+﻿using System.Collections;
+
+namespace MWB.Networking.Layer0_Transport.Encoding;
 
 /// <summary>
 /// Represents a logical, atomic block of bytes at Layer 0.
@@ -9,7 +11,7 @@
 /// preserves references to these individual segments to avoid the need to
 /// allocate and copy them into a single contiguous memory buffer.
 /// </remarks>
-public readonly struct ByteSegments
+public readonly struct ByteSegments : IReadOnlyList<ReadOnlyMemory<byte>>
 {
     public ByteSegments(params ReadOnlyMemory<byte>[] segments)
     {
@@ -50,4 +52,18 @@ public readonly struct ByteSegments
 
         return new ByteSegments(buffer);
     }
+
+    // IReadOnlyList<ReadOnlyMemory<byte>> itnerface
+
+    public ReadOnlyMemory<byte> this[int index]
+        => this.Segments[index];
+
+    public int Count
+        => this.Segments.Length;
+
+    public IEnumerator<ReadOnlyMemory<byte>> GetEnumerator()
+        => ((IEnumerable<ReadOnlyMemory<byte>>)this.Segments).GetEnumerator();
+
+    IEnumerator IEnumerable.GetEnumerator()
+        => this.Segments.GetEnumerator();
 }

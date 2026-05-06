@@ -1,12 +1,12 @@
 ﻿using System.Collections.Concurrent;
 
-namespace MWB.Networking.Layer0_Transport.Memory.Buffer;
+namespace MWB.Networking.Layer0_Transport.Segmented;
 
 /// <summary>
 /// Single-writer, single-reader buffered byte channel.
 /// Owns exactly one reader and one writer.
 /// </summary>
-internal sealed class SegmentedBuffer : IDisposable
+public sealed class SegmentedBuffer : IDisposable
 {
     private readonly ConcurrentQueue<byte[]> _segments = new();
     private readonly SemaphoreSlim _dataAvailable = new(0);

@@ -1,9 +1,9 @@
-﻿namespace MWB.Networking.Layer0_Transport.Memory.Buffer;
+﻿namespace MWB.Networking.Layer0_Transport.Segmented;
 
 /// <summary>
 /// Stream-style reader over a segmented memory buffer.
 /// </summary>
-internal sealed class SegmentedBufferReader
+public sealed class SegmentedBufferReader
 {
     private readonly SegmentedBuffer _buffer;
 
