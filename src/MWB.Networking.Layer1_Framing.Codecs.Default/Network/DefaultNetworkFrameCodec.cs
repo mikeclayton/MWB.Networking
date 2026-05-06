@@ -199,7 +199,7 @@ public sealed partial class DefaultNetworkFrameCodec : INetworkFrameCodec
 
         // ---- Construct the return value ----------------------------------
 
-        outputFrame = new NetworkFrame(
+        outputFrame = NetworkFrame.CreateRaw(
             kind,
             eventType,
             requestId,

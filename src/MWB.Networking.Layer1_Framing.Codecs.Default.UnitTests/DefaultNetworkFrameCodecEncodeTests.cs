@@ -104,7 +104,8 @@ public sealed class DefaultNetworkFrameCodecEncodeTests
 
         foreach (var (kind, expected) in cases)
         {
-            var frame = new NetworkFrame(kind,
+            var frame = NetworkFrame.CreateRaw(
+                kind,
                 eventType: null, requestId: null, requestType: null,
                 responseType: null, streamId: null, streamType: null,
                 payload: default);
@@ -188,7 +189,7 @@ public sealed class DefaultNetworkFrameCodecEncodeTests
     [TestMethod]
     public void Encode_AllOptionalFieldsPresent_AllFlagsSetInFlagsByte()
     {
-        var frame = new NetworkFrame(
+        var frame = NetworkFrame.CreateRaw(
             NetworkFrameKind.Event,
             eventType: 1, requestId: 2, requestType: 3,
             responseType: 4, streamId: 5, streamType: 6,
@@ -247,7 +248,7 @@ public sealed class DefaultNetworkFrameCodecEncodeTests
     {
         // Assign each field a distinct small value so its 4-byte encoding is
         // unambiguous: field N has value N, encoded as [0x00, 0x00, 0x00, N].
-        var frame = new NetworkFrame(
+        var frame = NetworkFrame.CreateRaw(
             NetworkFrameKind.Event,
             eventType:    0x00000001u,
             requestId:    0x00000002u,

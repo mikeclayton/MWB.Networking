@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer0_Transport.Encoding;
-using MWB.Networking.Layer0_Transport.Lifecycle.Abstractions;
-using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
+using MWB.Networking.Layer0_Transport.Stack.Abstractions;
+using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
 using System.Buffers;
 using System.IO.Pipelines;
 
@@ -18,6 +18,12 @@ public sealed class PipeNetworkConnection : INetworkConnection, IDisposable
         this.Reader = reader ?? throw new ArgumentNullException(nameof(reader));
         this.Writer = writer ?? throw new ArgumentNullException(nameof(writer));
         this.Status = status ?? throw new ArgumentNullException(nameof(status));
+    }
+
+    public PipeNetworkConnection(PipeReader reader, PipeWriter writer)
+    {
+        Reader = reader;
+        Writer = writer;
     }
 
     private ILogger Logger

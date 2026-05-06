@@ -1,6 +1,6 @@
 ﻿using MWB.Networking.Layer0_Transport.Encoding;
-using MWB.Networking.Layer0_Transport.Lifecycle.Abstractions;
-using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
+using MWB.Networking.Layer0_Transport.Stack.Abstractions;
+using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
 using System.Collections.Concurrent;
 using System.Threading.Channels;
 

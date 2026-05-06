@@ -1,5 +1,5 @@
-﻿using MWB.Networking.Layer0_Transport.Lifecycle.Abstractions;
-using MWB.Networking.Layer0_Transport.Lifecycle.Stack;
+﻿using MWB.Networking.Layer0_Transport.Stack.Abstractions;
+using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
 using MWB.Networking.Layer0_Transport.Memory.Buffer;
 
 namespace MWB.Networking.Layer0_Transport.Memory;

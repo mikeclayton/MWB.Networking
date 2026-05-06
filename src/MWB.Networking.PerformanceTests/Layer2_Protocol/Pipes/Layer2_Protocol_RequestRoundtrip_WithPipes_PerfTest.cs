@@ -1,12 +1,11 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer1_Framing.Codec.Frames;
-using MWB.Networking.Layer2_Protocol.Requests.Api;
+using MWB.Networking.Layer1_Framing.Pipeline.Hosting;
 using MWB.Networking.Layer2_Protocol.Session.Requests.Api;
 using MWB.Networking.Layer3_Endpoint.Hosting;
 using MWB.Networking.Logging;
 using MWB.Networking.Logging.Debug;
-using MWB.Networking.Logging.Loggers;
 using MWB.Networking.PerformanceTests;
 using System.Buffers;
 using System.Diagnostics;
@@ -19,7 +18,7 @@ public sealed partial class Pipes
     [TestMethod]
     public async Task Layer2_Protocol_RequestRoundtrip_WithPipes_PerfTest()
     {
-        var (logger, loggerFactory) = DebugLoggerFactory.Create();
+        var (logger, loggerFactory) = DebugLoggerFactory.CreateLogger();
 
         // simulates a duplex connection
         var serverPipe = new Pipe();

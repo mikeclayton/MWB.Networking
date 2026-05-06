@@ -1,4 +1,4 @@
-﻿using MWB.Networking.Layer0_Transport.Lifecycle.Abstractions;
+﻿using MWB.Networking.Layer0_Transport.Stack.Abstractions;
 
 namespace MWB.Networking.Layer0_Transport.Instrumented;
 

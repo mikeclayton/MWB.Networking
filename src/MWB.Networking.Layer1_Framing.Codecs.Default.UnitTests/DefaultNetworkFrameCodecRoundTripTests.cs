@@ -165,7 +165,7 @@ public sealed class DefaultNetworkFrameCodecRoundTripTests
     public void RoundTrip_StreamAbortFrame_DecodesIdentically()
     {
         // NetworkFrames has no StreamAbort factory; construct directly.
-        var frame = new NetworkFrame(
+        var frame = NetworkFrame.CreateRaw(
             NetworkFrameKind.StreamAbort,
             eventType: null, requestId: null, requestType: null,
             responseType: null, streamId: 99, streamType: null,
@@ -178,7 +178,7 @@ public sealed class DefaultNetworkFrameCodecRoundTripTests
     public void RoundTrip_ErrorFrame_WithPayload_DecodesIdentically()
     {
         // NetworkFrames has no Error factory; construct directly.
-        var frame = new NetworkFrame(
+        var frame = NetworkFrame.CreateRaw(
             NetworkFrameKind.Error,
             eventType: null, requestId: null, requestType: null,
             responseType: null, streamId: null, streamType: null,
@@ -194,7 +194,7 @@ public sealed class DefaultNetworkFrameCodecRoundTripTests
     [TestMethod]
     public void RoundTrip_AllOptionalFieldsPresent_NoPayload_DecodesIdentically()
     {
-        var frame = new NetworkFrame(
+        var frame = NetworkFrame.CreateRaw(
             NetworkFrameKind.Event,
             eventType: 1, requestId: 2, requestType: 3,
             responseType: 4, streamId: 5, streamType: 6,
@@ -206,7 +206,7 @@ public sealed class DefaultNetworkFrameCodecRoundTripTests
     [TestMethod]
     public void RoundTrip_AllOptionalFieldsPresent_WithPayload_DecodesIdentically()
     {
-        var frame = new NetworkFrame(
+        var frame = NetworkFrame.CreateRaw(
             NetworkFrameKind.Event,
             eventType: 0x11111111u, requestId: 0x22222222u, requestType: 0x33333333u,
             responseType: 0x44444444u, streamId: 0x55555555u, streamType: 0x66666666u,
@@ -247,7 +247,7 @@ public sealed class DefaultNetworkFrameCodecRoundTripTests
     [TestMethod]
     public void RoundTrip_MaxUInt32FieldValues_DecodesIdentically()
     {
-        var frame = new NetworkFrame(
+        var frame = NetworkFrame.CreateRaw(
             NetworkFrameKind.Event,
             eventType:    uint.MaxValue,
             requestId:    uint.MaxValue,
@@ -263,7 +263,7 @@ public sealed class DefaultNetworkFrameCodecRoundTripTests
     [TestMethod]
     public void RoundTrip_ZeroUInt32FieldValues_DecodesIdentically()
     {
-        var frame = new NetworkFrame(
+        var frame = NetworkFrame.CreateRaw(
             NetworkFrameKind.Event,
             eventType:    0u,
             requestId:    0u,

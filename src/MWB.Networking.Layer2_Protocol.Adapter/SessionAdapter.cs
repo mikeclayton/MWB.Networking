@@ -1,80 +1,113 @@
 ﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer1_Framing.Pipeline;
+using MWB.Networking.Layer1_Framing.Codec.Frames;
 using MWB.Networking.Layer2_Protocol.Session.Api;
 using MWB.Networking.Layer2_Protocol.Session.Frames;
+using System.Diagnostics;
 
 namespace MWB.Networking.Layer2_Protocol.Adapter;
 
 /// <summary>
-/// Drivers a protocol session over a transport by running
-/// read / write / consume loops.
+/// Bridges a ProtocolSession (ProtocolFrames) and the NetworkPipeline
+/// (NetworkFrames).
 ///
-/// Layer 2.5:
-/// - Knows protocol internals
-/// - Owns execution, concurrency, and shutdown
-/// - Does NOT own lifecycle policy
-/// - Does NOT define protocol semantics
+/// The SessionAdapter:
+/// - Performs mechanical frame conversion only
+/// - Owns no threads, loops, or buffering
+/// - Propagates backpressure synchronously
+///
+/// If downstream transport or encoding blocks, outbound protocol
+/// frame emission is blocked automatically via synchronous event delivery.
 /// </summary>
-public sealed partial class SessionAdapter
+internal sealed class SessionAdapter : IDisposable
 {
+    private readonly ILogger _logger;
+    private readonly IProtocolSessionInput _sessionInput;
+    private readonly IProtocolSessionOutput _sessionOutput;
+    private readonly INetworkFrameOutput _networkOutput;
+
     // ------------------------------------------------------------------
     // Construction
     // ------------------------------------------------------------------
 
     internal SessionAdapter(
         ILogger logger,
-        IProtocolSessionFrameIO frameIO,
-        NetworkPipeline pipeline)
+        IProtocolSessionFrameIO session,
+        INetworkFrameIO networkOutput)
     {
-        this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        this.SessionInput = frameIO ?? throw new ArgumentNullException(nameof(frameIO));
-        this.SessionOutput = frameIO ?? throw new ArgumentNullException(nameof(frameIO));
-        this.Pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _networkOutput = networkOutput ?? throw new ArgumentNullException(nameof(networkOutput));
+
+        ArgumentNullException.ThrowIfNull(session);
+        _sessionInput = session;
+        _sessionOutput = session;
+
+        // Subscribe once; this is the "wiring", not a lifecycle
+        _sessionOutput.OutboundFrameReady += this.OnSendProtocolFrame;
+        networkOutput.NetworkFrameReady += this.OnReceiveNetworkFrame;
     }
-
-#if ENABLE_PROTOCOL_FRAME_DIAGNOSTICS
-    private RingBuffer<ProtocolFrame> RecentInboundFrames
-    {
-        get;
-    } = new(capacity: 100_000);
-
-    private RingBuffer<ProtocolFrame> RecentOutboundFrames
-    {
-        get;
-    } = new(capacity: 100_000);
-#endif
 
     // ------------------------------------------------------------------
-    // Dependencies
+    // Inbound: pipeline (NetworkFrame) -> session (ProtocolFrame)
     // ------------------------------------------------------------------
-
-    public ILogger Logger
-    {
-        get;
-    }
-
-    private IProtocolSessionInput SessionInput
-    {
-        get;
-    }
-
-    private IProtocolSessionOutput SessionOutput
-    {
-        get;
-    }
-
-    private NetworkPipeline Pipeline
-    {
-        get;
-    }
 
     /// <summary>
-    /// Serializes semantic execution against the runtime.
-    /// Ensures protocol state is single-threaded even though
-    /// multiple driver loops are running.
+    /// Delivers a decoded NetworkFrame into the protocol session.
+    ///
+    /// This method performs no protocol validation.
+    /// ProtocolSession is the sole authority for semantic correctness.
     /// </summary>
-    private SemaphoreSlim ProcessorGate
+    internal void OnReceiveNetworkFrame(NetworkFrame networkFrame)
     {
-        get;
-    } = new(1, 1);
+        ArgumentNullException.ThrowIfNull(networkFrame);
+
+        _logger.LogTrace(
+            "Received NetworkFrame {Kind}",
+            networkFrame.Kind);
+
+        var protocolFrame =
+            FrameConverter.ToProtocolFrame(networkFrame);
+
+#if ENABLE_PROTOCOL_FRAME_DIAGNOSTICS
+        protocolFrame.Diagnostics.ReceivedTimestamp =
+            Stopwatch.GetTimestamp();
+#endif
+
+        // Synchronous delivery preserves ordering
+        _sessionInput.OnFrameReceived(protocolFrame);
+    }
+
+    // ------------------------------------------------------------------
+    // Outbound: session (ProtocolFrame) -> pipeline (NetworkFrame)
+    // ------------------------------------------------------------------
+
+    private void OnSendProtocolFrame(ProtocolFrame protocolFrame)
+    {
+        ArgumentNullException.ThrowIfNull(protocolFrame);
+
+        _logger.LogTrace(
+            "Sending ProtocolFrame {Kind}",
+            protocolFrame.Kind);
+
+#if ENABLE_PROTOCOL_FRAME_DIAGNOSTICS
+        protocolFrame.Diagnostics.SentTimestamp =
+            Stopwatch.GetTimestamp();
+#endif
+
+        var networkFrame =
+            FrameConverter.ToNetworkFrame(protocolFrame);
+
+        // IMPORTANT:
+        // Send MUST block or fail synchronously if downstream is congested.
+        // This is how backpressure reaches the ProtocolSession.
+        _networkOutput.Send(networkFrame);
+    }
+
+    // ------------------------------------------------------------------
+    // Teardown
+    // ------------------------------------------------------------------
+
+    public void Dispose()
+    {
+        _sessionOutput.OutboundFrameReady -= this.OnSendProtocolFrame;
+    }
 }

@@ -1,7 +1,5 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Pipes;
-using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
-using MWB.Networking.Layer1_Framing.Hosting.Manual;
 using MWB.Networking.Layer3_Endpoint.Hosting;
 using System.Diagnostics;
 using System.IO.Pipelines;
