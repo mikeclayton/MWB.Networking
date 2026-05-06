@@ -70,6 +70,7 @@ internal sealed class StreamManagerOutbound
         this.Session.SendOutboundFrame(
             ProtocolFrames.StreamOpen(
                 streamId,
+                streamType: streamType,
                 requestId: owningRequest.RequestId
             )
         );
@@ -94,7 +95,7 @@ internal sealed class StreamManagerOutbound
         );
 
         this.Session.SendOutboundFrame(
-            ProtocolFrames.StreamOpen(streamId, metadata: metadata));
+            ProtocolFrames.StreamOpen(streamId, streamType: streamType, metadata: metadata));
 
         return stream;
     }

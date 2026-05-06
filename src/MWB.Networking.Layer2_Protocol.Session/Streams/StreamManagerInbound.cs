@@ -189,10 +189,13 @@ internal sealed class StreamManagerInbound
 
     private void ProcessIncomingStreamAbortFrame(ProtocolFrame frame)
     {
-        // validate the frame
         this.EnsureFrameHasStreamId(frame, out var streamId);
         this.EnsureStreamEntryExists(frame, streamId, out var streamEntry);
+        this.EnsureIsIncomingStream(frame, streamEntry, out var incomingStream);
 
-        throw new NotImplementedException("not implemented yet");
+        streamEntry.Context.Close();
+        this.StreamManager.RemoveStream(streamId);
+
+        this.Session.OnStreamAborted(incomingStream, new StreamMetadata(frame.Payload));
     }
 }

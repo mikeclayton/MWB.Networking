@@ -116,6 +116,7 @@ public sealed partial class Streams_Invariants
         processor.ProcessFrame(ProtocolFrames.StreamOpen(1));
         processor.ProcessFrame(ProtocolFrames.StreamClose(1));
 
+        // Stream is removed after close, so the second close hits an unknown-id error.
         Assert.Throws<ProtocolException>(
             () => processor.ProcessFrame(ProtocolFrames.StreamClose(1)));
     }
