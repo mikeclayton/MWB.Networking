@@ -135,4 +135,41 @@ public sealed class ProtocolFrame
     {
         get;
     }
+
+    /// <summary>
+    /// Creates a ProtocolFrame from raw decoded values.
+    /// </summary>
+    /// <remarks>
+    /// This method performs no semantic validation and may create frames
+    /// that violate protocol invariants.
+    ///
+    /// Intended for advanced infrastructure components such as protocol
+    /// adapters, decoders, and tests.
+    ///
+    /// <para>
+    /// Most callers should prefer the strongly-typed factory methods on
+    /// <see cref="ProtocolFrames"/> (e.g. <c>Event</c>, <c>Request</c>,
+    /// <c>StreamOpen</c>), which enforce protocol semantics.
+    /// </para>
+    /// </remarks>
+    public static ProtocolFrame CreateRaw(
+        ProtocolFrameKind kind,
+        uint? eventType,
+        uint? requestId,
+        uint? requestType,
+        uint? responseType,
+        uint? streamId,
+        uint? streamType,
+        ReadOnlyMemory<byte> payload)
+    {
+        return new ProtocolFrame(
+            kind,
+            eventType,
+            requestId,
+            requestType,
+            responseType,
+            streamId,
+            streamType,
+            payload);
+    }
 }

@@ -42,7 +42,7 @@ internal static class FrameConverter
     {
         ArgumentNullException.ThrowIfNull(frame);
 
-        return new ProtocolFrame(
+        return ProtocolFrame.CreateRaw(
             kind: FrameConverter.ToProtocolFrameKind(frame.Kind),
             eventType: frame.EventType,
             requestId: frame.RequestId,
@@ -57,7 +57,7 @@ internal static class FrameConverter
     {
         ArgumentNullException.ThrowIfNull(frame);
 
-        return new NetworkFrame(
+        return NetworkFrame.CreateRaw(
             kind: FrameConverter.ToNetworkFrameKind(frame.Kind),
             eventType: frame.EventType,
             requestId: frame.RequestId,

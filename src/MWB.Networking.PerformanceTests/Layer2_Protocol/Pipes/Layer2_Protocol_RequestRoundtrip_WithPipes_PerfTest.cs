@@ -2,8 +2,10 @@
 using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer1_Framing.Codec.Frames;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
+using MWB.Networking.Layer2_Protocol.Session.Requests.Api;
 using MWB.Networking.Layer3_Endpoint.Hosting;
 using MWB.Networking.Logging;
+using MWB.Networking.Logging.Debug;
 using MWB.Networking.Logging.Loggers;
 using MWB.Networking.PerformanceTests;
 using System.Buffers;
@@ -137,10 +139,12 @@ public sealed partial class Pipes
         var serverToClient = new Pipe();
 
         var clientConnection = new PipeNetworkConnection(
+            logger,
             reader: serverToClient.Reader,
             writer: clientToServer.Writer);
 
         var serverConnection = new PipeNetworkConnection(
+            logger,
             reader: clientToServer.Reader,
             writer: serverToClient.Writer);
 
@@ -237,10 +241,12 @@ public sealed partial class Pipes
         var serverToClient = new Pipe();
 
         var clientConnection = new PipeNetworkConnection(
+            logger,
             reader: serverToClient.Reader,
             writer: clientToServer.Writer);
 
         var serverConnection = new PipeNetworkConnection(
+            logger,
             reader: clientToServer.Reader,
             writer: serverToClient.Writer);
 
