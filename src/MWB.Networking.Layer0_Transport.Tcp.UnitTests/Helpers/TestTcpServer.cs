@@ -1,7 +1,7 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Sockets;
 
-namespace MWB.Networking.Layer0_Transport.UnitTests.Helpers;
+namespace MWB.Networking.Layer0_Transport.Tcp.UnitTests.Helpers;
 
 internal sealed class TestTcpServer : IDisposable
 {
@@ -42,6 +42,7 @@ internal sealed class TestTcpServer : IDisposable
         this.Port = ((IPEndPoint)this.Listener.LocalEndpoint).Port;
         _ = AcceptAsync();
     }
+
     public Task<NetworkStream> WaitForClientAsync()
     {
         return this.ClientConnected.Task;

@@ -8,11 +8,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Lifecycle\MWB.Networking.Layer0_Transport.Lifecycle.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Memory\MWB.Networking.Layer0_Transport.Memory.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Pipes\MWB.Networking.Layer0_Transport.Pipes.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Hosting.NullTransport\MWB.Networking.Layer1_Framing.Hosting.NullTransport.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Pipeline\MWB.Networking.Layer1_Framing.Pipeline.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer2_Protocol.Session\MWB.Networking.Layer2_Protocol.Session.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer3_Endpoint.Hosting\MWB.Networking.Layer3_Endpoint.Hosting.csproj" />
     <ProjectReference Include="..\MWB.Networking.Logging\MWB.Networking.Logging.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Logging.Debug\MWB.Networking.Logging.Debug.csproj" />
   </ItemGroup>
 
   <ItemGroup>
