@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer1_Framing.Codec.Frames;
+using MWB.Networking.Layer1_Framing.Driver.Abstractions;
 using MWB.Networking.Layer2_Protocol.Session.Api;
 using MWB.Networking.Layer2_Protocol.Session.Frames;
 using System.Diagnostics;
@@ -7,56 +8,51 @@ using System.Diagnostics;
 namespace MWB.Networking.Layer2_Protocol.Adapter;
 
 /// <summary>
-/// Bridges a ProtocolSession (ProtocolFrames) and the NetworkPipeline
-/// (NetworkFrames).
+/// Bridges a ProtocolSession (ProtocolFrames) and the
+/// network framing layer (NetworkFrames).
 ///
 /// The SessionAdapter:
 /// - Performs mechanical frame conversion only
 /// - Owns no threads, loops, or buffering
 /// - Propagates backpressure synchronously
 ///
-/// If downstream transport or encoding blocks, outbound protocol
-/// frame emission is blocked automatically via synchronous event delivery.
+/// If downstream transport or encoding blocks, outbound
+/// protocol frame emission is blocked automatically via
+/// synchronous event delivery.
 /// </summary>
-internal sealed class SessionAdapter : IDisposable
+public sealed class SessionAdapter : IDisposable
 {
     private readonly ILogger _logger;
     private readonly IProtocolSessionInput _sessionInput;
     private readonly IProtocolSessionOutput _sessionOutput;
-    private readonly INetworkFrameOutput _networkOutput;
+    private readonly INetworkFrameSink _networkSink;
+    private readonly INetworkFrameSource _networkSource;
 
-    // ------------------------------------------------------------------
-    // Construction
-    // ------------------------------------------------------------------
-
-    internal SessionAdapter(
+    public SessionAdapter(
         ILogger logger,
         IProtocolSessionFrameIO session,
-        INetworkFrameIO networkOutput)
+        INetworkFrameIO network)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _networkOutput = networkOutput ?? throw new ArgumentNullException(nameof(networkOutput));
 
         ArgumentNullException.ThrowIfNull(session);
         _sessionInput = session;
         _sessionOutput = session;
 
-        // Subscribe once; this is the "wiring", not a lifecycle
+        ArgumentNullException.ThrowIfNull(network);
+        _networkSink = network;
+        _networkSource = network;
+
+        // Semantic wiring only (no lifecycle or execution ownership)
         _sessionOutput.OutboundFrameReady += this.OnSendProtocolFrame;
-        networkOutput.NetworkFrameReady += this.OnReceiveNetworkFrame;
+        _networkSource.FrameReceived += this.OnReceiveNetworkFrame;
     }
 
     // ------------------------------------------------------------------
-    // Inbound: pipeline (NetworkFrame) -> session (ProtocolFrame)
+    // Inbound: NetworkFrame -> ProtocolFrame
     // ------------------------------------------------------------------
 
-    /// <summary>
-    /// Delivers a decoded NetworkFrame into the protocol session.
-    ///
-    /// This method performs no protocol validation.
-    /// ProtocolSession is the sole authority for semantic correctness.
-    /// </summary>
-    internal void OnReceiveNetworkFrame(NetworkFrame networkFrame)
+    private void OnReceiveNetworkFrame(NetworkFrame networkFrame)
     {
         ArgumentNullException.ThrowIfNull(networkFrame);
 
@@ -77,7 +73,7 @@ internal sealed class SessionAdapter : IDisposable
     }
 
     // ------------------------------------------------------------------
-    // Outbound: session (ProtocolFrame) -> pipeline (NetworkFrame)
+    // Outbound: ProtocolFrame -> NetworkFrame
     // ------------------------------------------------------------------
 
     private void OnSendProtocolFrame(ProtocolFrame protocolFrame)
@@ -96,10 +92,8 @@ internal sealed class SessionAdapter : IDisposable
         var networkFrame =
             FrameConverter.ToNetworkFrame(protocolFrame);
 
-        // IMPORTANT:
-        // Send MUST block or fail synchronously if downstream is congested.
-        // This is how backpressure reaches the ProtocolSession.
-        _networkOutput.Send(networkFrame);
+        // Backpressure propagates synchronously here
+        _networkSink.Send(networkFrame);
     }
 
     // ------------------------------------------------------------------
@@ -109,5 +103,6 @@ internal sealed class SessionAdapter : IDisposable
     public void Dispose()
     {
         _sessionOutput.OutboundFrameReady -= this.OnSendProtocolFrame;
+        _networkSource.FrameReceived -= this.OnReceiveNetworkFrame;
     }
 }
