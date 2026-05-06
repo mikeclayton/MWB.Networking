@@ -345,12 +345,14 @@ public sealed class Events_Inbound
         var receivedTypes = new List<uint?>();
         session.Observer.EventReceived += (@event, _) => receivedTypes.Add(@event.EventType);
 
+        // Use outgoing requests so we can receive Response frames for them.
+        var req1 = session.Commands.SendRequest();
+        var req2 = session.Commands.SendRequest();
+
         processor.ProcessFrame(ProtocolFrames.Event(1u));
-        processor.ProcessFrame(ProtocolFrames.Request(10));
         processor.ProcessFrame(ProtocolFrames.Event(2u));
-        processor.ProcessFrame(ProtocolFrames.Request(20));
         processor.ProcessFrame(ProtocolFrames.Event(3u));
-        processor.ProcessFrame(ProtocolFrames.Response(10));
+        processor.ProcessFrame(ProtocolFrames.Response(req1.RequestId));
         processor.ProcessFrame(ProtocolFrames.Event(4u));
 
         CollectionAssert.AreEqual(new uint?[] { 1u, 2u, 3u, 4u }, receivedTypes);

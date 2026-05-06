@@ -319,17 +319,17 @@ public sealed partial class Requests_Inbound
     [TestMethod]
     public void RequestId_ReusableAfterClose()
     {
-        // Sending a Request then receiving a Response should free the ID for reuse
-        // as an inbound request from the peer on the same transport.
+        // Send an outgoing request, receive a Response to close it,
+        // then verify the peer can reuse that same ID for a new inbound request.
         var session = ProtocolSessionHelper.CreateOddProtocolSession(NullLogger.Instance);
         var processor = session.Processor;
 
-        processor.ProcessFrame(ProtocolFrames.Request(1));
-        processor.ProcessFrame(ProtocolFrames.Response(1));
+        var outgoing = session.Commands.SendRequest();
+        processor.ProcessFrame(ProtocolFrames.Response(outgoing.RequestId));
 
-        // Peer uses the same ID for a new request — must be accepted.
-        processor.ProcessFrame(ProtocolFrames.Request(1));
+        // Peer reuses the same ID for a new inbound request — must be accepted.
+        processor.ProcessFrame(ProtocolFrames.Request(outgoing.RequestId));
 
-        Assert.Contains(1u, session.Diagnostics.GetSnapshot().OpenRequests);
+        Assert.Contains(outgoing.RequestId, session.Diagnostics.GetSnapshot().OpenRequests);
     }
 }

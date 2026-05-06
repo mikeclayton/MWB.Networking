@@ -14,11 +14,17 @@ internal sealed class StreamManager : IHasLogger
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(streamIdProvider);
         this.Logger = logger;
+        this.StreamIdProvider = streamIdProvider;
         this.Inbound = new StreamManagerInbound(session, this, this.StreamEntries);
         this.Outbound = new StreamManagerOutbound(session, this, this.StreamEntries, streamIdProvider);
     }
 
     public ILogger Logger
+    {
+        get;
+    }
+
+    private OddEvenStreamIdProvider StreamIdProvider
     {
         get;
     }
@@ -45,6 +51,11 @@ internal sealed class StreamManager : IHasLogger
     internal IEnumerable<uint> GetStreamIds()
     {
         return this.StreamEntries.GetStreamEntryIds();
+    }
+
+    internal bool IsValidInboundStreamId(uint streamId)
+    {
+        return this.StreamIdProvider.IsValidInbound(streamId);
     }
 
     internal bool TryGetStreamEntry(uint streamId, [NotNullWhen(true)] out StreamEntry? result)

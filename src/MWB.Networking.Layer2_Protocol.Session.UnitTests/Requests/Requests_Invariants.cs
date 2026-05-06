@@ -112,10 +112,48 @@ public sealed partial class Requests_Invariants
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
         var processor = session.Processor;
 
-        processor.ProcessFrame(ProtocolFrames.Request(1));
-        processor.ProcessFrame(ProtocolFrames.Response(1));
+        // Send an outgoing request so the peer can legitimately respond to it.
+        var outgoing = session.Commands.SendRequest();
+        // First response closes the request.
+        processor.ProcessFrame(ProtocolFrames.Response(outgoing.RequestId));
+        // Second response for the now-closed (and removed) request must be rejected.
+        Assert.Throws<ProtocolException>(
+            () => processor.ProcessFrame(ProtocolFrames.Response(outgoing.RequestId)));
+    }
 
+    // ---------------------------------------------------------------
+    // Directionality enforcement (B2)
+    // ---------------------------------------------------------------
+
+    [TestMethod]
+    public void Response_TargetingInboundRequest_ThrowsProtocolException()
+    {
+        // A Response frame must only close an *outgoing* request (one we sent).
+        // If the peer sends us a Response whose ID matches an *inbound* request
+        // (one they sent to us), we must reject it. Silently closing the inbound
+        // entry would make that request unresolvable and free the ID prematurely.
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(NullLogger.Instance);
+        var processor = session.Processor;
+
+        // Peer sends an inbound request with ID 1.
+        processor.ProcessFrame(ProtocolFrames.Request(1));
+
+        // Peer then (incorrectly) sends a Response for the same ID.
+        // This must be rejected because ID 1 is tracked as an incoming request,
+        // not as an outgoing one that we're expecting a response to.
         Assert.Throws<ProtocolException>(
             () => processor.ProcessFrame(ProtocolFrames.Response(1)));
+    }
+
+    [TestMethod]
+    public void Error_TargetingInboundRequest_ThrowsProtocolException()
+    {
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(NullLogger.Instance);
+        var processor = session.Processor;
+
+        processor.ProcessFrame(ProtocolFrames.Request(1));
+
+        Assert.Throws<ProtocolException>(
+            () => processor.ProcessFrame(ProtocolFrames.Error(1)));
     }
 }

@@ -132,6 +132,16 @@ internal sealed class StreamManagerInbound
         this.EnsureFrameHasStreamId(frame, out var streamId);
         this.EnsureStreamEntryDoesNotExist(frame, streamId);
 
+        // Enforce the odd/even parity contract: the peer must use IDs of the
+        // opposite parity to our outbound IDs. Accepting same-parity IDs would
+        // guarantee a collision when we next allocate an outbound stream ID.
+        if (!this.StreamManager.IsValidInboundStreamId(streamId))
+        {
+            throw ProtocolException.ProtocolViolation(
+                frame,
+                $"StreamId {streamId} has the wrong parity for an inbound stream.");
+        }
+
         // if the frame is associated with a request, make sure the request exists and get its context
         RequestEntry? owningRequestEntry = null;
         if (frame.RequestId is not null)

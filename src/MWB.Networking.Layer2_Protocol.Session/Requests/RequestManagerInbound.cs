@@ -101,6 +101,17 @@ internal sealed class RequestManagerInbound
         this.EnsureFrameHasRequestId(frame, out var requestId);
         this.EnsureInboundRequestExists(frame, requestId, out var requestEntry);
 
+        // A Response or Error frame must only close a request that *we* initiated
+        // (an outgoing request). If the ID matches a request the peer opened (an
+        // incoming entry), the frame is a protocol violation: the peer is trying to
+        // respond to their own request, which makes no sense.
+        if (!requestEntry.IsOutgoing)
+        {
+            throw ProtocolException.InvalidFrameSequence(
+                frame,
+                "Response or Error frame targets an incoming request, not an outgoing one.");
+        }
+
         // Close the Request based on a terminal frame received from the peer.
         // This MUST NOT emit any protocol frames.
         requestEntry.Context.CloseFromInbound(frame);
