@@ -82,9 +82,9 @@ internal sealed class TransportDriver :
         NetworkPipeline pipeline)
     {
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
-        _pipeline  = pipeline  ?? throw new ArgumentNullException(nameof(pipeline));
+        _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
 
-        _transport.TransportClosed  += OnTransportClosed;
+        _transport.TransportClosed += OnTransportClosed;
         _transport.TransportFaulted += OnTransportFaulted;
     }
 
@@ -185,7 +185,7 @@ internal sealed class TransportDriver :
             else
             {
                 // Grow: even a fully compacted buffer is too small.
-                var newSize   = Math.Max(_decodeBuffer.Length * 2, unconsumed + data.Length);
+                var newSize = Math.Max(_decodeBuffer.Length * 2, unconsumed + data.Length);
                 var newBuffer = new byte[newSize];
                 _decodeBuffer.AsSpan(_decodeHead, unconsumed).CopyTo(newBuffer);
                 _decodeBuffer = newBuffer;
@@ -209,7 +209,7 @@ internal sealed class TransportDriver :
         while (_decodeHead < _decodeTail)
         {
             var available = _decodeTail - _decodeHead;
-            var sequence  = new ReadOnlySequence<byte>(_decodeBuffer, _decodeHead, available);
+            var sequence = new ReadOnlySequence<byte>(_decodeBuffer, _decodeHead, available);
 
             var result = _pipeline.Decode(ref sequence, out var frame);
 
@@ -257,7 +257,7 @@ internal sealed class TransportDriver :
     // These are raised by the transport on its own thread. Both delegate
     // immediately to the shared shutdown helpers which are idempotent.
 
-    private void OnTransportClosed()            => HandleClosed();
+    private void OnTransportClosed() => HandleClosed();
     private void OnTransportFaulted(Exception ex) => HandleFault(ex);
 
     // ------------------------------------------------------------------
@@ -317,7 +317,7 @@ internal sealed class TransportDriver :
 
         _cts.Cancel();
 
-        _transport.TransportClosed  -= OnTransportClosed;
+        _transport.TransportClosed -= OnTransportClosed;
         _transport.TransportFaulted -= OnTransportFaulted;
 
         _cts.Dispose();

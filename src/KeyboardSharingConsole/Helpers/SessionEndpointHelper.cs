@@ -1,10 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer0_Transport.Abstractions;
-using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
-using MWB.Networking.Layer1_Framing.Hosting;
-using MWB.Networking.Layer2_Protocol.Events.Api;
-using MWB.Networking.Layer2_Protocol.Requests.Api;
-using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
+using MWB.Networking.Layer0_Transport.Stack.Abstractions;
+using MWB.Networking.Layer2_Protocol.Session.Events.Api;
+using MWB.Networking.Layer2_Protocol.Session.Requests.Api;
+using MWB.Networking.Layer2_Protocol.Session.Streams.Infrastructure;
 using MWB.Networking.Layer3_Endpoint;
 using MWB.Networking.Layer3_Endpoint.Hosting;
 

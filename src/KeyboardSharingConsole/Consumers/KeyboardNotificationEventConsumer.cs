@@ -1,4 +1,4 @@
-﻿using MWB.Networking.Layer2_Protocol.Events.Api;
+﻿using MWB.Networking.Layer2_Protocol.Session.Events.Api;
 using System.Text;
 
 namespace KeyboardSharingConsole.Consumers;

@@ -1,5 +1,5 @@
 ﻿using KeyboardSharingConsole.Models;
-using MWB.Networking.Layer2_Protocol.Requests.Api;
+using MWB.Networking.Layer2_Protocol.Session.Requests.Api;
 
 namespace KeyboardSharingConsole.Consumers;
 
