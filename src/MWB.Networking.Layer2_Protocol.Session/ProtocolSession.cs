@@ -18,7 +18,7 @@ namespace MWB.Networking.Layer2_Protocol.Session;
 /// </summary>
 public sealed partial class ProtocolSession : IHasLogger, IProtocolSessionFrameIO
 {
-    internal ProtocolSession(
+    public ProtocolSession(
         ILogger logger,
         ProtocolSessionConfig config)
     {
@@ -33,7 +33,7 @@ public sealed partial class ProtocolSession : IHasLogger, IProtocolSessionFrameI
         get;
     }
 
-    internal ProtocolSessionHandle AsHandle()
+    public ProtocolSessionHandle AsHandle()
     {
         return new ProtocolSessionHandle(this);
     }

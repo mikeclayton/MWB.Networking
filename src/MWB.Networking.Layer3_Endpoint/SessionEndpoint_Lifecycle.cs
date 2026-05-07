@@ -1,48 +1,34 @@
-﻿using MWB.Networking.Layer1_Framing.Pipeline;
 using MWB.Networking.Layer2_Protocol.Session.Api;
-using MWB.Networking.Layer2_Protocol.Session.Frames;
 
 namespace MWB.Networking.Layer3_Endpoint;
 
 public sealed partial class SessionEndpoint : IAsyncDisposable
 {
-    // ------------------------------------------------------------
-    // Accessors
-    // ------------------------------------------------------------
+    // ------------------------------------------------------------------
+    // Active runtime state
+    // ------------------------------------------------------------------
 
     private ProtocolSessionHandle? _activeSession;
-    private ProtocolDriver? _activeDriver;
-    private NetworkPipeline? _activePipeline;
+    private ProtocolRuntime? _activeRuntime;
 
     /// <summary>
-    /// Handle exposing protocol session APIs.
-    /// Valid once StartAsync has been called successfully.
+    /// Returns the active session handle, throwing if the endpoint has not
+    /// been started yet.
     /// </summary>
     private ProtocolSessionHandle GetActiveSession()
         => _activeSession
             ?? throw new InvalidOperationException(
                 "Session has not been started.");
 
-    private ProtocolDriver GetActiveDriver()
-        => _activeDriver
-            ?? throw new InvalidOperationException(
-                "Driver has not been started.");
-
-    private NetworkPipeline GetActivePipeline()
-        => _activePipeline
-            ?? throw new InvalidOperationException(
-                "Pipeline has not been started.");
-
-    // ------------------------------------------------------------
+    // ------------------------------------------------------------------
     // Lifecycle
-    // ------------------------------------------------------------
+    // ------------------------------------------------------------------
 
     private readonly object _gate = new();
-    private Task? _runTask;
     private bool _started;
 
     /// <summary>
-    /// Builds the session endpoint and starts protocol execution.
+    /// Builds the runtime, registers observers, and starts I/O execution.
     /// May be called at most once.
     /// </summary>
     public async Task StartAsync(CancellationToken ct)
@@ -52,54 +38,50 @@ public sealed partial class SessionEndpoint : IAsyncDisposable
             if (_started)
             {
                 throw new InvalidOperationException(
-                    "SessionHost has already been started.");
+                    "SessionEndpoint has already been started.");
             }
             _started = true;
         }
 
-        // --------------------------------------------------------
-        // Build runtime (no execution yet)
-        // --------------------------------------------------------
+        // ----------------------------------------------------------------
+        // Delegate construction and wiring to the factory.
+        // The returned ProtocolRuntime is fully wired but not yet running.
+        // ----------------------------------------------------------------
 
-        var (session, driver, pipeline) =
-            await this.RuntimeFactory
-                .CreateAsync(ct)
-                .ConfigureAwait(false);
+        var runtime = await this.RuntimeFactory
+            .CreateAsync(ct)
+            .ConfigureAwait(false);
 
-        this.Observers.RegisterObservers(session);
+        this.Observers.RegisterObservers(runtime.Session);
 
-        _activeSession = session;
-        _activeDriver = driver;
-        _activePipeline = pipeline;
+        _activeSession = runtime.Session;
+        _activeRuntime = runtime;
 
-        // --------------------------------------------------------
-        // Start execution (fire-and-forget)
-        // --------------------------------------------------------
+        // ----------------------------------------------------------------
+        // Start the transport driver's read-and-decode loop.
+        // TransportDriver.Start() schedules the loop on the thread pool
+        // and returns immediately; it is a fire-and-forget handoff.
+        // ----------------------------------------------------------------
 
-        _runTask = Task.Run(
-            () => _activeDriver.RunAsync(ct),
-            CancellationToken.None);
+        runtime.Driver.Start();
     }
 
     /// <summary>
-    /// Stops protocol execution and releases resources.
-    /// Safe to call multiple times.
+    /// Unregisters observers and disposes the runtime.
+    /// Safe to call if <see cref="StartAsync"/> was never called.
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         ProtocolSessionHandle? session;
-        ProtocolDriver? driver;
-        NetworkPipeline? pipeline;
+        ProtocolRuntime? runtime;
 
         lock (_gate)
         {
             session = _activeSession;
-            driver = _activeDriver;
-            pipeline = _activePipeline;
+            runtime = _activeRuntime;
 
             _activeSession = null;
-            _activeDriver = null;
-            _activePipeline = null;
+            _activeRuntime = null;
 
             _started = false;
         }
@@ -109,30 +91,10 @@ public sealed partial class SessionEndpoint : IAsyncDisposable
             this.Observers.UnregisterObservers(session);
         }
 
-        if (driver is not null)
-        {
-            await driver
-                .StopAsync()
-                .ConfigureAwait(false);
-        }
+        // ProtocolRuntime.Dispose() tears down in the correct order:
+        //   Adapter (unsubscribe events) → Driver (cancel I/O).
+        runtime?.Dispose();
 
-        if (_runTask is not null)
-        {
-            try
-            {
-                await _runTask.ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                // expected on shutdown
-            }
-            catch (ProtocolException)
-            {
-                // expected if protocol violation occurred
-                // swallow or log as appropriate
-            }
-        }
-
-        pipeline?.Dispose();
+        return ValueTask.CompletedTask;
     }
 }

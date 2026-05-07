@@ -27,7 +27,7 @@ public sealed class ProtocolSessionHandle
         get;
     }
 
-    internal IProtocolSessionFrameIO FrameIO
+    public IProtocolSessionFrameIO FrameIO
     {
         get;
     }

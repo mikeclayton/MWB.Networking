@@ -22,9 +22,8 @@ namespace MWB.Networking.Layer0_Transport.Driver;
 /// - No session logic
 /// - No reconnection or retry policy
 /// </summary>
-internal sealed class TransportDriver :
-    INetworkFrameSink,
-    INetworkFrameSource,
+public sealed class TransportDriver :
+    INetworkFrameIO,
     IDisposable
 {
     private readonly ITransportStack _transport;
@@ -77,7 +76,7 @@ internal sealed class TransportDriver :
     // Construction
     // ------------------------------------------------------------------
 
-    internal TransportDriver(
+    public TransportDriver(
         ITransportStack transport,
         NetworkPipeline pipeline)
     {
@@ -95,7 +94,7 @@ internal sealed class TransportDriver :
     /// <summary>
     /// Starts the read-and-decode loop. Must be called exactly once.
     /// </summary>
-    internal void Start()
+    public void Start()
     {
         _ioTask = Task.Run(ReadAndDecodeLoop);
     }

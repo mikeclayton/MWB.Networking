@@ -1,6 +1,4 @@
-﻿using MWB.Networking.Layer2_Protocol.Runtime;
-
-namespace MWB.Networking.Layer3_Endpoint.Hosting;
+﻿namespace MWB.Networking.Layer3_Endpoint.Hosting;
 
 /// <summary>
 /// Application-facing builder for protocol sessions.
@@ -41,6 +39,12 @@ public sealed partial class SessionEndpointBuilder
                 "Network pipeline factory is not configured.");
         }
 
+        if (_connectionProvider is null)
+        {
+            throw new InvalidOperationException(
+                "Connection provider not configured. Call UseConnectionProvider().");
+        }
+
         // ------------------------------------------------------------
         // Create protocol runtime objects (Layer 3 – lifecycle owner)
         // ------------------------------------------------------------
@@ -48,6 +52,7 @@ public sealed partial class SessionEndpointBuilder
         var runtimeFactory =
             new ProtocolRuntimeFactory(
                 _logger,
+                _connectionProvider,
                 _pipelineFactory,
                 _streamIdParity.Value);
 
