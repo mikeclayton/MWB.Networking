@@ -40,7 +40,7 @@ public sealed class IncomingRequest
     /// <summary>
     /// Sends an error Response for this Request and closes the Request.
     /// </summary>
-    public OutgoingResponse RespondWithError(ReadOnlyMemory<byte> payload = default)
+    public OutgoingResponse Reject(ReadOnlyMemory<byte> payload = default)
     {
         return this.Session.RequestManager.Outbound.CloseRequestWithError(this.Context, payload);
     }

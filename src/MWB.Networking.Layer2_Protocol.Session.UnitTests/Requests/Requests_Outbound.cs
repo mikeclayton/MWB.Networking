@@ -171,12 +171,11 @@ public sealed partial class Requests_Outbound
     {
         var session = ProtocolSessionHelper.CreateOddProtocolSession(NullLogger.Instance);
         var processor = session.Processor;
+        using var capture = new OutboundFrameCapture(session);
 
         IncomingRequest? request = null;
         session.Observer.RequestReceived += (req, _) => request = req;
         processor.ProcessFrame(ProtocolFrames.Request(1));
-
-        using var capture = new OutboundFrameCapture(session);
 
         Assert.IsNotNull(request);
         request.Respond(payload: new byte[] { 0xAB, 0xCD });
@@ -190,12 +189,12 @@ public sealed partial class Requests_Outbound
     {
         var session = ProtocolSessionHelper.CreateOddProtocolSession(NullLogger.Instance);
         var processor = session.Processor;
+        using var capture = new OutboundFrameCapture(session);
 
         IncomingRequest? request = null;
         session.Observer.RequestReceived += (req, _) => request = req;
         processor.ProcessFrame(ProtocolFrames.Request(1));
 
-        using var capture = new OutboundFrameCapture(session);
         request!.Respond(payload: new byte[] { 0x01 });
 
         Assert.AreEqual(1u, capture.Frames[0].RequestId);
@@ -206,12 +205,12 @@ public sealed partial class Requests_Outbound
     {
         var session = ProtocolSessionHelper.CreateOddProtocolSession(NullLogger.Instance);
         var processor = session.Processor;
+        using var capture = new OutboundFrameCapture(session);
 
         IncomingRequest? request = null;
         session.Observer.RequestReceived += (req, _) => request = req;
         processor.ProcessFrame(ProtocolFrames.Request(1));
 
-        using var capture = new OutboundFrameCapture(session);
         var payload = new byte[] { 0xAB, 0xCD };
         request!.Respond(payload: payload);
 
@@ -253,18 +252,64 @@ public sealed partial class Requests_Outbound
     {
         var session = ProtocolSessionHelper.CreateOddProtocolSession(NullLogger.Instance);
         var processor = session.Processor;
+        using var capture = new OutboundFrameCapture(session);
 
         IncomingRequest? request = null;
         session.Observer.RequestReceived += (req, _) => request = req;
         processor.ProcessFrame(ProtocolFrames.Request(1));
 
         request!.Respond(payload: new byte[] { 0xA1 });
-
-        using var capture = new OutboundFrameCapture(session);
+        Assert.AreEqual(1, capture.Frames.Count);
 
         try { request.Respond(payload: new byte[] { 0xA2 }); } catch (InvalidOperationException) { }
+        Assert.AreEqual(1, capture.Frames.Count);
+    }
 
-        Assert.IsEmpty(capture.Frames);
+    [TestMethod]
+    public void Respond_EmittedFrame_CarriesCorrectResponseType()
+    {
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(NullLogger.Instance);
+        var processor = session.Processor;
+        using var capture = new OutboundFrameCapture(session);
+
+        IncomingRequest? request = null;
+        session.Observer.RequestReceived += (req, _) => request = req;
+        processor.ProcessFrame(ProtocolFrames.Request(1));
+
+        request!.Respond(responseType: 77u);
+
+        Assert.AreEqual(77u, capture.Frames[0].ResponseType);
+    }
+
+    [TestMethod]
+    public void Respond_WithNullResponseType_EmittedFrame_HasNullResponseType()
+    {
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(NullLogger.Instance);
+        var processor = session.Processor;
+        using var capture = new OutboundFrameCapture(session);
+
+        IncomingRequest? request = null;
+        session.Observer.RequestReceived += (req, _) => request = req;
+        processor.ProcessFrame(ProtocolFrames.Request(1));
+
+        request!.Respond(responseType: null);
+
+        Assert.IsNull(capture.Frames[0].ResponseType);
+    }
+
+    [TestMethod]
+    public void Respond_OutgoingResponse_CarriesCorrectResponseType()
+    {
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(NullLogger.Instance);
+        var processor = session.Processor;
+
+        IncomingRequest? request = null;
+        session.Observer.RequestReceived += (req, _) => request = req;
+        processor.ProcessFrame(ProtocolFrames.Request(1));
+
+        var response = request!.Respond(responseType: 77u);
+
+        Assert.AreEqual(77u, response.ResponseType);
     }
 
     // ---------------------------------------------------------------
@@ -276,12 +321,12 @@ public sealed partial class Requests_Outbound
     {
         var session = ProtocolSessionHelper.CreateOddProtocolSession(NullLogger.Instance);
         var processor = session.Processor;
+        using var capture = new OutboundFrameCapture(session);
 
         IncomingRequest? request = null;
         session.Observer.RequestReceived += (req, _) => request = req;
         processor.ProcessFrame(ProtocolFrames.Request(1));
 
-        using var capture = new OutboundFrameCapture(session);
         request!.Reject(new byte[] { 0xFF });
 
         Assert.HasCount(1, capture.Frames);
@@ -293,12 +338,12 @@ public sealed partial class Requests_Outbound
     {
         var session = ProtocolSessionHelper.CreateOddProtocolSession(NullLogger.Instance);
         var processor = session.Processor;
+        using var capture = new OutboundFrameCapture(session);
 
         IncomingRequest? request = null;
         session.Observer.RequestReceived += (req, _) => request = req;
         processor.ProcessFrame(ProtocolFrames.Request(1));
 
-        using var capture = new OutboundFrameCapture(session);
         request!.Reject();
 
         Assert.AreEqual(1u, capture.Frames[0].RequestId);
@@ -309,12 +354,12 @@ public sealed partial class Requests_Outbound
     {
         var session = ProtocolSessionHelper.CreateOddProtocolSession(NullLogger.Instance);
         var processor = session.Processor;
+        using var capture = new OutboundFrameCapture(session);
 
         IncomingRequest? request = null;
         session.Observer.RequestReceived += (req, _) => request = req;
         processor.ProcessFrame(ProtocolFrames.Request(1));
 
-        using var capture = new OutboundFrameCapture(session);
         var payload = new byte[] { 0xDE, 0xAD };
         request!.Reject(payload);
 
@@ -375,14 +420,13 @@ public sealed partial class Requests_Outbound
     {
         var session = ProtocolSessionHelper.CreateOddProtocolSession(NullLogger.Instance);
         var processor = session.Processor;
+        using var capture = new OutboundFrameCapture(session);
 
         var requests = new List<IncomingRequest>();
         session.Observer.RequestReceived += (req, _) => requests.Add(req);
 
         processor.ProcessFrame(ProtocolFrames.Request(1));
         processor.ProcessFrame(ProtocolFrames.Request(2));
-
-        using var capture = new OutboundFrameCapture(session);
 
         requests[0].Respond(payload: new byte[] { 0x11 });
         requests[1].Respond(payload: new byte[] { 0x22 });
