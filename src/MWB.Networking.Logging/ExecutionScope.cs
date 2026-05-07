@@ -4,7 +4,7 @@ public sealed class ExecutionScope : IDisposable
 {
     private readonly Action _onEndScope;
     private readonly IDisposable? _innerScope;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     private ExecutionScope(IDisposable? innerScope, Action onEndScope)
     {
@@ -38,12 +38,11 @@ public sealed class ExecutionScope : IDisposable
 
     public void Dispose()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposed, true))
         {
+            // was already disposed
             return;
         }
-
-        _disposed = true;
 
         _onEndScope();
         _innerScope?.Dispose();

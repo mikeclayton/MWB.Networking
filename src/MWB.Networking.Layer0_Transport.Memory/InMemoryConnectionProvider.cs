@@ -1,52 +1,61 @@
-﻿namespace MWB.Networking.Layer0_Transport.Memory;
+﻿using MWB.Networking.Layer0_Transport.Stack.Abstractions;
+using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
+using MWB.Networking.Layer0_Transport.Memory.Buffer;
 
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+namespace MWB.Networking.Layer0_Transport.Memory;
 
 /// <summary>
-/// Provides one end of a duplex, buffered, in‑memory network connection.
-/// Intended for tests and single‑process protocol harnesses.
+/// Network connection provider that exposes one side of an
+/// in-memory full-duplex transport.
 /// </summary>
+/// <remarks>
+/// This provider is lifecycle-agnostic. It binds an
+/// <see cref="ObservableConnectionStatus"/> to the selected
+/// <see cref="InMemoryConnection"/> and signals that the
+/// connection has started.
+/// </remarks>
 public sealed class InMemoryNetworkConnectionProvider
+    : INetworkConnectionProvider
 {
-    private readonly INetworkConnection _connection;
+    private readonly SegmentedDuplexBuffer _buffer;
+    private readonly SegmentedDuplexBufferSide _side;
+
     private bool _opened;
 
-    private InMemoryNetworkConnectionProvider(INetworkConnection connection)
+    public InMemoryNetworkConnectionProvider(
+        SegmentedDuplexBuffer buffer,
+        SegmentedDuplexBufferSide side)
     {
-        _connection = connection;
+        _buffer = buffer ?? throw new ArgumentNullException(nameof(buffer));
+        _side = side;
     }
 
-    /// <summary>
-    /// Creates two paired providers representing opposite ends
-    /// of a single duplex in‑memory transport.
-    /// </summary>
-    public static (
-        InMemoryNetworkConnectionProvider ProviderA,
-        InMemoryNetworkConnectionProvider ProviderB)
-        CreateDuplexProviders()
+    public Task<INetworkConnection> OpenConnectionAsync(
+        ObservableConnectionStatus status,
+        CancellationToken ct)
     {
-        var pair = new InMemoryConnectionPair();
+        ct.ThrowIfCancellationRequested();
 
-        return (
-            new InMemoryNetworkConnectionProvider(pair.ConnectionAtoB),
-            new InMemoryNetworkConnectionProvider(pair.ConnectionBtoA)
-        );
-    }
-
-    /// <summary>
-    /// Opens the in‑memory connection. May only be called once.
-    /// </summary>
-    public ValueTask<INetworkConnection> OpenConnectionAsync(
-        CancellationToken cancellationToken = default)
-    {
-        if (Interlocked.Exchange(ref _opened, true))
-        {
+        if (_opened)
             throw new InvalidOperationException(
-                "InMemoryNetworkConnectionProvider can only open one connection.");
-        }
+                "This provider can only open one connection instance.");
 
-        return new ValueTask<INetworkConnection>(_connection);
+        _opened = true;
+
+        var connection = _buffer.GetConnection(_side);
+
+        // Bind lifecycle state for this connection attempt
+        connection.BindStatus(status);
+
+        // Signal that wiring is complete and the connection is usable
+        connection.OnStarted();
+
+        return Task.FromResult<INetworkConnection>(connection);
+    }
+
+    public void Dispose()
+    {
+        // Intentionally no-op.
+        // The TransportStack owns connection lifetime.
     }
 }

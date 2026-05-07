@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer0_Transport;
 using MWB.Networking.Layer0_Transport.Pipes;
+using MWB.Networking.Layer0_Transport.Stack.Abstractions;
 using System.IO.Pipelines;
 using System.IO.Pipes;
 

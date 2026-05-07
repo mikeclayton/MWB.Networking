@@ -38,7 +38,7 @@ public static class MethodPrefixFormatter
             _ => "????"
         };
 
-        displayName = displayName ?? shortId;
+        displayName ??= shortId;
 
         var prefix = $"[{timestamp}] {levelName} [{className}:{displayName}:{methodName}]";
 

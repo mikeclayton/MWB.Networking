@@ -1,0 +1,1234 @@
+
+================================================================================
+FILE: Abstractions\IByteStreamCodec.cs
+================================================================================
+
+namespace MWB.Networking.Layer1_Framing.Abstractions;
+
+/// <summary>
+/// Codec defining the boundary between framing and the underlying byte-stream transport.
+/// </summary>
+public interface IByteStreamCodec
+    : ICodec<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>>
+{
+}
+
+
+
+================================================================================
+FILE: Abstractions\ICodec.cs
+================================================================================
+
+using System.Buffers;
+
+namespace MWB.Networking.Layer1_Framing.Abstractions;
+
+/// <summary>
+/// Defines a reversible transformation between two framed representations.
+/// Codecs are direction-agnostic and may maintain internal state to support
+/// streaming and partial decoding.
+/// </summary>
+public interface ICodec<TInput, TOutput>
+{
+    /// <summary>
+    /// Encodes a complete frame from the input representation into bytes.
+    /// Must write exactly one complete encoded frame.
+    /// </summary>
+    ValueTask EncodeAsync(
+        TInput input,
+        IBufferWriter<byte> encoded,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Attempts to decode a complete frame from the provided byte sequence.
+    /// Returns false if more data is required. On success, consumes input
+    /// atomically and outputs exactly one decoded frame.
+    /// </summary>
+    bool TryDecode(
+        ref ReadOnlySequence<byte> encoded,
+        out TOutput output);
+}
+
+
+
+================================================================================
+FILE: Abstractions\IFrameCodec.cs
+================================================================================
+
+namespace MWB.Networking.Layer1_Framing.Abstractions;
+
+/// <summary>
+/// Framing codec that performs structural transformations over framed binary data.
+/// These codecs are protocol-agnostic and freely composable.
+/// </summary>
+public interface IFrameCodec
+    : ICodec<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>>
+{
+}
+
+
+
+================================================================================
+FILE: Abstractions\INetworkFrameCodec.cs
+================================================================================
+
+using MWB.Networking.Layer1_Framing.Frames;
+
+namespace MWB.Networking.Layer1_Framing.Abstractions;
+/// <summary>
+/// Codec defining the boundary between protocol semantics and framing.
+/// Converts NetworkFrame instances to and from their binary form.
+/// </summary>
+public interface INetworkFrameCodec
+    : ICodec<NetworkFrame, NetworkFrame>
+{
+}
+
+
+
+================================================================================
+FILE: Frames\NetworkFrame.cs
+================================================================================
+
+namespace MWB.Networking.Layer1_Framing.Frames;
+
+public sealed class NetworkFrame
+{
+    // ============================================================
+    // Raw constructor (for decoding and low-level plumbing only)
+    // ============================================================
+
+    public NetworkFrame(
+        NetworkFrameKind kind,
+        uint? eventType,
+        uint? requestId,
+        uint? requestType,
+        uint? responseType,
+        uint? streamId,
+        uint? streamType,
+        ReadOnlyMemory<byte> payload)
+    {
+        this.Kind = kind;
+        this.EventType = eventType;
+        this.RequestId = requestId;
+        this.RequestType = requestType;
+        this.ResponseType = responseType;
+        this.StreamId = streamId;
+        this.StreamType = streamType;
+        this.Payload = payload;
+    }
+
+    // ============================================================
+    // Frame fields
+    // ============================================================
+
+    // Structural discriminator
+    public NetworkFrameKind Kind
+    {
+        get;
+    }
+
+    // Application metadata (opaque at Layer 0)
+    public uint? EventType
+    {
+        get;
+    }
+
+    // Correlation (opaque at Layer 0)
+    public uint? RequestId
+    {
+        get;
+    }
+
+    // Application metadata (opaque at Layer 0)
+    public uint? RequestType
+    {
+        get;
+    }
+
+    // Application metadata (opaque at Layer 0)
+    public uint? ResponseType
+    {
+        get;
+    }
+
+    // Stream multiplexing (opaque at Layer 0)
+    public uint? StreamId
+    {
+        get;
+    }
+
+    // Application metadata (opaque at Layer 0)
+    public uint? StreamType
+    {
+        get;
+    }
+
+    // Opaque payload
+    public ReadOnlyMemory<byte> Payload
+    {
+        get;
+    }
+}
+
+
+
+================================================================================
+FILE: Frames\NetworkFrameFlags.cs
+================================================================================
+
+namespace MWB.Networking.Layer1_Framing.Internal;
+
+[Flags]
+internal enum NetworkFrameFlags : byte
+{
+    None = 0,
+    HasEventType = 1 << 0,
+    HasRequestId = 1 << 1,
+    HasRequestType = 1 << 2,
+    HasResponseType = 1 << 3,
+    HasStreamId = 1 << 4,
+    HasStreamType = 1 << 5,
+
+    // Reserved for future structural extensions
+    Reserved6 = 1 << 6,
+    Reserved7 = 1 << 7
+}
+
+
+
+================================================================================
+FILE: Frames\NetworkFrameKind.cs
+================================================================================
+
+namespace MWB.Networking.Layer1_Framing.Frames;
+
+/// <summary>
+/// Keep this in sync with ProtocolFrameKind.
+/// </summary>
+public enum NetworkFrameKind : byte
+{
+    /// <summary>
+    /// A fire-and-forget frame that carries a discrete payload with no correlation
+    /// to any request or stream. Events do not expect a response and are delivered
+    /// exactly once to the receiver.
+    ///
+    /// Typical uses include user input (mouse, keyboard), notifications, or telemetry
+    /// where ordering is preserved by the transport but application-level acknowledgment
+    /// is not required.
+    /// </summary>
+    Event = 0x01,
+
+    /// <summary>
+    /// Initiates a correlated request identified by a RequestId. A request represents
+    /// an explicit unit of intent and establishes a request lifecycle that may produce
+    /// responses and/or streams.
+    ///
+    /// A request does not imply a one-to-one response; it may result in zero, one,
+    /// or multiple response frames and streams.
+    /// </summary>
+    Request = 0x02,
+
+    /// <summary>
+    /// Carries a correlated response payload for a previously issued request.
+    /// Multiple response frames may be sent for a single request, and responses
+    /// may be interleaved with stream activity.
+    ///
+    /// A response frame does not indicate request completion.
+    /// </summary>
+    Response = 0x03,
+
+    Error = 0x04,
+
+    /// <summary>
+    /// Announces the creation of a new logical stream identified by a StreamId.
+    /// The payload contains opaque metadata describing the stream's purpose
+    /// or characteristics.
+    ///
+    /// StreamOpen frames provide an explicit opportunity for the receiver to
+    /// accept or refuse the stream before data transfer begins.
+    /// </summary>
+    StreamOpen = 0x10,
+
+    /// <summary>
+    /// Transfers a contiguous chunk of data belonging to an open stream.
+    /// StreamData frames are ordered within a stream and may be interleaved
+    /// with frames from other streams or requests.
+    ///
+    /// Chunk sequencing and completion are purely structural; higher layers
+    /// determine how stream data is consumed or assembled.
+    /// </summary>
+    StreamData = 0x11,
+
+    /// <summary>
+    /// Indicates a normal, ordered termination of a stream.
+    /// After this frame, no further StreamData frames will be sent for the StreamId.
+    ///
+    /// StreamClose affects only the individual stream and does not complete
+    /// or cancel the associated request, if any.
+    /// </summary>
+    StreamClose = 0x12,
+
+    /// <summary>
+    /// Indicates an abnormal or premature termination of a stream due to error,
+    /// refusal, or cancellation.
+    ///
+    /// A StreamAbort immediately ends the stream identified by the StreamId and
+    /// invalidates any in-flight data for that stream. No further StreamData or
+    /// StreamClose frames will be sent for the StreamId.
+    ///
+    /// Higher layers may interpret a StreamAbort as a failure or partial failure
+    /// depending on the role of the stream within a request or operation; other
+    /// streams and request lifecycles are otherwise unaffected.
+    /// </summary>
+    StreamAbort = 0x13,
+}
+
+
+
+================================================================================
+FILE: Frames\NetworkFrames.cs
+================================================================================
+
+namespace MWB.Networking.Layer1_Framing.Frames;
+
+public static class NetworkFrames
+{
+    // ============================================================
+    // Semantic factory methods (enforce invariants)
+    // ============================================================
+
+    // -----------------------------
+    // Event
+    // -----------------------------
+
+    public static NetworkFrame Event(
+        uint? eventType,
+        ReadOnlyMemory<byte> payload = default)
+    {
+        return new NetworkFrame(
+            kind: NetworkFrameKind.Event,
+            eventType: eventType,
+            requestId: null,
+            requestType: null,
+            responseType: null,
+            streamId: null,
+            streamType: null,
+            payload: payload);
+    }
+
+    // -----------------------------
+    // Request
+    // -----------------------------
+
+    public static NetworkFrame Request(
+        uint requestId,
+        uint? requestType = null,
+        ReadOnlyMemory<byte> payload = default)
+    {
+        return new NetworkFrame(
+            kind: NetworkFrameKind.Request,
+            eventType: null,
+            requestId: requestId,
+            requestType: requestType,
+            responseType: null,
+            streamId: null,
+            streamType: null,
+            payload: payload);
+    }
+
+    // -----------------------------
+    // Response
+    // -----------------------------
+
+    public static NetworkFrame Response(
+        uint requestId,
+        uint? responseType,
+        ReadOnlyMemory<byte> payload)
+    {
+        return new NetworkFrame(
+            kind: NetworkFrameKind.Response,
+            eventType: null,
+            requestId: requestId,
+            requestType: null,
+            responseType: responseType,
+            streamId: null,
+            streamType: null,
+            payload: payload);
+    }
+
+    // -----------------------------
+    // Stream Open
+    // -----------------------------
+
+    public static NetworkFrame StreamOpen(
+        uint streamId,
+        uint? streamType = null,
+        uint? requestId = null,
+        ReadOnlyMemory<byte> metadata = default)
+    {
+        return new NetworkFrame(
+            kind: NetworkFrameKind.StreamOpen,
+            eventType: null,
+            requestId: requestId,
+            requestType: null,
+            responseType: null,
+            streamId: streamId,
+            streamType: streamType,
+            payload: metadata);
+    }
+
+    // -----------------------------
+    // Stream Data
+    // -----------------------------
+
+    public static NetworkFrame StreamData(
+        uint streamId,
+        ReadOnlyMemory<byte> payload = default)
+    {
+        return new NetworkFrame(
+            kind: NetworkFrameKind.StreamData,
+            eventType: null,
+            requestId: null,
+            requestType: null,
+            responseType: null,
+            streamId: streamId,
+            streamType: null,
+            payload: payload);
+    }
+
+    // -----------------------------
+    // Stream Close
+    // -----------------------------
+
+    public static NetworkFrame StreamClose(
+        uint streamId,
+        ReadOnlyMemory<byte> metadata = default)
+    {
+        return new NetworkFrame(
+            kind: NetworkFrameKind.StreamClose,
+            eventType: null,
+            requestId: null,
+            requestType: null,
+            responseType: null,
+            streamId: streamId,
+            streamType: null,
+            payload: metadata);
+    }
+}
+
+
+
+================================================================================
+FILE: Helpers\DecoderBuffer.cs
+================================================================================
+
+using System.Buffers;
+
+namespace MWB.Networking.Layer1_Framing.Helpers;
+
+/// <summary>
+/// A utility class - a decoder-owned byte accumulation buffer used to
+/// support incremental, stream-oriented decoding of frame data.
+///
+/// This type provides only mechanical buffering operations (append,
+/// inspect, consume). It deliberately contains no framing, encoding,
+/// or protocol semantics. All interpretation of buffered bytes
+/// remains the responsibility of the decoder that owns this instance.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <see cref="DecoderBuffer"/> exists to bridge the semantic gap between
+/// stream-oriented transports (which deliver arbitrary byte chunks)
+/// and frame-oriented decoders (which must reconstruct complete frames).
+/// </para>
+/// <para>
+/// This buffer is intended to be:
+/// <list type="bullet">
+///   <item><description>Owned by a single decoder instance</description></item>
+///   <item><description>Used only on the inbound (decode) path</description></item>
+///   <item><description>Cleared or disposed when the decoder is finished</description></item>
+/// </list>
+/// </para>
+/// <para>
+/// It must not be treated as a general-purpose byte container, nor should
+/// framing logic, prefix parsing, or blocking read semantics be added here.
+/// </para>
+/// </remarks>
+public sealed class DecoderBuffer : IDisposable
+{
+    private byte[] _buffer;
+    private int _count;
+    private bool _disposed;
+
+    /// <summary>
+    /// Creates a new <see cref="DecoderBuffer"/> with the specified initial capacity.
+    /// </summary>
+    /// <param name="initialCapacity">
+    /// The initial buffer capacity. This value is not a maximum; the buffer
+    /// will grow as required to accommodate appended data.
+    /// </param>
+    public DecoderBuffer(int initialCapacity = 4096)
+    {
+        if (initialCapacity <= 0)
+            throw new ArgumentOutOfRangeException(nameof(initialCapacity));
+
+        _buffer = ArrayPool<byte>.Shared.Rent(initialCapacity);
+        _count = 0;
+    }
+
+    /// <summary>
+    /// Gets the number of bytes currently buffered.
+    /// </summary>
+    public int Count => _count;
+
+    /// <summary>
+    /// Gets a contiguous, read-only view over the currently buffered bytes.
+    /// </summary>
+    /// <remarks>
+    /// The returned span represents all accumulated bytes that have not yet
+    /// been consumed. Decoders may inspect this span to determine whether
+    /// enough data is available to make decoding progress.
+    /// </remarks>
+    public ReadOnlySpan<byte> Span => _buffer.AsSpan(0, _count);
+
+    /// <summary>
+    /// Appends bytes to the end of the buffer.
+    /// </summary>
+    /// <param name="data">
+    /// The byte data to append.
+    /// </param>
+    /// <remarks>
+    /// This method performs no interpretation of the appended bytes.
+    /// It simply ensures capacity and copies the data into the buffer.
+    /// </remarks>
+    public void Append(ReadOnlySpan<byte> data)
+    {
+        EnsureCapacity(_count + data.Length);
+        data.CopyTo(_buffer.AsSpan(_count));
+        _count += data.Length;
+    }
+
+    /// <summary>
+    /// Consumes (removes) a prefix of the buffered data.
+    /// </summary>
+    /// <param name="count">
+    /// The number of bytes to remove from the start of the buffer.
+    /// </param>
+    /// <remarks>
+    /// After consumption, any remaining bytes are shifted down to the start
+    /// of the buffer. This operation encodes no knowledge of framing or
+    /// message boundaries; the caller is responsible for determining how
+    /// many bytes are safe to consume.
+    /// </remarks>
+    public void Consume(int count)
+    {
+        if ((uint)count > (uint)_count)
+            throw new ArgumentOutOfRangeException(nameof(count));
+
+        if (count == _count)
+        {
+            _count = 0;
+            return;
+        }
+
+        Buffer.BlockCopy(
+            _buffer, count,
+            _buffer, 0,
+            _count - count);
+
+        _count -= count;
+    }
+
+    /// <summary>
+    /// Removes all buffered bytes without releasing the underlying storage.
+    /// </summary>
+    /// <remarks>
+    /// This is equivalent to consuming the entire buffer and is typically
+    /// used when resetting decoder state.
+    /// </remarks>
+    public void Clear()
+    {
+        _count = 0;
+    }
+
+    private void EnsureCapacity(int required)
+    {
+        if (_buffer.Length >= required)
+            return;
+
+        int newCapacity = Math.Max(required, _buffer.Length * 2);
+        var newBuffer = ArrayPool<byte>.Shared.Rent(newCapacity);
+
+        _buffer.AsSpan(0, _count).CopyTo(newBuffer);
+
+        ArrayPool<byte>.Shared.Return(_buffer);
+        _buffer = newBuffer;
+    }
+
+    /// <summary>
+    /// Releases the underlying buffer back to the pool.
+    /// </summary>
+    /// <remarks>
+    /// After disposal, the <see cref="DecoderBuffer"/> must not be used again.
+    /// </remarks>
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        _disposed = true;
+        ArrayPool<byte>.Shared.Return(_buffer);
+        _buffer = [];
+        _count = 0;
+    }
+}
+
+
+
+================================================================================
+FILE: Helpers\EncoderBuffer.cs
+================================================================================
+
+using System.Buffers;
+
+namespace MWB.Networking.Layer1_Framing.Helpers;
+
+/// <summary>
+/// Minimal buffer writer implementation for demonstration.
+/// Replace with pooled / segmented writer in production.
+/// </summary>
+internal sealed class EncoderBuffer : IBufferWriter<byte>, IDisposable
+{
+    private byte[] _buffer = new byte[1024];
+    private int _written;
+
+    public ReadOnlyMemory<byte> WrittenMemory => new(_buffer, 0, _written);
+
+    public Memory<byte> GetMemory(int sizeHint = 0)
+    {
+        EnsureCapacity(sizeHint);
+        return _buffer.AsMemory(_written);
+    }
+
+    public Span<byte> GetSpan(int sizeHint = 0)
+    {
+        EnsureCapacity(sizeHint);
+        return _buffer.AsSpan(_written);
+    }
+
+    public void Advance(int count)
+    {
+        _written += count;
+    }
+
+    private void EnsureCapacity(int sizeHint)
+    {
+        if (_buffer.Length - _written >= sizeHint)
+            return;
+
+        Array.Resize(ref _buffer, Math.Max(_buffer.Length * 2, _written + sizeHint));
+    }
+
+    public void Dispose()
+    {
+        // placeholder for pooling
+    }
+}
+
+
+
+================================================================================
+FILE: MWB.Networking.Layer1_Framing.csproj
+================================================================================
+
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Abstractions\IFrameDecoder.cs" />
+    <Compile Remove="Abstractions\IFrameDecoderSink.cs" />
+    <Compile Remove="Abstractions\IFrameEncoder.cs" />
+    <Compile Remove="Abstractions\IFrameEncoderSink.cs" />
+    <Compile Remove="Pipeline.Core.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MWB.Networking.Layer0_Transport\MWB.Networking.Layer0_Transport.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Internal\" />
+  </ItemGroup>
+
+</Project>
+
+
+
+================================================================================
+FILE: obj\Debug\net9.0\.NETCoreApp,Version=v9.0.AssemblyAttributes.cs
+================================================================================
+
+// <autogenerated />
+using System;
+using System.Reflection;
+[assembly: global::System.Runtime.Versioning.TargetFrameworkAttribute(".NETCoreApp,Version=v9.0", FrameworkDisplayName = ".NET 9.0")]
+
+
+
+================================================================================
+FILE: obj\Debug\net9.0\MWB.Networking.Layer1_Framing.AssemblyInfo.cs
+================================================================================
+
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     This code was generated by a tool.
+//     Runtime Version:4.0.30319.42000
+//
+//     Changes to this file may cause incorrect behavior and will be lost if
+//     the code is regenerated.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("MWB.Networking.Layer1_Framing")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+902161f11c3771ee08f4a3a3f6190a6e743e6cc7")]
+[assembly: System.Reflection.AssemblyProductAttribute("MWB.Networking.Layer1_Framing")]
+[assembly: System.Reflection.AssemblyTitleAttribute("MWB.Networking.Layer1_Framing")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+
+// Generated by the MSBuild WriteCodeFragment class.
+
+
+
+
+================================================================================
+FILE: obj\Debug\net9.0\MWB.Networking.Layer1_Framing.GlobalUsings.g.cs
+================================================================================
+
+// <auto-generated/>
+global using System;
+global using System.Collections.Generic;
+global using System.IO;
+global using System.Linq;
+global using System.Net.Http;
+global using System.Threading;
+global using System.Threading.Tasks;
+
+
+
+================================================================================
+FILE: Pipeline.Core.cs
+================================================================================
+
+using System;
+using System.Buffers;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace MWB.Networking.Layer1_Framing
+{
+    
+    // ============================
+    // Simple buffer helper
+    // ============================
+
+    /// <summary>
+    /// Minimal buffer writer implementation for demonstration.
+    /// Replace with pooled / segmented writer in production.
+    /// </summary>
+    internal sealed class OwnedBuffer : IBufferWriter<byte>, IDisposable
+    {
+        private byte[] _buffer = new byte[1024];
+        private int _written;
+
+        public ReadOnlyMemory<byte> WrittenMemory => new(_buffer, 0, _written);
+
+        public Memory<byte> GetMemory(int sizeHint = 0)
+        {
+            EnsureCapacity(sizeHint);
+            return _buffer.AsMemory(_written);
+        }
+
+        public Span<byte> GetSpan(int sizeHint = 0)
+        {
+            EnsureCapacity(sizeHint);
+            return _buffer.AsSpan(_written);
+        }
+
+        public void Advance(int count)
+        {
+            _written += count;
+        }
+
+        private void EnsureCapacity(int sizeHint)
+        {
+            if (_buffer.Length - _written >= sizeHint)
+                return;
+
+            Array.Resize(ref _buffer, Math.Max(_buffer.Length * 2, _written + sizeHint));
+        }
+
+        public void Dispose()
+        {
+            // placeholder for pooling
+        }
+    }
+}
+``
+
+
+
+================================================================================
+FILE: Pipeline\INetworkPipelineFactory.cs
+================================================================================
+
+namespace MWB.Networking.Layer1_Framing.Pipeline;
+
+public interface INetworkPipelineFactory
+{
+    Task<NetworkPipeline> CreatePipelineAsync(CancellationToken ct);
+}
+
+
+
+================================================================================
+FILE: Pipeline\NetworkPipeline.cs
+================================================================================
+
+using MWB.Networking.Layer1_Framing.Abstractions;
+using MWB.Networking.Layer1_Framing.Frames;
+using MWB.Networking.Layer1_Framing.Helpers;
+using System.Buffers;
+
+namespace MWB.Networking.Layer1_Framing.Pipeline;
+
+/// <summary>
+/// Composes a network framing pipeline from codecs.
+/// Owns ordering, buffering, and direction.
+/// </summary>
+public sealed class NetworkPipeline
+{
+    private readonly INetworkFrameCodec _networkFrameCodec;
+    private readonly IReadOnlyList<IFrameCodec> _frameCodecs;
+    private readonly IByteStreamCodec _byteStreamCodec;
+
+    public NetworkPipeline(
+        INetworkFrameCodec networkFrameCodec,
+        IReadOnlyList<IFrameCodec> frameCodecs,
+        IByteStreamCodec byteStreamCodec)
+    {
+        _networkFrameCodec = networkFrameCodec;
+        _frameCodecs = frameCodecs;
+        _byteStreamCodec = byteStreamCodec;
+    }
+
+    // --------------------------------
+    // Encode: NetworkFrame -> transport bytes
+    // --------------------------------
+
+    public async ValueTask EncodeAsync(
+        NetworkFrame frame,
+        IBufferWriter<byte> transportBytesOut,
+        CancellationToken ct)
+    {
+        using var buffer0 = new EncoderBuffer();
+
+        await _networkFrameCodec.EncodeAsync(frame, buffer0, ct);
+        ReadOnlyMemory<byte> current = buffer0.WrittenMemory;
+
+        foreach (var codec in _frameCodecs)
+        {
+            using var next = new EncoderBuffer();
+            await codec.EncodeAsync(current, next, ct);
+            current = next.WrittenMemory;
+        }
+
+        await _byteStreamCodec.EncodeAsync(current, transportBytesOut, ct);
+    }
+
+    // --------------------------------
+    // Decode: transport bytes -> NetworkFrame
+    // --------------------------------
+
+    public bool TryDecode(
+        ref ReadOnlySequence<byte> transportBytesIn,
+        out NetworkFrame? frame)
+    {
+        frame = null;
+
+        // We work on a local copy so we only advance the caller's buffer on success
+        ReadOnlySequence<byte> current = transportBytesIn;
+
+        ReadOnlyMemory<byte> currentFrameBytes;
+
+        // ------------------------------------------------------------
+        // Step 1: Transport boundary -> framed bytes
+        // ------------------------------------------------------------
+        if (!_byteStreamCodec.TryDecode(ref current, out currentFrameBytes))
+            return false; // need more transport data
+
+        // ------------------------------------------------------------
+        // Step 2: Framing codecs (reverse order)
+        // ------------------------------------------------------------
+        for (int i = _frameCodecs.Count - 1; i >= 0; i--)
+        {
+            var codec = _frameCodecs[i];
+
+            // Each framing codec always decodes from a fresh sequence
+            var seq = new ReadOnlySequence<byte>(currentFrameBytes);
+
+            if (!codec.TryDecode(ref seq, out currentFrameBytes))
+                return false; // framing incomplete
+        }
+
+        // ------------------------------------------------------------
+        // Step 3: Network frame boundary
+        // ------------------------------------------------------------
+        {
+            var seq = new ReadOnlySequence<byte>(currentFrameBytes);
+
+            if (!_networkFrameCodec.TryDecode(ref seq, out var decodedFrame))
+                return false; // malformed or incomplete frame
+
+            frame = decodedFrame;
+        }
+
+        // ------------------------------------------------------------
+        // Success: advance caller buffer atomically
+        // ------------------------------------------------------------
+        transportBytesIn = current;
+        return true;
+    }
+}
+
+
+
+================================================================================
+FILE: Pipeline\NetworkPipelineFactory.cs
+================================================================================
+
+using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer0_Transport;
+using MWB.Networking.Layer1_Framing.Encoding;
+using MWB.Networking.Layer1_Framing.Encoding.Abstractions;
+using MWB.Networking.Layer1_Framing.Encoding.Helpers;
+using MWB.Networking.Layer1_Framing.Frames;
+
+namespace MWB.Networking.Layer1_Framing.Pipeline;
+
+/// <summary>
+/// Builds the network encoding/decoding pipeline.
+///
+/// - Encoders are appended in conceptual order (gzip → aes → framing)
+/// - Encoders are constructed in reverse order
+/// - Decoders are constructed in forward order
+/// - FrameEncoderBridge is always inserted automatically
+/// </summary>
+public sealed class NetworkPipelineFactory : INetworkPipelineFactory
+{
+    public NetworkPipelineFactory(
+        ILogger logger,
+        INetworkConnectionProvider connectionProvider,
+        IEnumerable<(IFrameEncoder Encoder, IFrameDecoder Decoder)> codecs)
+    {
+        this.Logger = logger ?? throw new InvalidOperationException(nameof(logger));
+        this.Codecs = (codecs ?? throw new InvalidOperationException(nameof(codecs))).ToList().AsReadOnly();
+        this.ConnectionProvider = connectionProvider;
+    }
+
+    private ILogger Logger
+    {
+        get;
+    }
+
+    private IReadOnlyList<(IFrameEncoder Encoder, IFrameDecoder Decoder)> Codecs
+    {
+        get;
+    }
+
+    private INetworkConnectionProvider ConnectionProvider
+    {
+        get;
+    }
+
+    /// <summary>
+    /// Materializes the pipeline.
+    /// </summary>
+    public async Task<NetworkPipeline> CreatePipelineAsync(CancellationToken cancellationToken = default)
+    {
+        // ----------------------------------------------------------
+        // Transport
+        // ----------------------------------------------------------
+
+        var connectionHandle = await this.ConnectionProvider
+            .OpenConnectionAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        // ----------------------------------------------------------
+        // Outbound: encoders (reverse construction order)
+        // ----------------------------------------------------------
+
+        // terminal point at the end of the pipeline
+        var encoderBridge =
+            new FrameEncoderBridge(connectionHandle.Connection);
+
+        // build the pipeline and receive the entrypoint
+        var encoderSink =
+            FramePipelineHelper.BuildEncoderPipeline(
+                this.Codecs.Select(c => c.Encoder).ToList(),
+                encoderBridge);
+
+        var frameWriter =
+            new NetworkFrameWriter(encoderSink);
+
+        // ------------------------------------------------------
+        // Inbound: decoders (forward order, wrapping decoders sinks)
+        // ------------------------------------------------------
+
+        var frameReader = new NetworkFrameReader();
+
+        // Delegate decoding pipeline composition to Layer 1
+        var rootDecoder =
+            FramePipelineHelper.BuildDecoderPipeline(
+                this.Codecs.Select(c => c.Decoder).ToList(),
+                frameReader);
+
+        // ----------------------------------------------------------
+        // Return materialized pipeline
+        // ----------------------------------------------------------
+
+        var pipeline = new NetworkPipeline(
+            this.Logger,
+            connectionHandle.Connection,
+            frameWriter,
+            frameReader,
+            rootDecoder);
+
+        return pipeline;
+    }
+}
+
+
+
+================================================================================
+FILE: Properties\AssemblyInfo.cs
+================================================================================
+
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("MWB.Networking.Layer1_Framing.UnitTests")]
+
+
+
+================================================================================
+FILE: Serialization\NetworkFrameSerializer.cs
+================================================================================
+
+using MWB.Networking.Layer0_Transport.Encoding;
+using MWB.Networking.Layer1_Framing.Frames;
+using MWB.Networking.Layer1_Framing.Internal;
+using System.Buffers.Binary;
+
+namespace MWB.Networking.Layer1_Framing.Serialization;
+
+internal static class NetworkFrameSerializer
+{
+    public static ByteSegments SerializeFrame(NetworkFrame frame)
+    {
+        // ---- 1. Compute flags ---------------------------------------------
+
+        var flags = NetworkFrameFlags.None;
+        if (frame.EventType.HasValue)
+        {
+            flags |= NetworkFrameFlags.HasEventType;
+        }
+        if (frame.RequestId.HasValue)
+        {
+            flags |= NetworkFrameFlags.HasRequestId;
+        }
+        if (frame.RequestType.HasValue)
+        {
+            flags |= NetworkFrameFlags.HasRequestType;
+        }
+        if (frame.ResponseType.HasValue)
+        {
+            flags |= NetworkFrameFlags.HasResponseType;
+        }
+        if (frame.StreamId.HasValue)
+        {
+            flags |= NetworkFrameFlags.HasStreamId;
+        }
+        if (frame.StreamType.HasValue)
+        {
+            flags |= NetworkFrameFlags.HasStreamType;
+        }
+
+        // ---- 2. Compute frame header size ---------------------------------
+
+        var headerLength = 2; // FrameKind + Flags
+
+        if (frame.EventType.HasValue) headerLength += 4;
+        if (frame.RequestId.HasValue) headerLength += 4;
+        if (frame.RequestType.HasValue) headerLength += 4;
+        if (frame.ResponseType.HasValue) headerLength += 4;
+        if (frame.StreamId.HasValue) headerLength += 4;
+        if (frame.StreamType.HasValue) headerLength += 4;
+
+        // ---- 4. Write header ------------------------------------------
+
+        var header = new byte[headerLength];
+        var span = header.AsSpan(0, headerLength);
+        var offset = 0;
+
+        span[offset++] = (byte)frame.Kind;
+        span[offset++] = (byte)flags;
+
+        if (frame.EventType.HasValue)
+        {
+            BinaryPrimitives.WriteUInt32BigEndian(
+                span.Slice(offset, 4), frame.EventType.Value);
+            offset += 4;
+        }
+
+        if (frame.RequestId.HasValue)
+        {
+            BinaryPrimitives.WriteUInt32BigEndian(
+                span.Slice(offset, 4), frame.RequestId.Value);
+            offset += 4;
+        }
+
+        if (frame.RequestType.HasValue)
+        {
+            BinaryPrimitives.WriteUInt32BigEndian(
+                span.Slice(offset, 4), frame.RequestType.Value);
+            offset += 4;
+        }
+
+        if (frame.ResponseType.HasValue)
+        {
+            BinaryPrimitives.WriteUInt32BigEndian(
+                span.Slice(offset, 4), frame.ResponseType.Value);
+            offset += 4;
+        }
+
+        if (frame.StreamId.HasValue)
+        {
+            BinaryPrimitives.WriteUInt32BigEndian(
+                span.Slice(offset, 4), frame.StreamId.Value);
+            offset += 4;
+        }
+
+        if (frame.StreamType.HasValue)
+        {
+            BinaryPrimitives.WriteUInt32BigEndian(
+                span.Slice(offset, 4), frame.StreamType.Value);
+            offset += 4;
+        }
+
+        // build segments (header + payload)
+        return frame.Payload.IsEmpty
+            ? new ByteSegments(header.AsMemory(0, headerLength))
+            : new ByteSegments(
+                header.AsMemory(0, headerLength),
+                frame.Payload);
+    }
+
+    /// <summary>
+    /// Deserializes a single NetworkFrame from its serialized byte representation.
+    /// </summary>
+    /// <remarks>
+    /// The input is assumed to represent exactly one complete logical NetworkFrame.
+    /// No framing, buffering, or transport concerns are handled here.
+    /// </remarks>
+    public static NetworkFrame DeserializeFrame(ByteSegments frame)
+    {
+        // For now, assume a single contiguous segment.
+        // (Can be extended later if needed.)
+        if (frame.Segments.Length != 1)
+            throw new InvalidOperationException(
+                "NetworkFrame deserialization expects a single contiguous segment.");
+
+        var memory = frame.Segments[0];
+        var span = memory.Span;
+        var offset = 0;
+
+        // ---- 1. Read fixed header -----------------------------------------
+
+        var kind = (NetworkFrameKind)span[offset++];
+        var flags = (NetworkFrameFlags)span[offset++];
+
+        uint? eventType = null;
+        uint? requestId = null;
+        uint? requestType = null;
+        uint? responseType = null;
+        uint? streamId = null;
+        uint? streamType = null;
+
+        // ---- 2. Read optional fields --------------------------------------
+
+        if (flags.HasFlag(NetworkFrameFlags.HasEventType))
+        {
+            eventType = BinaryPrimitives.ReadUInt32BigEndian(
+                span.Slice(offset, 4));
+            offset += 4;
+        }
+
+        if (flags.HasFlag(NetworkFrameFlags.HasRequestId))
+        {
+            requestId = BinaryPrimitives.ReadUInt32BigEndian(
+                span.Slice(offset, 4));
+            offset += 4;
+        }
+
+        if (flags.HasFlag(NetworkFrameFlags.HasRequestType))
+        {
+            requestType = BinaryPrimitives.ReadUInt32BigEndian(
+                span.Slice(offset, 4));
+            offset += 4;
+        }
+
+        if (flags.HasFlag(NetworkFrameFlags.HasResponseType))
+        {
+            responseType = BinaryPrimitives.ReadUInt32BigEndian(
+                span.Slice(offset, 4));
+            offset += 4;
+        }
+
+        if (flags.HasFlag(NetworkFrameFlags.HasStreamId))
+        {
+            streamId = BinaryPrimitives.ReadUInt32BigEndian(
+                span.Slice(offset, 4));
+            offset += 4;
+        }
+
+        if (flags.HasFlag(NetworkFrameFlags.HasStreamType))
+        {
+            streamType = BinaryPrimitives.ReadUInt32BigEndian(
+                span.Slice(offset, 4));
+            offset += 4;
+        }
+
+        // ---- 3. Remaining bytes are payload --------------------------------
+
+        var payload = (offset < span.Length)
+            ? memory[offset..]
+            : ReadOnlyMemory<byte>.Empty;
+
+        return new NetworkFrame(
+            kind, eventType, requestId, requestType, responseType, streamId, streamType, payload);
+    }
+}
+
+
+
