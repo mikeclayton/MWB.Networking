@@ -1,5 +1,4 @@
-﻿using MWB.Networking.Layer2_Protocol.Session.Frames;
-using MWB.Networking.Layer2_Protocol.Session.Requests.Lifecycle;
+﻿using MWB.Networking.Layer2_Protocol.Session.Requests.Lifecycle;
 using MWB.Networking.Layer2_Protocol.Session.Streams.Api;
 
 namespace MWB.Networking.Layer2_Protocol.Session.Requests.Api;
@@ -38,7 +37,7 @@ public sealed class OutgoingRequest
     /// Task that completes when the terminal response or error
     /// frame is received for this request.
     /// </summary>
-    public Task<ProtocolFrame> Response
+    public Task<IncomingResponse> Response
         => this.Context.ResponseTask;
 
     /// <summary>

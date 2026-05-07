@@ -1,4 +1,5 @@
 ﻿using MWB.Networking.Layer2_Protocol.Session.Frames;
+using MWB.Networking.Layer2_Protocol.Session.Requests.Api;
 
 namespace MWB.Networking.Layer2_Protocol.Session.Requests.Lifecycle;
 
@@ -25,12 +26,12 @@ internal sealed class RequestContext
         get;
     } = new RequestStateMachine();
 
-    private TaskCompletionSource<ProtocolFrame> ResponseTcs
+    private TaskCompletionSource<IncomingResponse> ResponseTcs
     {
         get;
     } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    public Task<ProtocolFrame> ResponseTask
+    public Task<IncomingResponse> ResponseTask
         => this.ResponseTcs.Task;
 
     /// <summary>
@@ -73,12 +74,12 @@ internal sealed class RequestContext
     /// This method is used when processing Responses to Requests initiated by the
     /// local peer. It MUST NOT emit any protocol frames.
     /// </remarks>
-    public void CloseFromInbound(ProtocolFrame inboundFrame)
+    public void CloseFromInbound(IncomingResponse incomingResponse)
     {
         // Transition the Request lifecycle to terminal
         this.StateMachine.Respond();
-        // Complete the awaiting caller with the received frame
-        this.ResponseTcs.TrySetResult(inboundFrame);
+        // Complete the awaiting caller with the received response
+        this.ResponseTcs.TrySetResult(incomingResponse);
     }
 
     /// <summary>

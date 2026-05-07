@@ -112,9 +112,15 @@ internal sealed class RequestManagerInbound
                 "Response or Error frame targets an incoming request, not an outgoing one.");
         }
 
-        // Close the Request based on a terminal frame received from the peer.
-        // This MUST NOT emit any protocol frames.
-        requestEntry.Context.CloseFromInbound(frame);
+        // Wrap the terminal frame in the public IncomingResponse handle and
+        // complete the awaiting caller. This MUST NOT emit any protocol frames.
+        var incomingResponse = new IncomingResponse(
+            this.Session,
+            frame.Kind,
+            requestId,
+            frame.ResponseType,
+            frame.Payload);
+        requestEntry.Context.CloseFromInbound(incomingResponse);
 
         // Tear down all request-scoped streams
         this.Session.StreamManager.TearDownRequestStreams(requestId);

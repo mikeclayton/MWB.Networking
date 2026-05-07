@@ -57,7 +57,7 @@ internal sealed class RequestManagerOutbound
         return outgoingRequest;
     }
 
-    internal void CloseRequestWithResponse(
+    internal OutgoingResponse CloseRequestWithResponse(
         RequestContext context,
         ReadOnlyMemory<byte> payload)
     {
@@ -69,9 +69,11 @@ internal sealed class RequestManagerOutbound
 
         // 3. Remove request + close any request-scoped streams
         this.RequestManager.RemoveRequest(context.RequestId);
+
+        return new OutgoingResponse(this.Session, context.RequestId, isError: false);
     }
 
-    internal void CloseRequestWithError(
+    internal OutgoingResponse CloseRequestWithError(
         RequestContext context,
         ReadOnlyMemory<byte> payload)
     {
@@ -80,5 +82,7 @@ internal sealed class RequestManagerOutbound
         this.Session.SendOutboundFrame(ProtocolFrames.Error(context.RequestId, payload));
 
         this.RequestManager.RemoveRequest(context.RequestId);
+
+        return new OutgoingResponse(this.Session, context.RequestId, isError: true);
     }
 }

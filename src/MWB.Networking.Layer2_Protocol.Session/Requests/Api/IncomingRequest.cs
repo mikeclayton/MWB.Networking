@@ -32,17 +32,17 @@ public sealed class IncomingRequest
     /// <summary>
     /// Sends the Response for this Request and closes the Request.
     /// </summary>
-    public void Respond(ReadOnlyMemory<byte> payload = default)
+    public OutgoingResponse Respond(ReadOnlyMemory<byte> payload = default)
     {
-        this.Session.RequestManager.Outbound.CloseRequestWithResponse(this.Context, payload);
+        return this.Session.RequestManager.Outbound.CloseRequestWithResponse(this.Context, payload);
     }
 
     /// <summary>
     /// Sends an error Response for this Request and closes the Request.
     /// </summary>
-    public void Error(ReadOnlyMemory<byte> payload = default)
+    public OutgoingResponse Error(ReadOnlyMemory<byte> payload = default)
     {
-        this.Session.RequestManager.Outbound.CloseRequestWithError(this.Context, payload);
+        return this.Session.RequestManager.Outbound.CloseRequestWithError(this.Context, payload);
     }
 
     /// <summary>
