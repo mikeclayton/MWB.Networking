@@ -5,7 +5,6 @@ using KeyboardSharingConsole.Models;
 using KeyboardSharingConsole.Producers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using MWB.Networking.Layer0_Transport.Tcp;
 using System.Collections.Concurrent;
 
 Console.WriteLine("Hello, World!");
@@ -36,32 +35,9 @@ logger.LogDebug("[REMOTE PEER NAME] {RemotePeerName}", options.RemotePeerName);
 logger.LogDebug("creating network connection provider");
 
 var isPeerA = (options.LocalPeerName == "PeerA");
-var preferredArbitrationDirection = isPeerA
-    ? ConnectionDirection.Outbound
-    : ConnectionDirection.Inbound;
-
-Console.WriteLine(
-    $"[ARBITRATION] Preferred: {preferredArbitrationDirection}");
-
-//// temporary until we have an automatic, zero-config arbitrator
-//using var provider =
-//    new TcpNetworkConnectionProvider(
-//        logger,
-//        new TcpNetworkConnectionConfig(
-//            localEndpoint: new IPEndPoint(
-//                IPAddress.Loopback, options.ListenPort),
-//            remoteEndpoint: new IPEndPoint(
-//                IPAddress.Loopback, options.ConnectPort),
-//            noDelay: true),
-//        preferredArbitrationDirection: preferredArbitrationDirection
-//    );
 
 using var provider = await NamedPipeHelper.CreateNamedPipeConnectionProviderAsync(
     logger, options.LocalPeerName, options.RemotePeerName, cts.Token);
-
-//Console.WriteLine("opening logical connection");
-//var connectionHandle =
-//    await provider.OpenConnectionAsync(cts.Token);
 
 // ------------------------------------------------------------
 // Layer 2: Protocol session (builder owns wiring)
@@ -81,25 +57,9 @@ var sessionHost = SessionEndpointHelper.CreateSessionEndpoint(
     keyboardNotificationRequestConsumer.OnRequestReceived);
 
 // ------------------------------------------------------------
-// Start protocol runtime
+// Start request pump (pump internally calls StartAsync on the endpoint)
 // ------------------------------------------------------------
-Console.WriteLine("starting protocol session");
-var sessionTask = sessionHost.StartAsync(cts.Token);
-
-//// ------------------------------------------------------------
-//// Start event pump
-//// ------------------------------------------------------------
-//Console.WriteLine("starting event pump");
-//var pumpTask =
-//    KeyboardNotificationEventPump.RunEventPumpAsync(
-//        keyboardNotificationQueue,
-//        session,
-//        cts.Token);
-
-// ------------------------------------------------------------
-// Start request pump
-// ------------------------------------------------------------
-Console.WriteLine("starting event pump");
+Console.WriteLine("starting request pump");
 var pumpTask =
     KeyboardNotificationRequestPump.RunRequestPumpAsync(
         keyboardNotificationQueue,
@@ -124,8 +84,7 @@ try
 {
     await Task.WhenAll(
         producerTask,
-        pumpTask,
-        sessionTask);
+        pumpTask);
 }
 catch (OperationCanceledException)
 {

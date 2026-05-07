@@ -46,7 +46,6 @@ namespace MWB.Networking.Layer1_Framing.Pipeline.Hosting
 
         private Func<ITransportCodec>? _transportCodecFactory;
 
-
         INetworkPipelineBuildStage INetworkPipelineCodecStage.UseTransportCodec(
             Func<ITransportCodec> transportCodecFactory)
         {

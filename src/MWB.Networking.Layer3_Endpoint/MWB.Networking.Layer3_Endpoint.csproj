@@ -7,7 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Pipeline\MWB.Networking.Layer1_Framing.Pipeline.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer2_Protocol.Session\MWB.Networking.Layer2_Protocol.Session.csproj" />
   </ItemGroup>
 

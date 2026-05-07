@@ -16,6 +16,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Driver\MWB.Networking.Layer0_Transport.Driver.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Stack\MWB.Networking.Layer0_Transport.Stack.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Pipeline\MWB.Networking.Layer1_Framing.Pipeline.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer2_Protocol.Adapter\MWB.Networking.Layer2_Protocol.Adapter.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer2_Protocol.Session\MWB.Networking.Layer2_Protocol.Session.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer3_Endpoint\MWB.Networking.Layer3_Endpoint.csproj" />
   </ItemGroup>
 

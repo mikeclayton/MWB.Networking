@@ -1,5 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer0_Transport.Stack.Abstractions;
+using MWB.Networking.Layer1_Framing.Codecs.Default.Network;
+using MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.Transport;
 using MWB.Networking.Layer2_Protocol.Session.Events.Api;
 using MWB.Networking.Layer2_Protocol.Session.Requests.Api;
 using MWB.Networking.Layer2_Protocol.Session.Streams.Infrastructure;
@@ -25,27 +27,22 @@ internal static class SessionEndpointHelper
                         ? OddEvenStreamIdParity.Even
                         : OddEvenStreamIdParity.Odd
                 )
-                .ConfigurePipelineWith(
-                    pipeline =>
-                    {
-                        pipeline
-                            .UseDefaultNetworkCodec()
-                            .UseLengthPrefixedTransport(logger);
-                    }
-                );
+                .UseConnectionProvider(connectionProvider)
+                .ConfigurePipelineWith(pipeline =>
+                    pipeline
+                        .UseDefaultNetworkCodec()
+                        .UseLengthPrefixedTransport(logger));
 
         if (eventReceived is not null)
         {
             builder.OnEventReceived(eventReceived);
         }
 
-        if (eventReceived is not null)
+        if (requestReceived is not null)
         {
             builder.OnRequestReceived(requestReceived);
         }
 
-        var host = builder.Build();
-
-        return host;
+        return builder.Build();
     }
 }
