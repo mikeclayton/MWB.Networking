@@ -1,7 +1,6 @@
 using MWB.Networking.Layer0_Transport.Memory;
-using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
 using MWB.Networking.Layer3_Endpoint.Hosting;
-using MWB.Networking.Logging.Loggers;
+using MWB.Networking.Logging.Debug;
 
 namespace _ProtocolSession;
 
@@ -44,7 +43,7 @@ public partial class StreamContext_Lifecycle
             TimeSpan.FromSeconds(10));
 
         //var logger = NullLogger.Instance;
-        var (logger, _) = DebugLoggerFactory.Create();
+        var (logger, _) = DebugLoggerFactory.CreateLogger();
 
         // ------------------------------------------------------------
         // Arrange: create paired in-memory providers

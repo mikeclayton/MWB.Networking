@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
 using MWB.Networking.Layer1_Framing.Codec.Frames;
@@ -7,19 +7,32 @@ using MWB.Networking.Layer2_Protocol.Session.Requests.Api;
 using MWB.Networking.Layer3_Endpoint.Hosting;
 using MWB.Networking.Logging;
 using MWB.Networking.Logging.Debug;
-using MWB.Networking.PerformanceTests;
 using System.Buffers;
 using System.Diagnostics;
 using System.IO.Pipelines;
 
-namespace Layer2_Protocol;
+namespace MWB.Networking.PerformanceTests;
 
-public sealed partial class Pipes
+[TestClass]
+public sealed class Pipe_PerfTests_v2
 {
-    [TestMethod]
-    public async Task Layer2_Protocol_RequestRoundtrip_WithPipes_PerfTest()
+    public TestContext TestContext
     {
-        var (logger, loggerFactory) = DebugLoggerFactory.CreateLogger();
+        get;
+        set;
+    }
+
+    [TestCleanup]
+    public void Cleanup()
+    {
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+    }
+
+    [TestMethod]
+    public async Task BasicRequestPayloadRoundtrip()
+    {
+        var (logger, _) = DebugLoggerFactory.CreateLogger();
 
         // simulates a duplex connection
         var serverPipe = new Pipe();
@@ -28,11 +41,13 @@ public sealed partial class Pipes
         // ------------------------------------------------------------
         // Build server session
         // ------------------------------------------------------------
+        var serverStatus = new ObservableConnectionStatus();
+
         using var serverConnection = new PipeNetworkConnection(
             logger: logger,
             reader: serverPipe.Reader,
             writer: clientPipe.Writer,
-            status: new ObservableConnectionStatus());
+            status: serverStatus);
 
         var requestTcs =
             new TaskCompletionSource<(IncomingRequest Request, ReadOnlyMemory<byte> Payload)>(
@@ -62,11 +77,13 @@ public sealed partial class Pipes
         // ------------------------------------------------------------
         // Build client session
         // ------------------------------------------------------------
+        var clientStatus = new ObservableConnectionStatus();
+
         var clientConnection = new PipeNetworkConnection(
-            logger,
+            logger: logger,
             reader: clientPipe.Reader,
             writer: serverPipe.Writer,
-            status: new ObservableConnectionStatus());
+            status: clientStatus);
 
         var clientEndpoint =
             new SessionEndpointBuilder()
@@ -106,15 +123,15 @@ public sealed partial class Pipes
         // ------------------------------------------------------------
         // Assert: server receives the request
         // ------------------------------------------------------------
-        var (receivedRequest, receivedPayload) =
+        var (_, receivedPayload) =
             await requestTcs.Task
+                .WaitAsync(TestContext.CancellationToken)
                 .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
 
-        // verify the message
         CollectionAssert.AreEqual(payload, receivedPayload.ToArray());
 
         // ------------------------------------------------------------
-        // Cleanup
+        // Clean shutdown
         // ------------------------------------------------------------
         lifecycleCts.Cancel();
 
@@ -131,7 +148,6 @@ public sealed partial class Pipes
         const int FrameCount = 100_000;
 
         var logger = NullLogger.Instance;
-        //var (logger, loggerFactory) = DebugLoggerFactory.CreateLogger();
 
         using var loggerScope = logger.BeginMethodLoggingScope(this);
 
@@ -141,17 +157,19 @@ public sealed partial class Pipes
             resumeWriterThreshold: 1024 * 1024 * 50));
         var serverToClient = new Pipe();
 
+        var clientStatus = new ObservableConnectionStatus();
         var clientConnection = new PipeNetworkConnection(
-            logger,
+            logger: logger,
             reader: serverToClient.Reader,
             writer: clientToServer.Writer,
-            status: new ObservableConnectionStatus());
+            status: clientStatus);
 
+        var serverStatus = new ObservableConnectionStatus();
         var serverConnection = new PipeNetworkConnection(
-            logger,
+            logger: logger,
             reader: clientToServer.Reader,
             writer: serverToClient.Writer,
-            status: new ObservableConnectionStatus());
+            status: serverStatus);
 
         // ----------------------------
         // Build client pipeline
@@ -227,16 +245,14 @@ public sealed partial class Pipes
 
     /// <remarks>
     /// This is identical to Layer2_Protocol_SendBeforeStart_IsDeliveredAfterStart,
-    /// just wth 100_000 events as a performance test rather than 3 events for a
-    /// correctness test. We could probably make the number of frames a test input
-    /// and run both tests with the same code.
+    /// just with 100,000 events as a performance test rather than 3 events for a
+    /// correctness test.
     /// </remarks>
     [TestMethod]
     public async Task Layer2_Protocol_PipePerfTest_NonBlocking()
     {
         const int FrameCount = 100_000;
 
-        //var (logger, _) = DebugLoggerFactory.CreateLogger();
         var logger = NullLogger.Instance;
 
         // -------------------------------------------------
@@ -245,17 +261,19 @@ public sealed partial class Pipes
         var clientToServer = new Pipe();
         var serverToClient = new Pipe();
 
+        var clientStatus = new ObservableConnectionStatus();
         var clientConnection = new PipeNetworkConnection(
-            logger,
+            logger: logger,
             reader: serverToClient.Reader,
             writer: clientToServer.Writer,
-            status: new ObservableConnectionStatus());
+            status: clientStatus);
 
+        var serverStatus = new ObservableConnectionStatus();
         var serverConnection = new PipeNetworkConnection(
-            logger,
+            logger: logger,
             reader: clientToServer.Reader,
             writer: serverToClient.Writer,
-            status: new ObservableConnectionStatus());
+            status: serverStatus);
 
         // -------------------------------------------------
         // Build sessions (NOT started yet)
@@ -274,7 +292,6 @@ public sealed partial class Pipes
             )
             .Build();
 
-        // used in observer.EventReceived
         var received = 0;
         var allReceived = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
@@ -306,7 +323,7 @@ public sealed partial class Pipes
         var payload = new ReadOnlyMemory<byte>(new byte[] { 1, 2, 3 });
 
         // =================================================
-        // PHASE 1: ENQUEUE (non‑blocking)
+        // PHASE 1: ENQUEUE (non-blocking)
         // =================================================
         var globalStopwatch = new Stopwatch();
         var writerStopwatch = new Stopwatch();
@@ -332,8 +349,6 @@ public sealed partial class Pipes
         // -------------------------------------------------
         // Assert: pre-start messages are delivered
         // -------------------------------------------------
-        // wait for messages to be dequeued
-        // (wait within a maximum timeout so the test fails rather than hangs forever)
         await allReceived.Task
             .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
         readerStopwatch?.Stop();
@@ -341,12 +356,9 @@ public sealed partial class Pipes
 
         Assert.AreEqual(FrameCount, received);
 
-        // -------------------------------------------------
+        // ------------------------------------------------------------
         // Clean shutdown
-        // -------------------------------------------------
-
-        // shut down cleanly
-        // (wait within a maximum timeout so the test fails rather than hangs forever)
+        // ------------------------------------------------------------
         lifecycleCts.Cancel();
 
         await Task
@@ -354,10 +366,6 @@ public sealed partial class Pipes
                 serverEndpoint.DisposeAsync().AsTask(),
                 clientEndpoint.DisposeAsync().AsTask())
             .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
-
-        // ------------------------------------------------------------
-        // Log statistics
-        // ------------------------------------------------------------
 
         TestContext.WriteLine(
             $"Wrote {FrameCount} frames in {writerStopwatch.Elapsed.TotalMilliseconds:F2} ms " +

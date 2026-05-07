@@ -1,8 +1,7 @@
 ﻿using MWB.Networking.Layer0_Transport.Pipes;
-using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
-using MWB.Networking.Layer1_Framing.Hosting.Manual;
+using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
 using MWB.Networking.Layer3_Endpoint.Hosting;
-using MWB.Networking.Logging.Loggers;
+using MWB.Networking.Logging.Debug;
 using System.Diagnostics;
 using System.IO.Pipelines;
 
@@ -45,7 +44,7 @@ public sealed class EnqueueTasks
     {
         const int FrameCount = 3;
 
-        var (logger, _) = DebugLoggerFactory.Create();
+        var (logger, _) = DebugLoggerFactory.CreateLogger();
 
         // -------------------------------------------------
         // Transport (in-memory pipes)
@@ -54,12 +53,16 @@ public sealed class EnqueueTasks
         var serverToClient = new Pipe();
 
         var clientConnection = new PipeNetworkConnection(
+            logger,
             reader: serverToClient.Reader,
-            writer: clientToServer.Writer);
+            writer: clientToServer.Writer,
+            status: new ObservableConnectionStatus());
 
         var serverConnection = new PipeNetworkConnection(
+            logger,
             reader: clientToServer.Reader,
-            writer: serverToClient.Writer);
+            writer: serverToClient.Writer,
+            status: new ObservableConnectionStatus());
 
         // -------------------------------------------------
         // Build sessions (NOT started yet)

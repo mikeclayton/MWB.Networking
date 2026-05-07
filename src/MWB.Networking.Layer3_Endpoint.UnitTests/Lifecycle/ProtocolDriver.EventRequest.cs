@@ -1,9 +1,8 @@
 ﻿using MWB.Networking.Layer0_Transport.Pipes;
-using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
-using MWB.Networking.Layer1_Framing.Hosting.Manual;
-using MWB.Networking.Layer2_Protocol.Requests.Api;
+using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
+using MWB.Networking.Layer2_Protocol.Session.Requests.Api;
 using MWB.Networking.Layer3_Endpoint.Hosting;
-using MWB.Networking.Logging.Loggers;
+using MWB.Networking.Logging.Debug;
 using System.IO.Pipelines;
 
 namespace _ProtocolDriver;
@@ -34,7 +33,7 @@ public sealed class EventRequests
         // Initialize logging
         // ------------------------------------------------------------
 
-        var (logger, loggerFactory) = DebugLoggerFactory.Create();
+        var (logger, loggerFactory) = DebugLoggerFactory.CreateLogger();
 
         // ------------------------------------------------------------
         // Arrange: in-memory duplex transport
@@ -46,13 +45,15 @@ public sealed class EventRequests
             new PipeNetworkConnection(
                 logger,
                 reader: serverPipe.Reader,
-                writer: clientPipe.Writer);
+                writer: clientPipe.Writer,
+                status: new ObservableConnectionStatus());
 
         using var clientConnection =
             new PipeNetworkConnection(
                 logger,
                 reader: clientPipe.Reader,
-                writer: serverPipe.Writer);
+                writer: serverPipe.Writer,
+                status: new ObservableConnectionStatus());
 
         // ------------------------------------------------------------
         // Build server session

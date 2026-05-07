@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Pipes;
+using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
 using MWB.Networking.Layer1_Framing.Codec.Frames;
 using MWB.Networking.Layer1_Framing.Pipeline.Hosting;
 using MWB.Networking.Logging;
@@ -60,12 +61,16 @@ public sealed partial class Pipes
         var serverToClient = new Pipe();
 
         var clientConnection = new PipeNetworkConnection(
+            logger,
             reader: serverToClient.Reader,
-            writer: clientToServer.Writer);
+            writer: clientToServer.Writer,
+            status: new ObservableConnectionStatus());
 
         var serverConnection = new PipeNetworkConnection(
+            logger,
             reader: clientToServer.Reader,
-            writer: serverToClient.Writer);
+            writer: serverToClient.Writer,
+            status: new ObservableConnectionStatus());
 
         // ----------------------------
         // Build client pipeline

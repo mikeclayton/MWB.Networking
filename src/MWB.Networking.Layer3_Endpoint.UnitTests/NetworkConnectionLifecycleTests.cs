@@ -1,10 +1,10 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using MWB.Networking.Layer0_Transport.Manual;
-using MWB.Networking.Layer1_Framing.Encoding.LengthPrefixed.Hosting;
+using MWB.Networking.Layer0_Transport.Instrumented;
+using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
 using MWB.Networking.Layer3_Endpoint.Hosting;
 using MWB.Networking.Logging;
-using MWB.Networking.Logging.Loggers;
+using MWB.Networking.Logging.Debug;
 
 namespace MWB.Networking.Layer3_Endpoint.UnitTests;
 
@@ -62,18 +62,18 @@ public sealed class NetworkConnectionLifecycleTests
         // ------------------------------------------------------------
 
         //var logger = NullLogger.Instance;
-        var (logger, factory) = DebugLoggerFactory.Create();
+        var (logger, factory) = DebugLoggerFactory.CreateLogger();
         using var loggerScope = logger.BeginMethodLoggingScope(this);
         logger.LogDebug("TEST: If you see this, the logger itself works");
 
         // Test provider exposing a stable LogicalConnection that can
         // have its underlying physical connections replaced on demand.
         using var manualTestProvider =
-            new ManualNetworkConnectionProvider(logger);
+            new InstrumentedNetworkConnectionProvider(logger);
 
         // Two physical network connections to simulate provider churn.
-        var connectionA = new ManualNetworkConnection();
-        var connectionB = new ManualNetworkConnection();
+        var connectionA = new InstrumentedNetworkConnection(new ObservableConnectionStatus());
+        var connectionB = new InstrumentedNetworkConnection(new ObservableConnectionStatus());
 
         // Build a protocol session using the real session builder,
         // wiring it to the logical connection rather than a fixed transport.
@@ -133,10 +133,10 @@ public sealed class NetworkConnectionLifecycleTests
         var logger = NullLogger.Instance;
 
         using var manualTestProvider =
-            new ManualNetworkConnectionProvider(logger);
+            new InstrumentedNetworkConnectionProvider(logger);
 
-        var connectionA = new ManualNetworkConnection();
-        var connectionB = new ManualNetworkConnection();
+        var connectionA = new InstrumentedNetworkConnection(new ObservableConnectionStatus());
+        var connectionB = new InstrumentedNetworkConnection(new ObservableConnectionStatus());
 
         int endpointsStarted = 0;
 

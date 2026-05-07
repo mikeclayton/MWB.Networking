@@ -20,12 +20,6 @@ public sealed class PipeNetworkConnection : INetworkConnection, IDisposable
         this.Status = status ?? throw new ArgumentNullException(nameof(status));
     }
 
-    public PipeNetworkConnection(PipeReader reader, PipeWriter writer)
-    {
-        Reader = reader;
-        Writer = writer;
-    }
-
     private ILogger Logger
     {
         get;
