@@ -38,7 +38,7 @@ internal sealed class RequestManagerOutbound
     // Request handling - Outbound
     // ------------------------------------------------------------------
 
-    internal OutgoingRequest SendRequest(uint? requestType, ReadOnlyMemory<byte> payload)
+    internal OutgoingRequest SendRequest(uint? requestType = null, ReadOnlyMemory<byte> payload = default)
     {
         // Generate a new unique request ID<br>
         var requestId = this.NextRequestId++;
@@ -59,18 +59,20 @@ internal sealed class RequestManagerOutbound
 
     internal OutgoingResponse CloseRequestWithResponse(
         RequestContext context,
-        ReadOnlyMemory<byte> payload)
+        uint? responseType = null,
+        ReadOnlyMemory<byte> payload = default)
     {
         // 1. Transition lifecycle (validation happens here)
         context.Close();
 
         // 2. Emit terminal response frame
-        this.Session.SendOutboundFrame(ProtocolFrames.Response(context.RequestId, null, payload));
+        this.Session.SendOutboundFrame(
+            ProtocolFrames.Response(context.RequestId, responseType, payload));
 
         // 3. Remove request + close any request-scoped streams
         this.RequestManager.RemoveRequest(context.RequestId);
 
-        return new OutgoingResponse(this.Session, context.RequestId, isError: false);
+        return new OutgoingResponse(context.RequestId, responseType, isError: false);
     }
 
     internal OutgoingResponse CloseRequestWithError(
@@ -83,6 +85,6 @@ internal sealed class RequestManagerOutbound
 
         this.RequestManager.RemoveRequest(context.RequestId);
 
-        return new OutgoingResponse(this.Session, context.RequestId, isError: true);
+        return new OutgoingResponse(context.RequestId, responseType: null, isError: true);
     }
 }

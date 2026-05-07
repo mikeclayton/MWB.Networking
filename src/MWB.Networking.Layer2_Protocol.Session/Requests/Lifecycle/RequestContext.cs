@@ -1,5 +1,4 @@
-﻿using MWB.Networking.Layer2_Protocol.Session.Frames;
-using MWB.Networking.Layer2_Protocol.Session.Requests.Api;
+﻿using MWB.Networking.Layer2_Protocol.Session.Requests.Api;
 
 namespace MWB.Networking.Layer2_Protocol.Session.Requests.Lifecycle;
 
@@ -79,7 +78,7 @@ internal sealed class RequestContext
         // Transition the Request lifecycle to terminal
         this.StateMachine.Respond();
         // Complete the awaiting caller with the received response
-        this.ResponseTcs.TrySetResult(incomingResponse);
+        this.ResponseTcs.SetResult(incomingResponse);
     }
 
     /// <summary>

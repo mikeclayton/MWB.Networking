@@ -32,15 +32,15 @@ public sealed class IncomingRequest
     /// <summary>
     /// Sends the Response for this Request and closes the Request.
     /// </summary>
-    public OutgoingResponse Respond(ReadOnlyMemory<byte> payload = default)
+    public OutgoingResponse Respond(uint? responseType = null, ReadOnlyMemory<byte> payload = default)
     {
-        return this.Session.RequestManager.Outbound.CloseRequestWithResponse(this.Context, payload);
+        return this.Session.RequestManager.Outbound.CloseRequestWithResponse(this.Context, responseType, payload);
     }
 
     /// <summary>
     /// Sends an error Response for this Request and closes the Request.
     /// </summary>
-    public OutgoingResponse Error(ReadOnlyMemory<byte> payload = default)
+    public OutgoingResponse RespondWithError(ReadOnlyMemory<byte> payload = default)
     {
         return this.Session.RequestManager.Outbound.CloseRequestWithError(this.Context, payload);
     }

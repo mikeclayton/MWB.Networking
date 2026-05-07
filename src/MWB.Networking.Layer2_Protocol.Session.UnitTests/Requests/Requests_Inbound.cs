@@ -261,7 +261,7 @@ public sealed partial class Requests_Inbound
         processor.ProcessFrame(ProtocolFrames.Response(outgoing.RequestId, payload: responsePayload));
 
         var responseFrame = outgoing.Response.Result;
-        Assert.AreEqual(ProtocolFrameKind.Response, responseFrame.Kind);
+        Assert.IsFalse(responseFrame.IsError);
         CollectionAssert.AreEqual(responsePayload, responseFrame.Payload.ToArray());
     }
 

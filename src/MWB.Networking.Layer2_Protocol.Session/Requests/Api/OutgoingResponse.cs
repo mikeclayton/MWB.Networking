@@ -3,29 +3,32 @@ namespace MWB.Networking.Layer2_Protocol.Session.Requests.Api;
 /// <summary>
 /// Represents a response sent by the local peer in reply to an <see cref="IncomingRequest"/>.
 /// Returned as a confirmation handle after <see cref="IncomingRequest.Respond"/> or
-/// <see cref="IncomingRequest.Error"/> has been called.
+/// <see cref="IncomingRequest.Reject"/> has been called.
 /// </summary>
 public sealed class OutgoingResponse
 {
     internal OutgoingResponse(
-        ProtocolSession session,
         uint requestId,
+        uint? responseType,
         bool isError)
     {
-        this.Session = session ?? throw new ArgumentNullException(nameof(session));
         this.RequestId = requestId;
+        this.ResponseType = responseType;
         this.IsError = isError;
-    }
-
-    internal ProtocolSession Session
-    {
-        get;
     }
 
     /// <summary>
     /// The protocol RequestId this response was sent for.
     /// </summary>
     public uint RequestId
+    {
+        get;
+    }
+
+    /// <summary>
+    /// The response-type discriminator that was sent, if any.
+    /// </summary>
+    public uint? ResponseType
     {
         get;
     }

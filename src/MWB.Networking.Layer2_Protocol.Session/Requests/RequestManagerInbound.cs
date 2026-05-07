@@ -115,11 +115,10 @@ internal sealed class RequestManagerInbound
         // Wrap the terminal frame in the public IncomingResponse handle and
         // complete the awaiting caller. This MUST NOT emit any protocol frames.
         var incomingResponse = new IncomingResponse(
-            this.Session,
-            frame.Kind,
-            requestId,
-            frame.ResponseType,
-            frame.Payload);
+            isError: frame.Kind == ProtocolFrameKind.Error,
+            requestId: requestId,
+            responseType: frame.ResponseType,
+            payload: frame.Payload);
         requestEntry.Context.CloseFromInbound(incomingResponse);
 
         // Tear down all request-scoped streams
