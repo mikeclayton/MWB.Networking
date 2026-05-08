@@ -5,12 +5,12 @@ namespace MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.Transport;
 
 public static class NetworkPipelineBuilderExtensions
 {
-    public static INetworkPipelineBuildStage UseLengthPrefixedTransport(
-        this INetworkPipelineCodecStage builder,
+    public static INetworkPipelineBuildStage UseLengthPrefixedCodec(
+        this INetworkPipelineFrameCodecStage builder,
         ILogger logger,
         int maxFrameSize = 16 * 1024 * 1024)
     {
-        return builder.UseTransportCodec(
+        return builder.UseTransportFrameCodec(
             () => new LengthPrefixedTransportCodec(logger, maxFrameSize)
         );
     }

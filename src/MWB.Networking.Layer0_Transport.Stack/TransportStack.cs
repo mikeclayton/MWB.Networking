@@ -47,7 +47,7 @@ public sealed partial class TransportStack : IDisposable, IAsyncDisposable
         _ownsProvider = ownsProvider;
     }
 
-    public ILogger Logger
+    private ILogger Logger
     {
         get;
     }

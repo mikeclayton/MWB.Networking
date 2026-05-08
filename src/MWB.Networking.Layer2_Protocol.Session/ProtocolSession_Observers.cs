@@ -5,7 +5,7 @@ using MWB.Networking.Layer2_Protocol.Session.Streams.Api;
 
 namespace MWB.Networking.Layer2_Protocol.Session;
 
-public sealed partial class ProtocolSession : IProtocolSessionObserver
+sealed partial class ProtocolSession : IProtocolSessionObserver
 {
     private IProtocolSessionObserver AsObserver()
         => this;

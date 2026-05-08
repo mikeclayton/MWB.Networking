@@ -1,11 +1,10 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer2_Protocol.Session.Events.Api;
 using MWB.Networking.Layer2_Protocol.Session.Frames;
-using MWB.Networking.Logging;
 
 namespace MWB.Networking.Layer2_Protocol.Session.Events;
 
-internal sealed partial class EventManager : IHasLogger
+internal sealed partial class EventManager
 {
     internal EventManager(ILogger logger, ProtocolSession session)
     {
@@ -13,10 +12,11 @@ internal sealed partial class EventManager : IHasLogger
         this.Session = session ?? throw new ArgumentNullException(nameof(session));
     }
 
-    public ILogger Logger
+    private ILogger Logger
     {
         get;
     }
+
     private ProtocolSession Session
     {
         get;

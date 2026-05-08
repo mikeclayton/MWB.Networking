@@ -5,7 +5,7 @@ using System.Diagnostics;
 
 namespace MWB.Networking.Layer2_Protocol.Session;
 
-public sealed partial class ProtocolSession : IProtocolSessionOutput
+sealed partial class ProtocolSession : IProtocolSessionOutput
 {
     // ------------------------------------------------------------------
     // Outbound frame event

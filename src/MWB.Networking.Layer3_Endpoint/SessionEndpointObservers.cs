@@ -5,7 +5,7 @@ using MWB.Networking.Layer2_Protocol.Session.Streams.Api;
 
 namespace MWB.Networking.Layer3_Endpoint;
 
-public sealed class SessionEndpointObservers
+internal sealed class SessionEndpointObservers
 {
     private readonly IReadOnlyList<Action<IncomingEvent, ReadOnlyMemory<byte>>> _eventReceived;
     private readonly IReadOnlyList<Action<IncomingRequest, ReadOnlyMemory<byte>>> _requestReceived;
@@ -13,7 +13,7 @@ public sealed class SessionEndpointObservers
     private readonly IReadOnlyList<Action<IncomingStream, ReadOnlyMemory<byte>>> _streamDataReceived;
     private readonly IReadOnlyList<Action<IncomingStream, StreamMetadata>> _streamClosed;
 
-    public SessionEndpointObservers(
+    internal SessionEndpointObservers(
         IEnumerable<Action<IncomingEvent, ReadOnlyMemory<byte>>> eventReceived,
         IEnumerable<Action<IncomingRequest, ReadOnlyMemory<byte>>> requestReceived,
         IEnumerable<Action<IncomingStream, StreamMetadata>> streamOpened,

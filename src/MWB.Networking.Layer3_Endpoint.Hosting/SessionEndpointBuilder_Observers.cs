@@ -87,7 +87,7 @@ public sealed partial class SessionEndpointBuilder
     // ------------------------------------------------------------------
 
     internal SessionEndpointObservers BuildObservers()
-        => new(
+        => new SessionEndpointObservers(
             _eventReceived.ToList(),
             _requestReceived.ToList(),
             _streamOpened.ToList(),

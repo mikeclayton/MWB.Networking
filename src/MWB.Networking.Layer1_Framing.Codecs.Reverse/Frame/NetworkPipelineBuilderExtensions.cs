@@ -4,8 +4,8 @@ namespace MWB.Networking.Layer1_Framing.Codecs.Reverse.Frame;
 
 public static class NetworkPipelineBuilderExtensions
 {
-    public static INetworkPipelineCodecStage UseReverseFrameCodec(
-        this INetworkPipelineCodecStage builder)
+    public static INetworkPipelineFrameCodecStage UseReverseFrameCodec(
+        this INetworkPipelineFrameCodecStage builder)
     {
         return builder.UseFrameCodec(
             () => new ReverseFrameCodec());

@@ -1,9 +1,11 @@
-﻿using MWB.Networking.Layer1_Framing.Codec.Abstractions;
+﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer1_Framing.Codec.Abstractions;
 
 namespace MWB.Networking.Layer1_Framing.Pipeline.Hosting
 {
     internal sealed class NetworkPipelineBuilderState :
-        INetworkPipelineCodecStage,
+        INetworkPipelineNetworkCodecStage,
+        INetworkPipelineFrameCodecStage,
         INetworkPipelineBuildStage
     {
         internal NetworkPipelineBuilderState()
@@ -11,12 +13,26 @@ namespace MWB.Networking.Layer1_Framing.Pipeline.Hosting
         }
 
         // -----------------------------
-        // Initial codecs
+        // Logger
+        // -----------------------------
+
+        private ILogger? _logger;
+
+        internal INetworkPipelineNetworkCodecStage UseLogger(ILogger logger)
+        {
+            ArgumentNullException.ThrowIfNull(logger);
+
+            _logger = logger;
+            return this;
+        }
+
+        // -----------------------------
+        // Network codecs
         // -----------------------------
 
         private Func<INetworkFrameCodec>? _networkFrameCodecFactory;
 
-        internal NetworkPipelineBuilderState UseNetworkCodec(
+        INetworkPipelineFrameCodecStage INetworkPipelineNetworkCodecStage.UseNetworkFrameCodec(
             Func<INetworkFrameCodec> networkFrameCodecFactory)
         {
             ArgumentNullException.ThrowIfNull(networkFrameCodecFactory);
@@ -31,7 +47,7 @@ namespace MWB.Networking.Layer1_Framing.Pipeline.Hosting
 
         private readonly List<Func<IFrameCodec>> _frameCodecFactories = [];
 
-        INetworkPipelineCodecStage INetworkPipelineCodecStage.UseFrameCodec(
+        INetworkPipelineFrameCodecStage INetworkPipelineFrameCodecStage.UseFrameCodec(
             Func<IFrameCodec> frameCodecFactory)
         {
             ArgumentNullException.ThrowIfNull(frameCodecFactory);
@@ -46,7 +62,7 @@ namespace MWB.Networking.Layer1_Framing.Pipeline.Hosting
 
         private Func<ITransportCodec>? _transportCodecFactory;
 
-        INetworkPipelineBuildStage INetworkPipelineCodecStage.UseTransportCodec(
+        INetworkPipelineBuildStage INetworkPipelineFrameCodecStage.UseTransportFrameCodec(
             Func<ITransportCodec> transportCodecFactory)
         {
             ArgumentNullException.ThrowIfNull(transportCodecFactory);

@@ -10,6 +10,8 @@ using MWB.Networking.Logging.Debug;
 using System.Buffers;
 using System.Diagnostics;
 using System.IO.Pipelines;
+using MWB.Networking.Layer1_Framing.Codecs.Default.Network;
+using MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.Transport;
 
 namespace MWB.Networking.PerformanceTests;
 
@@ -62,6 +64,7 @@ public sealed class Pipe_PerfTests_v2
                     {
                         pipeline
                             .UseLogger(logger)
+                            .UseDefaultNetworkCodec()
                             .UseLengthPrefixedCodec(logger)
                             .WrapConnectionAsProvider(logger, serverConnection);
                     }
@@ -94,6 +97,7 @@ public sealed class Pipe_PerfTests_v2
                     {
                         pipeline
                             .UseLogger(logger)
+                            .UseDefaultNetworkCodec()
                             .UseLengthPrefixedCodec(logger)
                             .WrapConnectionAsProvider(logger, clientConnection);
                     }
@@ -176,6 +180,7 @@ public sealed class Pipe_PerfTests_v2
         // ----------------------------
         var clientPipeline = await new NetworkPipelineBuilder()
             .UseLogger(logger)
+            .UseDefaultNetworkCodec()
             .UseLengthPrefixedCodec(logger)
             .WrapConnectionAsProvider(logger, clientConnection)
             .CreatePipelineAsync(TestContext.CancellationToken);
@@ -185,6 +190,7 @@ public sealed class Pipe_PerfTests_v2
         // ----------------------------
         var serverPipeline = await new NetworkPipelineBuilder()
             .UseLogger(logger)
+            .UseDefaultNetworkCodec()
             .UseLengthPrefixedCodec(logger)
             .WrapConnectionAsProvider(logger, serverConnection)
             .CreatePipelineAsync(TestContext.CancellationToken);
@@ -286,6 +292,7 @@ public sealed class Pipe_PerfTests_v2
                 {
                     pipeline
                         .UseLogger(logger)
+                        .UseDefaultNetworkCodec()
                         .UseLengthPrefixedCodec(logger)
                         .WrapConnectionAsProvider(logger, clientConnection);
                 }
@@ -305,6 +312,7 @@ public sealed class Pipe_PerfTests_v2
                 {
                     pipeline
                         .UseLogger(logger)
+                        .UseDefaultNetworkCodec()
                         .UseLengthPrefixedCodec(logger)
                         .WrapConnectionAsProvider(logger, serverConnection);
                 }

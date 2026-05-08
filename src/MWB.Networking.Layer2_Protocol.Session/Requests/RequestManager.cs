@@ -6,7 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace MWB.Networking.Layer2_Protocol.Session.Requests;
 
-internal sealed class RequestManager : IHasLogger
+internal sealed class RequestManager
 {
     internal RequestManager(ILogger logger, ProtocolSession session)
     {
@@ -16,7 +16,7 @@ internal sealed class RequestManager : IHasLogger
         this.Outbound = new RequestManagerOutbound(session, this, this.RequestEntries);
     }
 
-    public ILogger Logger
+    private ILogger Logger
     {
         get;
     }

@@ -5,9 +5,9 @@ namespace MWB.Networking.Layer1_Framing.Codecs.Null.Transport;
 public static class NetworkPipelineBuilderExtensions
 {
     public static INetworkPipelineBuildStage UseLengthPrefixedTransport(
-        this INetworkPipelineCodecStage builder)
+        this INetworkPipelineFrameCodecStage builder)
     {
-        return builder.UseTransportCodec(
+        return builder.UseTransportFrameCodec(
             () => new NullTransportCodec()
         );
     }

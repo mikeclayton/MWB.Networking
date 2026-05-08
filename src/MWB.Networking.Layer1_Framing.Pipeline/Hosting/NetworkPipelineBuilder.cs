@@ -1,4 +1,4 @@
-﻿using MWB.Networking.Layer1_Framing.Codec.Abstractions;
+﻿using Microsoft.Extensions.Logging;
 
 namespace MWB.Networking.Layer1_Framing.Pipeline.Hosting;
 
@@ -8,12 +8,12 @@ public sealed class NetworkPipelineBuilder
     // Initial builder stage
     // -----------------------------
 
-    public INetworkPipelineCodecStage UseNetworkCodec(
-        Func<INetworkFrameCodec> networkFrameCodecFactory)
+    public INetworkPipelineNetworkCodecStage UseLogger(
+        ILogger logger)
     {
-        ArgumentNullException.ThrowIfNull(networkFrameCodecFactory);
+        ArgumentNullException.ThrowIfNull(logger);
 
         return new NetworkPipelineBuilderState()
-            .UseNetworkCodec(networkFrameCodecFactory);
+            .UseLogger(logger);
     }
 }

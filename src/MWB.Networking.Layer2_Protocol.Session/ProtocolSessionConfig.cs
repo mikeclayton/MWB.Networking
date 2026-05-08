@@ -5,7 +5,7 @@ namespace MWB.Networking.Layer2_Protocol.Session;
 /// <summary>
 /// Semantic configuration for protocol session behavior.
 /// </summary>
-public sealed class ProtocolSessionConfig
+sealed class ProtocolSessionConfig
 {
     public ProtocolSessionConfig(OddEvenStreamIdProvider outboundStreamIdProvider)
     {

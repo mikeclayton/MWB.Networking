@@ -1,4 +1,6 @@
 using MWB.Networking.Layer0_Transport.Memory;
+using MWB.Networking.Layer1_Framing.Codecs.Default.Network;
+using MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.Transport;
 using MWB.Networking.Layer3_Endpoint.Hosting;
 using MWB.Networking.Logging.Debug;
 
@@ -64,6 +66,7 @@ public partial class StreamContext_Lifecycle
                 {
                     pipeline
                         .UseLogger(logger)
+                        .UseDefaultNetworkCodec()
                         .UseLengthPrefixedCodec(logger)
                         .UseConnectionProvider(providerB);
                 }
@@ -91,6 +94,7 @@ public partial class StreamContext_Lifecycle
                 {
                     pipeline
                         .UseLogger(logger)
+                        .UseDefaultNetworkCodec()
                         .UseLengthPrefixedCodec(logger)
                         .UseConnectionProvider(providerA);
                 }

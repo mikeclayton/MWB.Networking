@@ -2,6 +2,8 @@
 using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
 using MWB.Networking.Layer1_Framing.Codec.Frames;
+using MWB.Networking.Layer1_Framing.Codecs.Default.Network;
+using MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.Transport;
 using MWB.Networking.Layer1_Framing.Pipeline.Hosting;
 using MWB.Networking.Logging;
 using MWB.Networking.PerformanceTests;
@@ -77,6 +79,7 @@ public sealed partial class Pipes
         // ----------------------------
         var clientPipeline = await new NetworkPipelineBuilder()
             .UseLogger(logger)
+            .UseDefaultNetworkCodec()
             .UseLengthPrefixedCodec(logger)
             .WrapConnectionAsProvider(logger, clientConnection)
             .CreatePipelineAsync(TestContext.CancellationToken);
@@ -86,6 +89,7 @@ public sealed partial class Pipes
         // ----------------------------
         var serverPipeline = await new NetworkPipelineBuilder()
             .UseLogger(logger)
+            .UseDefaultNetworkCodec()
             .UseLengthPrefixedCodec(logger)
             .WrapConnectionAsProvider(logger, serverConnection)
             .CreatePipelineAsync(TestContext.CancellationToken);

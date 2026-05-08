@@ -25,7 +25,7 @@ public sealed class KeyboardNotificationRequestConsumer
         }
         catch (Exception ex)
         {
-            request.Error();
+            request.Reject();
         }
     }
 }

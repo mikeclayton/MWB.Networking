@@ -3,11 +3,11 @@
 namespace MWB.Networking.Layer1_Framing.Pipeline.Hosting;
 
 // Stage 1: zero or more frame codecs
-public interface INetworkPipelineCodecStage
+public interface INetworkPipelineFrameCodecStage
 {
-    INetworkPipelineCodecStage UseFrameCodec(
+    INetworkPipelineFrameCodecStage UseFrameCodec(
         Func<IFrameCodec> frameCodecFactory);
 
-    INetworkPipelineBuildStage UseTransportCodec(
+    INetworkPipelineBuildStage UseTransportFrameCodec(
         Func<ITransportCodec> transportFactory);
 }

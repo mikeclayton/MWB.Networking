@@ -6,7 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace MWB.Networking.Layer2_Protocol.Session.Streams;
 
-internal sealed class StreamManager : IHasLogger
+internal sealed class StreamManager
 {
     internal StreamManager(ILogger logger, ProtocolSession session, OddEvenStreamIdProvider streamIdProvider)
     {
@@ -19,7 +19,7 @@ internal sealed class StreamManager : IHasLogger
         this.Outbound = new StreamManagerOutbound(session, this, this.StreamEntries, streamIdProvider);
     }
 
-    public ILogger Logger
+    private ILogger Logger
     {
         get;
     }

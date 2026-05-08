@@ -3,7 +3,7 @@ using MWB.Networking.Layer2_Protocol.Session.Frames;
 
 namespace MWB.Networking.Layer2_Protocol.Session;
 
-public sealed partial class ProtocolSession : IProtocolSessionProcessor
+sealed partial class ProtocolSession : IProtocolSessionProcessor
 {
     internal IProtocolSessionProcessor AsProcessor()
         => this;

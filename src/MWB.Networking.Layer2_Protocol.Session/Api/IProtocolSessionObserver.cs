@@ -4,7 +4,7 @@ using MWB.Networking.Layer2_Protocol.Session.Streams.Api;
 
 namespace MWB.Networking.Layer2_Protocol.Session.Api;
 
-public interface IProtocolSessionObserver
+internal interface IProtocolSessionObserver
 {
     // === Semantics ===
 

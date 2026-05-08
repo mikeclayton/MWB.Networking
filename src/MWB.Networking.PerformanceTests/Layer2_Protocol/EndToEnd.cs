@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Memory;
+using MWB.Networking.Layer1_Framing.Codecs.Default.Network;
+using MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.Transport;
 using MWB.Networking.Layer3_Endpoint.Hosting;
 using MWB.Networking.Logging;
 using System.Diagnostics;
@@ -63,6 +65,7 @@ public partial class Layer2_Protocol_EndToEnd
                 {
                     pipeline
                         .UseLogger(logger)
+                        .UseDefaultNetworkCodec()
                         .UseLengthPrefixedCodec(logger)
                         .UseConnectionProvider(providerA);
                 }
@@ -86,6 +89,7 @@ public partial class Layer2_Protocol_EndToEnd
                 {
                     pipeline
                         .UseLogger(logger)
+                        .UseDefaultNetworkCodec()
                         .UseLengthPrefixedCodec(logger)
                         .UseConnectionProvider(providerB);
                 }

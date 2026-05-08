@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Memory;
 using MWB.Networking.Layer1_Framing.Codec.Frames;
+using MWB.Networking.Layer1_Framing.Codecs.Default.Network;
+using MWB.Networking.Layer1_Framing.Codecs.Null.Frame;
 using MWB.Networking.Layer1_Framing.Pipeline.Hosting;
 using MWB.Networking.PerformanceTests;
 using System.Diagnostics;
@@ -54,7 +56,8 @@ public sealed partial class NullCodec
         var pipeline =
             await new NetworkPipelineBuilder()
                 .UseLogger(logger)
-                .UseNullCodec()
+                .UseDefaultNetworkCodec()
+                .UseNullFrameCodec()
                 .UseNullConnectionProvider(logger)
                 .CreatePipelineAsync(TestContext.CancellationToken);
 
