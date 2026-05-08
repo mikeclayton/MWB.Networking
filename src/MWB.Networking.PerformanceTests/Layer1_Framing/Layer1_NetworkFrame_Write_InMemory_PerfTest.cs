@@ -1,10 +1,9 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Memory;
 using MWB.Networking.Layer1_Framing.Codec.Frames;
-using MWB.Networking.Layer1_Framing.Codecs.Default.Network;
-using MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.Transport;
+using MWB.Networking.Layer1_Framing.Codecs.Default.Network.Hosting;
+using MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.Transport.Hosting;
 using MWB.Networking.Layer1_Framing.Pipeline.Hosting;
-using MWB.Networking.PerformanceTests;
 using System.Diagnostics;
 
 namespace Layer1_Framing;
@@ -53,13 +52,12 @@ public sealed partial class Memory
             InMemoryNetworkConnectionProvider.CreateDuplexProviders(logger);
 
         // Build framing pipeline on top of the in-memory connection
-        var pipeline =
-            await new NetworkPipelineBuilder()
+        var pipeline = new NetworkPipelineBuilder()
                 .UseLogger(logger)
                 .UseDefaultNetworkCodec()
                 .UseLengthPrefixedCodec(logger)
                 .UseConnectionProvider(providerA)
-                .CreatePipelineAsync(TestContext.CancellationToken);
+                .Build();
 
         var payload = new ReadOnlyMemory<byte>(
             new byte[] { 0x01, 0x02, 0x03 });

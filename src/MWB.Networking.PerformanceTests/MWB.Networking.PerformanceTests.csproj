@@ -8,12 +8,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Helpers\NetworkPipelineBuilderExtensions.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Memory\MWB.Networking.Layer0_Transport.Memory.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Pipes\MWB.Networking.Layer0_Transport.Pipes.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Codecs.Default\MWB.Networking.Layer1_Framing.Codecs.Default.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed\MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Codecs.Null\MWB.Networking.Layer1_Framing.Codecs.Null.csproj" />
-    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Hosting.NullTransport\MWB.Networking.Layer1_Framing.Hosting.NullTransport.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Pipeline\MWB.Networking.Layer1_Framing.Pipeline.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer2_Protocol.Session\MWB.Networking.Layer2_Protocol.Session.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer3_Endpoint.Hosting\MWB.Networking.Layer3_Endpoint.Hosting.csproj" />

@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer0_Transport.NullTransport;
 
-namespace MWB.Networking.Layer1_Framing.Hosting.NullTransport;
+namespace MWB.Networking.Layer0_Transport.NullTransport.Hosting;
 
 public static class NullConnectionExtensions
 {

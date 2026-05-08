@@ -1,6 +1,6 @@
 ﻿using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
-using MWB.Networking.Layer1_Framing.Codecs.Default.Network;
+using MWB.Networking.Layer1_Framing.Codecs.Default.Network.Hosting;
 using MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.Transport;
 using MWB.Networking.Layer3_Endpoint.Hosting;
 using MWB.Networking.Logging.Debug;
@@ -72,15 +72,12 @@ public sealed class EnqueueTasks
         var clientEndpoint = new SessionEndpointBuilder()
             .UseLogger(logger)
             .UseEvenStreamIds()
-            .ConfigurePipelineWith(
-                pipeline =>
-                {
-                    pipeline
-                        .UseLogger(logger)
-                        .UseDefaultNetworkCodec()
-                        .UseLengthPrefixedCodec(logger)
-                        .UseManualNetworkConnectionProvider(logger, clientConnection);
-                }
+            .UseManualNetworkConnectionProvider(logger, clientConnection)
+            .UsePipeline(pipeline =>
+                pipeline
+                    .UseLogger(logger)
+                    .UseDefaultNetworkCodec()
+                    .UseLengthPrefixedCodec(logger)
             )
             .Build();
 
@@ -92,15 +89,12 @@ public sealed class EnqueueTasks
         var serverEndpoint = new SessionEndpointBuilder()
             .UseLogger(logger)
             .UseOddStreamIds()
-            .ConfigurePipelineWith(
-                pipeline =>
-                {
-                    pipeline
-                        .UseLogger(logger)
-                        .UseDefaultNetworkCodec()
-                        .UseLengthPrefixedCodec(logger)
-                        .UseManualNetworkConnectionProvider(logger, serverConnection);
-                }
+            .UseInstrumentedNetworkConnectionProvider(logger, serverConnection)
+            .UsePipeline(pipeline =>
+                pipeline
+                    .UseLogger(logger)
+                    .UseDefaultNetworkCodec()
+                    .UseLengthPrefixedCodec(logger)
             )
             .OnEventReceived(
                 (_, _) =>

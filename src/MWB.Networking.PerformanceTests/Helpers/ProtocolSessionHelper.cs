@@ -11,7 +11,7 @@ internal static class ProtocolSessionHelper
         ILogger logger,
         OddEvenStreamIdParity parity)
     {
-        var config = new ProtocolSessionConfig(
+        var config = new ProtocolSessionOptions(
             new OddEvenStreamIdProvider(parity));
 
         return new ProtocolSession(logger, config).AsHandle();

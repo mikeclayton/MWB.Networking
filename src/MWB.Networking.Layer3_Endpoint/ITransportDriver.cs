@@ -10,7 +10,7 @@ namespace MWB.Networking.Layer3_Endpoint;
 /// The concrete implementation in the current stack is <c>TransportDriver</c>
 /// from <c>MWB.Networking.Layer0_Transport.Driver</c>.
 /// </summary>
-public interface IProtocolDriver : IDisposable
+public interface ITransportDriver : IDisposable
 {
     /// <summary>
     /// Starts the driver's I/O loop. Must be called exactly once after construction.

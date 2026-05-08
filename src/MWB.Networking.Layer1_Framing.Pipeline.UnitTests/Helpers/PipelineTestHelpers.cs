@@ -24,8 +24,9 @@ internal static class PipelineTestHelpers
     /// </summary>
     internal static NetworkPipeline CreateStandardPipeline()
         => new(
+            NullLogger.Instance,
             new DefaultNetworkFrameCodec(),
-            new[] { new ReverseFrameCodec() },
+            [new ReverseFrameCodec()],
             new LengthPrefixedTransportCodec(NullLogger.Instance));
 
     /// <summary>
@@ -35,8 +36,9 @@ internal static class PipelineTestHelpers
     /// </summary>
     internal static NetworkPipeline CreateZeroCodecPipeline()
         => new(
+            NullLogger.Instance,
             new DefaultNetworkFrameCodec(),
-            Array.Empty<ReverseFrameCodec>(),
+            [],
             new LengthPrefixedTransportCodec(NullLogger.Instance));
 
     /// <summary>
@@ -47,8 +49,9 @@ internal static class PipelineTestHelpers
     /// </summary>
     internal static NetworkPipeline CreateDoubleReversePipeline()
         => new(
+            NullLogger.Instance,
             new DefaultNetworkFrameCodec(),
-            new[] { new ReverseFrameCodec(), new ReverseFrameCodec() },
+            [new ReverseFrameCodec(), new ReverseFrameCodec()],
             new LengthPrefixedTransportCodec(NullLogger.Instance));
 
     /// <summary>
@@ -59,8 +62,9 @@ internal static class PipelineTestHelpers
     /// </summary>
     internal static NetworkPipeline CreateAlwaysFailPipeline()
         => new(
+            NullLogger.Instance,
             new DefaultNetworkFrameCodec(),
-            new IFrameCodec[] { new AlwaysFailFrameCodec() },
+            [new AlwaysFailFrameCodec()],
             new LengthPrefixedTransportCodec(NullLogger.Instance));
 
     // -------------------------------------------------------------------------

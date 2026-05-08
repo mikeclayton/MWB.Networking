@@ -5,7 +5,7 @@ using MWB.Networking.Layer2_Protocol.Session.Streams.Api;
 
 namespace MWB.Networking.Layer3_Endpoint;
 
-internal sealed class SessionEndpointObservers
+public sealed class SessionEndpointObservers
 {
     private readonly IReadOnlyList<Action<IncomingEvent, ReadOnlyMemory<byte>>> _eventReceived;
     private readonly IReadOnlyList<Action<IncomingRequest, ReadOnlyMemory<byte>>> _requestReceived;

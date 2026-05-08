@@ -1,13 +1,13 @@
 ﻿using MWB.Networking.Layer2_Protocol.Session.Streams.Infrastructure;
 
-namespace MWB.Networking.Layer2_Protocol.Session;
+namespace MWB.Networking.Layer2_Protocol.Session.Hosting;
 
 /// <summary>
 /// Semantic configuration for protocol session behavior.
 /// </summary>
-sealed class ProtocolSessionConfig
+sealed class ProtocolSessionOptions
 {
-    public ProtocolSessionConfig(OddEvenStreamIdProvider outboundStreamIdProvider)
+    public ProtocolSessionOptions(OddEvenStreamIdProvider outboundStreamIdProvider)
     {
         this.OutboundStreamIdProvider = outboundStreamIdProvider;
     }

@@ -1,9 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer2_Protocol.Session.Api;
 using MWB.Networking.Layer2_Protocol.Session.Events;
+using MWB.Networking.Layer2_Protocol.Session.Hosting;
 using MWB.Networking.Layer2_Protocol.Session.Requests;
 using MWB.Networking.Layer2_Protocol.Session.Streams;
-using MWB.Networking.Logging;
 
 namespace MWB.Networking.Layer2_Protocol.Session;
 
@@ -18,14 +18,14 @@ namespace MWB.Networking.Layer2_Protocol.Session;
 /// </summary>
 internal sealed partial class ProtocolSession : IProtocolSessionFrameIO
 {
-    public ProtocolSession(
+    internal ProtocolSession(
         ILogger logger,
-        ProtocolSessionConfig config)
+        ProtocolSessionOptions options)
     {
         this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         this.EventManager = new EventManager(logger, this);
         this.RequestManager = new RequestManager(logger, this);
-        this.StreamManager = new StreamManager(logger, this, config.OutboundStreamIdProvider);
+        this.StreamManager = new StreamManager(logger, this, options.OutboundStreamIdProvider);
     }
 
     private ILogger Logger

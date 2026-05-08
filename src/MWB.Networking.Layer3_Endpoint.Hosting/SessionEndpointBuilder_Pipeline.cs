@@ -23,11 +23,11 @@ public sealed partial class SessionEndpointBuilder
     /// The connection provider is configured separately via
     /// <see cref="UseConnectionProvider"/>.
     /// </summary>
-    public SessionEndpointBuilder ConfigurePipelineWith(
-        Func<NetworkPipelineBuilder, INetworkPipelineBuildStage> configure)
+    public SessionEndpointBuilder UsePipeline(
+        Func<INetworkPipelineFactoryBuilderLoggerStage, INetworkPipelineFactoryBuilderBuildStage> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
-        var pipelineBuilder = new NetworkPipelineBuilder();
+        var pipelineBuilder = NetworkPipelineFactoryBuilder.Create();
         _pipelineFactory = configure(pipelineBuilder).BuildFactory();
         return this;
     }

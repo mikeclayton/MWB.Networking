@@ -5,15 +5,13 @@ namespace MWB.Networking.Layer1_Framing.Pipeline.Hosting;
 public sealed class NetworkPipelineBuilder
 {
     // -----------------------------
-    // Initial builder stage
+    // Initial step
     // -----------------------------
 
-    public INetworkPipelineNetworkCodecStage UseLogger(
-        ILogger logger)
+    public INetworkPipelineBuilderNetworkCodecStage UseLogger(ILogger logger)
     {
         ArgumentNullException.ThrowIfNull(logger);
-
-        return new NetworkPipelineBuilderState()
+        return new NetworkPipelineBuilderStages()
             .UseLogger(logger);
     }
 }

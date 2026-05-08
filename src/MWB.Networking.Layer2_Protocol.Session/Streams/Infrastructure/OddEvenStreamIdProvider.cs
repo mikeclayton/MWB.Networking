@@ -15,9 +15,9 @@
 /// If a StreamManager receives an Inbound stream with the wrong parity
 /// it will raise a protocol error.
 /// </summary>
-public sealed class OddEvenStreamIdProvider
+internal sealed class OddEvenStreamIdProvider
 {
-    public OddEvenStreamIdProvider(OddEvenStreamIdParity outboundParity)
+    internal OddEvenStreamIdProvider(OddEvenStreamIdParity outboundParity)
     {
         this.OutboundParity = outboundParity;
         this.NextStreamId = this.OutboundParity switch

@@ -5,6 +5,7 @@ using MWB.Networking.Layer0_Transport.Stack.Abstractions;
 using MWB.Networking.Layer1_Framing.Pipeline;
 using MWB.Networking.Layer2_Protocol.Adapter;
 using MWB.Networking.Layer2_Protocol.Session;
+using MWB.Networking.Layer2_Protocol.Session.Hosting;
 using MWB.Networking.Layer2_Protocol.Session.Streams.Infrastructure;
 
 namespace MWB.Networking.Layer3_Endpoint.Hosting;
@@ -59,18 +60,18 @@ internal sealed class ProtocolRuntimeFactory : IProtocolRuntimeFactory
         var driver = new TransportDriver(transportAdapter, pipeline);
 
         // 5. Create the protocol session.
-        var streamIdProvider = new OddEvenStreamIdProvider(_streamIdParity);
-        var sessionConfig = new ProtocolSessionConfig(streamIdProvider);
-        var session = new ProtocolSession(_logger, sessionConfig);
-        var handle = session.AsHandle();
+        var session = new ProtocolSessionBuilder()
+            .UseLogger(_logger)
+            .UseOddStreamIds()
+            .Build();
 
         // 6. Wire the session adapter (bridges protocol frames ↔ network frames).
-        var adapter = new SessionAdapter(_logger, handle.FrameIO, driver);
+        var adapter = new SessionAdapter(_logger, session.FrameIO, driver);
 
         // 7. Return the composed runtime.
         return new ProtocolRuntime
         {
-            Session = handle,
+            Session = session,
             Adapter = adapter,
             Driver = new TransportDriverAdapter(driver)
         };

@@ -177,7 +177,7 @@ public sealed partial class DefaultNetworkFrameCodec : INetworkFrameCodec
             return FrameDecodeResult.InvalidFrameEncoding;
         }
 
-        ReadOnlyMemory<byte> payload = default;
+        ReadOnlyMemory<byte> payload;
         if (remaining == 0)
         {
             payload = ReadOnlyMemory<byte>.Empty;
