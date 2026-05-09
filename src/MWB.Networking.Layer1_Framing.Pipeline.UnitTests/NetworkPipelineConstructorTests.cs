@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging.Abstractions;
-using MWB.Networking.Layer1_Framing.Codec.Abstractions;
 using MWB.Networking.Layer1_Framing.Codecs.Default.Network;
 using MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.Transport;
 using MWB.Networking.Layer1_Framing.Codecs.Reverse.Frame;
@@ -15,12 +14,24 @@ namespace MWB.Networking.Layer1_Framing.Pipeline.UnitTests;
 public sealed class NetworkPipelineConstructorTests
 {
     [TestMethod]
-    public void Constructor_NullNetworkFrameCodec_ThrowsArgumentNullException()
+    public void Constructor_NullLogger_ThrowsArgumentNullException()
     {
         Assert.ThrowsExactly<ArgumentNullException>(() =>
             _ = new NetworkPipeline(
+                logger: null!,
+                networkFrameCodec: new DefaultNetworkFrameCodec(),
+                frameCodecs: [],
+                transportCodec: new LengthPrefixedTransportCodec(NullLogger.Instance)));
+    }
+
+    [TestMethod]
+    public void Constructor_NullNetworkFrameCodec_ThrowsArgumentNullException()
+    {
+        Assert.ThrowsExactly<ArgumentNullException>(static () =>
+            _ = new NetworkPipeline(
+                logger: NullLogger.Instance,
                 networkFrameCodec: null!,
-                frameCodecs: Array.Empty<IFrameCodec>(),
+                frameCodecs: [],
                 transportCodec: new LengthPrefixedTransportCodec(NullLogger.Instance)));
     }
 
@@ -29,6 +40,7 @@ public sealed class NetworkPipelineConstructorTests
     {
         Assert.ThrowsExactly<ArgumentNullException>(() =>
             _ = new NetworkPipeline(
+                logger: NullLogger.Instance,
                 networkFrameCodec: new DefaultNetworkFrameCodec(),
                 frameCodecs: null!,
                 transportCodec: new LengthPrefixedTransportCodec(NullLogger.Instance)));
@@ -39,8 +51,9 @@ public sealed class NetworkPipelineConstructorTests
     {
         Assert.ThrowsExactly<ArgumentNullException>(() =>
             _ = new NetworkPipeline(
+                logger: NullLogger.Instance,
                 networkFrameCodec: new DefaultNetworkFrameCodec(),
-                frameCodecs: Array.Empty<IFrameCodec>(),
+                frameCodecs: [],
                 transportCodec: null!));
     }
 
@@ -49,8 +62,9 @@ public sealed class NetworkPipelineConstructorTests
     {
         // Arrange / Act
         var pipeline = new NetworkPipeline(
+            logger: NullLogger.Instance,
             networkFrameCodec: new DefaultNetworkFrameCodec(),
-            frameCodecs: new[] { new ReverseFrameCodec() },
+            frameCodecs: [new ReverseFrameCodec()],
             transportCodec: new LengthPrefixedTransportCodec(NullLogger.Instance));
 
         // Assert: construction must not throw and the object must be non-null.

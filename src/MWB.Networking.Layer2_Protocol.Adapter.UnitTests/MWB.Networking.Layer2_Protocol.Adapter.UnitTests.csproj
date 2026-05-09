@@ -10,7 +10,6 @@
   <ItemGroup>
     <ProjectReference Include="..\MWB.Networking.Layer2_Protocol.Adapter\MWB.Networking.Layer2_Protocol.Adapter.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Codec\MWB.Networking.Layer1_Framing.Codec.csproj" />
-    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Driver.Abstractions\MWB.Networking.Layer1_Framing.Driver.Abstractions.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer2_Protocol.Session\MWB.Networking.Layer2_Protocol.Session.csproj" />
     <ProjectReference Include="..\MWB.Networking.Logging\MWB.Networking.Logging.csproj" />
   </ItemGroup>

@@ -23,7 +23,6 @@
     <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Pipes\MWB.Networking.Layer0_Transport.Pipes.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Codecs.Default\MWB.Networking.Layer1_Framing.Codecs.Default.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed\MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.csproj" />
-    <ProjectReference Include="..\MWB.Networking.Layer3_Endpoint.Hosting\MWB.Networking.Layer3_Endpoint.Hosting.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer3_Endpoint\MWB.Networking.Layer3_Endpoint.csproj" />
   </ItemGroup>
 

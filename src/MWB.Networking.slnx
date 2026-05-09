@@ -7,18 +7,13 @@
     <Project Path="../wiki/wiki.csproj" />
   </Folder>
   <Folder Name="/Common/">
+    <Project Path="MWB.Networking.Buffers.Segmented/MWB.Networking.Buffers.Segmented.csproj" />
     <Project Path="MWB.Networking.Logging.Debug/MWB.Networking.Logging.Debug.csproj" />
     <Project Path="MWB.Networking.Logging.TestContext/MWB.Networking.Logging.TestContext.csproj" Id="562b7947-404f-4e97-acdd-bbdf63ccc653" />
     <Project Path="MWB.Networking.Logging/MWB.Networking.Logging.csproj" Id="a225f23f-606c-4428-b899-9fc80975b21d" />
   </Folder>
-  <Folder Name="/Common/Utilities/">
-    <Project Path="MWB.Networking.Layer0_Transport.Segmented/MWB.Networking.Layer0_Transport.Segmented.csproj" />
-  </Folder>
   <Folder Name="/Layer0_Transport/">
-    <Project Path="MWB.Networking.Layer0_Transport.Driver.Abstractions/MWB.Networking.Layer0_Transport.Driver.Abstractions.csproj" Id="dff6c233-d91c-46f3-98b2-76abb894aca3" />
-    <Project Path="MWB.Networking.Layer0_Transport.Driver.UnitTests/MWB.Networking.Layer0_Transport.Driver.UnitTests.csproj" />
-    <Project Path="MWB.Networking.Layer0_Transport.Driver/MWB.Networking.Layer0_Transport.Driver.csproj" Id="b031f983-9766-4c8a-9455-c0ad20b6ff9e" />
-    <Project Path="MWB.Networking.Layer0_Transport.Primitives/MWB.Networking.Layer0_Transport.Encoding.csproj" Id="6324e246-ef26-49e3-ac3c-c2ed0b87848f" />
+    <Project Path="MWB.Networking.Layer0_Transport.Stack.Core/MWB.Networking.Layer0_Transport.Stack.Core.csproj" />
     <Project Path="MWB.Networking.Layer0_Transport.Stack.UnitTests/MWB.Networking.Layer0_Transport.Stack.UnitTests.csproj" />
     <Project Path="MWB.Networking.Layer0_Transport.Stack/MWB.Networking.Layer0_Transport.Stack.csproj" />
   </Folder>
@@ -34,6 +29,8 @@
   <Folder Name="/Layer1_Framing/">
     <Project Path="MWB.Networking.Layer1_Framing.Codec/MWB.Networking.Layer1_Framing.Codec.csproj" />
     <Project Path="MWB.Networking.Layer1_Framing.Driver.Abstractions/MWB.Networking.Layer1_Framing.Driver.Abstractions.csproj" />
+    <Project Path="MWB.Networking.Layer1_Framing.Driver.UnitTests/MWB.Networking.Layer1_Framing.Driver.UnitTests.csproj" />
+    <Project Path="MWB.Networking.Layer1_Framing.Driver/MWB.Networking.Layer1_Framing.Driver.csproj" />
     <Project Path="MWB.Networking.Layer1_Framing.Pipeline.UnitTests/MWB.Networking.Layer1_Framing.Pipeline.UnitTests.csproj" />
     <Project Path="MWB.Networking.Layer1_Framing.Pipeline/MWB.Networking.Layer1_Framing.Pipeline.csproj" />
   </Folder>
@@ -56,7 +53,6 @@
     <Project Path="MWB.Networking.Layer2_Protocol.Session/MWB.Networking.Layer2_Protocol.Session.csproj" />
   </Folder>
   <Folder Name="/Layer3_Endpoint/">
-    <Project Path="MWB.Networking.Layer3_Endpoint.Hosting/MWB.Networking.Layer3_Endpoint.Hosting.csproj" />
     <Project Path="MWB.Networking.Layer3_Endpoint/MWB.Networking.Layer3_Endpoint.csproj" />
   </Folder>
   <Folder Name="/Samples/">

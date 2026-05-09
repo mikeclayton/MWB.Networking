@@ -4,7 +4,6 @@ namespace MWB.Networking.Layer1_Framing.Driver.Abstractions;
 
 public interface INetworkFrameSink
 {
-
     /// <summary>
     /// Sends a NetworkFrame downstream.
     ///
