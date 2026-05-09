@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer0_Transport.Stack.Abstractions;
+using MWB.Networking.Layer0_Transport.Stack.Core.Connection;
 using MWB.Networking.Layer1_Framing.Codecs.Default.Network.Hosting;
 using MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.Transport.Hosting;
 using MWB.Networking.Layer2_Protocol.Session.Events.Api;

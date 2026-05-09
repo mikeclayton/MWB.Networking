@@ -6,7 +6,7 @@ namespace MWB.Networking.Layer2_Protocol.Session.Hosting;
 
 public sealed class ProtocolSessionBuilder
 {
-    private ILogger _logger;
+    private ILogger? _logger;
     private OddEvenStreamIdParity _parity = OddEvenStreamIdParity.Odd;
 
     public ProtocolSessionBuilder UseLogger(ILogger logger)
@@ -31,9 +31,14 @@ public sealed class ProtocolSessionBuilder
     
     public ProtocolSessionHandle Build()
     {
+        var logger = _logger
+            ?? throw new InvalidOperationException("A logger must be configured.");
+
         var options = new ProtocolSessionOptions(
             new OddEvenStreamIdProvider(_parity));
-        var session = new ProtocolSession(_logger, options);
+
+        var session = new ProtocolSession(logger, options);
+
         return session.AsHandle();
     }
 }

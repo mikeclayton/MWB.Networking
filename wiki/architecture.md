@@ -19,6 +19,34 @@ This structure ensures that:
 
 See below for more details about each layer.
 
+
+## Diagram
+
+```
+┌──────────────────────────────────────────┐
+│ Application / Host                       │
+├──────────────────────────────────────────┤
+│ ProtocolSession                          │
+│   • ProtocolFrame semantics              │
+├──────────────────────────────────────────┤
+│ SessionAdapter   (Layer 2.5)             │
+│   • ProtocolFrame <-> NetworkFrame       │
+│   • execution ordering                   │
+│   • no bytes, no sockets                 │
+├──────────────────────────────────────────┤
+│ NetworkPipeline   (Layer 1)              │
+│   • NetworkFrame <-> bytes (pure codec)  │
+│   • no execution                         │
+├──────────────────────────────────────────┤
+│ TransportAdapter                         │
+│   • socket / stream / TLS                │
+│   • read/write loops                     │
+│   • owns IO                              │
+├──────────────────────────────────────────┤
+│ TransportStack                           │
+└──────────────────────────────────────────┘
+```
+
 ---
 
 ## Layer Responsibilities

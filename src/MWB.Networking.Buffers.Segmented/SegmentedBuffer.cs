@@ -1,6 +1,6 @@
 ﻿using System.Collections.Concurrent;
 
-namespace MWB.Networking.Layer0_Transport.Segmented;
+namespace MWB.Networking.Buffers.Segmented;
 
 /// <summary>
 /// Single-writer, single-reader buffered byte channel.

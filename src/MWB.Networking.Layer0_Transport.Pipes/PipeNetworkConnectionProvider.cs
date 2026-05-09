@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer0_Transport.Stack.Abstractions;
-using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
+using MWB.Networking.Layer0_Transport.Stack.Core.Connection;
+using MWB.Networking.Layer0_Transport.Stack.Core.Lifecycle;
 using System.IO.Pipelines;
 
 namespace MWB.Networking.Layer0_Transport.Pipes;
@@ -24,7 +24,7 @@ public sealed class PipeNetworkConnectionProvider
     }
 
     public Task<INetworkConnection> OpenConnectionAsync(
-        ObservableConnectionStatus status,
+        IConnectionStatus status,
         CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(status);

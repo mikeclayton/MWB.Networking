@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer0_Transport.Encoding;
+using MWB.Networking.Layer0_Transport.Stack.Core.Primitives;
 using MWB.Networking.Layer1_Framing.Codec;
 using MWB.Networking.Layer1_Framing.Codec.Abstractions;
 using MWB.Networking.Layer1_Framing.Codec.Buffer;

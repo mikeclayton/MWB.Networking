@@ -1,5 +1,6 @@
-﻿using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Instrumented;
+using MWB.Networking.Layer0_Transport.Stack.Hosting;
 
 namespace MWB.Networking.Layer0_Transport.Stack.UnitTests;
 
@@ -28,7 +29,11 @@ public sealed class ConnectTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         await stack.ConnectAsync();
 
@@ -45,7 +50,11 @@ public sealed class ConnectTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         await stack.ConnectAsync(); // drives to Disconnected (initial) — no OnStarted yet
 
@@ -62,7 +71,11 @@ public sealed class ConnectTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         await stack.ConnectAsync();
         provider.Instrumentation
@@ -83,7 +96,11 @@ public sealed class ConnectTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         using var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -101,7 +118,11 @@ public sealed class ConnectTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         using var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -129,7 +150,12 @@ public sealed class ConnectTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
+
         await stack.DisposeAsync();
 
         await Assert.ThrowsExactlyAsync<ObjectDisposedException>(

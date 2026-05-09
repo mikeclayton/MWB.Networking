@@ -1,6 +1,6 @@
-﻿using MWB.Networking.Layer0_Transport.Encoding;
-using MWB.Networking.Layer0_Transport.Stack.Abstractions;
-using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
+﻿using MWB.Networking.Layer0_Transport.Stack.Core.Connection;
+using MWB.Networking.Layer0_Transport.Stack.Core.Lifecycle;
+using MWB.Networking.Layer0_Transport.Stack.Core.Primitives;
 using System.Collections.Concurrent;
 using System.Threading.Channels;
 
@@ -17,7 +17,7 @@ namespace MWB.Networking.Layer0_Transport.Instrumented;
 /// </summary>
 public sealed partial class InstrumentedNetworkConnection : INetworkConnection, IDisposable
 {
-    private readonly ObservableConnectionStatus _status;
+    private readonly IConnectionStatus _status;
 
     private readonly Channel<ReadOnlyMemory<byte>> _readChannel =
         Channel.CreateUnbounded<ReadOnlyMemory<byte>>(
@@ -35,7 +35,7 @@ public sealed partial class InstrumentedNetworkConnection : INetworkConnection, 
 
     private readonly bool _isLoopback;
 
-    public InstrumentedNetworkConnection(ObservableConnectionStatus status, bool isLoopback = false)
+    public InstrumentedNetworkConnection(IConnectionStatus status, bool isLoopback = false)
     {
         _status = status ?? throw new ArgumentNullException(nameof(status));
         _isLoopback = isLoopback;

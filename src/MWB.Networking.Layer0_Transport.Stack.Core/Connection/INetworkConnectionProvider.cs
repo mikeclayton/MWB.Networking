@@ -1,6 +1,6 @@
-﻿using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
+﻿using MWB.Networking.Layer0_Transport.Stack.Core.Lifecycle;
 
-namespace MWB.Networking.Layer0_Transport.Stack.Abstractions;
+namespace MWB.Networking.Layer0_Transport.Stack.Core.Connection;
 
 /// <summary>
 /// Factory for establishing a network connection.
@@ -13,5 +13,5 @@ namespace MWB.Networking.Layer0_Transport.Stack.Abstractions;
 public interface INetworkConnectionProvider : IDisposable
 {
     Task<INetworkConnection> OpenConnectionAsync(
-        ObservableConnectionStatus status, CancellationToken ct);
+        IConnectionStatus status, CancellationToken ct);
 }

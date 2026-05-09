@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer0_Transport.Stack.Abstractions;
-using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
+using MWB.Networking.Layer0_Transport.Stack.Core.Connection;
+using MWB.Networking.Layer0_Transport.Stack.Core.Lifecycle;
 
 namespace MWB.Networking.Layer0_Transport.NullTransport;
 
@@ -19,7 +19,7 @@ public sealed class NullConnectionProvider
 
 
     public Task<INetworkConnection> OpenConnectionAsync(
-           ObservableConnectionStatus status,
+           IConnectionStatus status,
            CancellationToken ct)
     {
         // Instantaneous, side-effect free

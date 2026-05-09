@@ -1,5 +1,6 @@
-﻿using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Instrumented;
+using MWB.Networking.Layer0_Transport.Stack.Hosting;
 
 namespace MWB.Networking.Layer0_Transport.Stack.UnitTests;
 
@@ -28,25 +29,29 @@ public sealed class ReconnectTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         // First connection
-        await stack.ConnectAsync();
+        await stack.ConnectAsync(TestContext.CancellationToken);
         provider.Instrumentation
             .Connection!.Instrumentation
             .OnStarted();
-        await stack.AwaitConnectedAsync()
+        await stack.AwaitConnectedAsync(TestContext.CancellationToken)
             .WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
 
         await stack.DisconnectAsync();
         Assert.IsFalse(stack.IsConnected, "Should be disconnected.");
 
         // Second connection
-        await stack.ConnectAsync();
+        await stack.ConnectAsync(TestContext.CancellationToken);
         provider.Instrumentation
             .Connection!.Instrumentation
             .OnStarted();
-        await stack.AwaitConnectedAsync()
+        await stack.AwaitConnectedAsync(TestContext.CancellationToken)
             .WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
 
         Assert.IsTrue(stack.IsConnected, "Should be reconnected.");
@@ -63,14 +68,18 @@ public sealed class ReconnectTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         // First connection — faulted by provider
-        await stack.ConnectAsync();
+        await stack.ConnectAsync(TestContext.CancellationToken);
         provider.Instrumentation
             .Connection!.Instrumentation
             .OnStarted();
-        await stack.AwaitConnectedAsync()
+        await stack.AwaitConnectedAsync(TestContext.CancellationToken)
             .WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
 
         provider.Instrumentation
@@ -82,11 +91,11 @@ public sealed class ReconnectTests
         Assert.IsFalse(stack.IsConnected);
 
         // Second connection — should succeed
-        await stack.ConnectAsync();
+        await stack.ConnectAsync(TestContext.CancellationToken);
         provider.Instrumentation
             .Connection!.Instrumentation
             .OnStarted();
-        await stack.AwaitConnectedAsync()
+        await stack.AwaitConnectedAsync(TestContext.CancellationToken)
             .WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
 
         Assert.IsTrue(stack.IsConnected, "Should be connected after fault-recovery.");
@@ -101,18 +110,22 @@ public sealed class ReconnectTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         // First attempt: provider throws
         provider.Instrumentation.SetNextOpenConnectionFailure(new Exception("Transient failure."));
-        try { await stack.ConnectAsync(); } catch { /* expected */ }
+        try { await stack.ConnectAsync(TestContext.CancellationToken); } catch { /* expected */ }
 
         // Second attempt: normal
-        await stack.ConnectAsync();
+        await stack.ConnectAsync(TestContext.CancellationToken);
         provider.Instrumentation
             .Connection!.Instrumentation
             .OnStarted();
-        await stack.AwaitConnectedAsync()
+        await stack.AwaitConnectedAsync(TestContext.CancellationToken)
             .WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
 
         Assert.IsTrue(stack.IsConnected);

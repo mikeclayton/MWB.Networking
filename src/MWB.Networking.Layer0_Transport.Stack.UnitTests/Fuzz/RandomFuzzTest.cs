@@ -1,8 +1,8 @@
-﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer0_Transport.Encoding;
+using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer0_Transport.Instrumented;
-using MWB.Networking.Layer0_Transport.Stack.Exceptions;
-using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
+using MWB.Networking.Layer0_Transport.Stack.Hosting;
+using MWB.Networking.Layer0_Transport.Stack.Core.Lifecycle;
+using MWB.Networking.Layer0_Transport.Stack.Core.Primitives;
 using MWB.Networking.Logging;
 using MWB.Networking.Logging.TestContext;
 
@@ -99,7 +99,11 @@ public sealed class RandomFuzzTest
         var provider = new InstrumentedNetworkConnectionProvider(logger);
         provider.Instrumentation.UseLoopback = true;
 
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         var expected = new List<byte[]>(BlockCount);
         var received = new List<byte[]>(BlockCount);

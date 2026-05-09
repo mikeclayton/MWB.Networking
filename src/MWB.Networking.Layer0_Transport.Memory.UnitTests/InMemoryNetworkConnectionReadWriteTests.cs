@@ -1,5 +1,5 @@
-using MWB.Networking.Layer0_Transport.Encoding;
 using MWB.Networking.Layer0_Transport.Memory.UnitTests.Helpers;
+using MWB.Networking.Layer0_Transport.Stack.Core.Primitives;
 using System.Diagnostics;
 
 namespace MWB.Networking.Layer0_Transport.Memory.UnitTests;

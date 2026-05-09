@@ -1,6 +1,6 @@
 ﻿using System.Collections;
 
-namespace MWB.Networking.Layer0_Transport.Encoding;
+namespace MWB.Networking.Layer0_Transport.Stack.Core.Primitives;
 
 /// <summary>
 /// Represents a logical, atomic block of bytes at Layer 0.

@@ -2,7 +2,6 @@
 using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
 using MWB.Networking.Layer1_Framing.Codecs.Default.Network.Hosting;
-using MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.Transport;
 using MWB.Networking.Layer3_Endpoint.Hosting;
 using System.Diagnostics;
 using System.IO.Pipelines;

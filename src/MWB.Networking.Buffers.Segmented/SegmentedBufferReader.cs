@@ -1,4 +1,4 @@
-﻿namespace MWB.Networking.Layer0_Transport.Segmented;
+﻿namespace MWB.Networking.Buffers.Segmented;
 
 /// <summary>
 /// Stream-style reader over a segmented memory buffer.

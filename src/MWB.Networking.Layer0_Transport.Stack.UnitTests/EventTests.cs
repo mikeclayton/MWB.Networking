@@ -1,5 +1,7 @@
-﻿using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Instrumented;
+using MWB.Networking.Layer0_Transport.Stack.Hosting;
+using MWB.Networking.Layer0_Transport.Stack.Core.Lifecycle;
 using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
 using MWB.Networking.Layer0_Transport.Stack.UnitTests.Helpers;
 
@@ -30,17 +32,22 @@ public sealed class EventTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
+
         using var recorder = new StateRecorder(stack);
 
-        await stack.ConnectAsync();
+        await stack.ConnectAsync(TestContext.CancellationToken);
         provider.Instrumentation
             .Connection!.Instrumentation
             .SignalConnecting();
         provider.Instrumentation
             .Connection!.Instrumentation
             .SignalConnected();
-        await stack.AwaitConnectedAsync()
+        await stack.AwaitConnectedAsync(TestContext.CancellationToken)
             .WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
 
         await stack.DisconnectAsync();
@@ -67,14 +74,19 @@ public sealed class EventTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
+
         using var recorder = new StateRecorder(stack);
 
-        await stack.ConnectAsync();
+        await stack.ConnectAsync(TestContext.CancellationToken);
         provider.Instrumentation
             .Connection!.Instrumentation
             .OnStarted();
-        await stack.AwaitConnectedAsync()
+        await stack.AwaitConnectedAsync(TestContext.CancellationToken)
             .WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
 
         provider.Instrumentation
@@ -99,14 +111,19 @@ public sealed class EventTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
+
         using var recorder = new StateRecorder(stack);
 
-        await stack.ConnectAsync();
+        await stack.ConnectAsync(TestContext.CancellationToken);
         provider.Instrumentation
             .Connection!.Instrumentation
             .OnStarted();
-        await stack.AwaitConnectedAsync()
+        await stack.AwaitConnectedAsync(TestContext.CancellationToken)
             .WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
 
         // A double-call to Disconnect on the ManualNetworkConnection is
@@ -130,11 +147,15 @@ public sealed class EventTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         Assert.IsFalse(stack.IsConnected, "Initially not connected.");
 
-        await stack.ConnectAsync();
+        await stack.ConnectAsync(TestContext.CancellationToken);
         Assert.IsFalse(stack.IsConnected, "Connecting state is not Connected.");
 
         provider.Instrumentation
@@ -145,7 +166,7 @@ public sealed class EventTests
         provider.Instrumentation
             .Connection!.Instrumentation
             .SignalConnected();
-        await stack.AwaitConnectedAsync()
+        await stack.AwaitConnectedAsync(TestContext.CancellationToken)
             .WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
         Assert.IsTrue(stack.IsConnected, "Should be connected after SimulateConnected.");
 
@@ -161,11 +182,15 @@ public sealed class EventTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         Assert.IsNull(stack.ConnectionState, "Initially null (no active connection).");
 
-        await stack.ConnectAsync();
+        await stack.ConnectAsync(TestContext.CancellationToken);
         // State is Disconnected (initial, not terminal) until SimulateConnecting.
         Assert.AreEqual(TransportConnectionState.Disconnected, stack.ConnectionState);
 

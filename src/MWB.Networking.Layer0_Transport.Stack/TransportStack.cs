@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer0_Transport.Encoding;
-using MWB.Networking.Layer0_Transport.Stack.Abstractions;
+using MWB.Networking.Layer0_Transport.Stack.Core.Connection;
+using MWB.Networking.Layer0_Transport.Stack.Core.Primitives;
 using MWB.Networking.Layer0_Transport.Stack.Fsm;
 using MWB.Networking.Layer0_Transport.Stack.Internal;
 
@@ -37,7 +37,7 @@ public sealed partial class TransportStack : IDisposable, IAsyncDisposable
     /// <paramref name="connectionProvider"/> when the stack itself is disposed;
     /// <see langword="false"/> if the caller retains ownership of the provider's lifetime.
     /// </param>
-    public TransportStack(
+    internal TransportStack(
         ILogger logger,
         INetworkConnectionProvider connectionProvider,
         bool ownsProvider = true)

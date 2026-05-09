@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.Session.Api;
+using MWB.Networking.Layer2_Protocol.Session.Hosting;
 using MWB.Networking.Layer2_Protocol.Session.Streams.Infrastructure;
 
 namespace MWB.Networking.PerformanceTests.Helpers;

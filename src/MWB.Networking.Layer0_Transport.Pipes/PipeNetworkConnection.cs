@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer0_Transport.Encoding;
-using MWB.Networking.Layer0_Transport.Stack.Abstractions;
-using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
+using MWB.Networking.Layer0_Transport.Stack.Core.Connection;
+using MWB.Networking.Layer0_Transport.Stack.Core.Lifecycle;
+using MWB.Networking.Layer0_Transport.Stack.Core.Primitives;
 using System.Buffers;
 using System.IO.Pipelines;
 
@@ -12,7 +12,7 @@ public sealed class PipeNetworkConnection : INetworkConnection, IDisposable
     private bool _started;
     private volatile bool _disposed;
 
-    public PipeNetworkConnection(ILogger logger, PipeReader reader, PipeWriter writer, ObservableConnectionStatus status)
+    public PipeNetworkConnection(ILogger logger, PipeReader reader, PipeWriter writer, IConnectionStatus status)
     {
         this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         this.Reader = reader ?? throw new ArgumentNullException(nameof(reader));
@@ -35,7 +35,7 @@ public sealed class PipeNetworkConnection : INetworkConnection, IDisposable
         get;
     }
 
-    private ObservableConnectionStatus Status
+    private IConnectionStatus Status
     {
         get;
     }

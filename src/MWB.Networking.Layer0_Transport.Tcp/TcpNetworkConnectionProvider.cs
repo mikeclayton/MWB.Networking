@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer0_Transport.Stack.Abstractions;
-using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
+using MWB.Networking.Layer0_Transport.Stack.Core.Connection;
+using MWB.Networking.Layer0_Transport.Stack.Core.Lifecycle;
 using MWB.Networking.Layer0_Transport.Tcp.Arbitration;
 using MWB.Networking.Logging;
 using System.Net.Sockets;
@@ -35,7 +35,7 @@ public sealed class TcpNetworkConnectionProvider
     /// May be called multiple times over the provider's lifetime.
     /// </summary>
     public async Task<INetworkConnection> OpenConnectionAsync(
-        ObservableConnectionStatus status,
+        IConnectionStatus status,
         CancellationToken ct)
     {
         using var scope = _logger.BeginMethodLoggingScope(this);

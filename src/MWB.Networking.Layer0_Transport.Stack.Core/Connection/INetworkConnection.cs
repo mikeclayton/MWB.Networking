@@ -1,6 +1,6 @@
-﻿using MWB.Networking.Layer0_Transport.Encoding;
+﻿using MWB.Networking.Layer0_Transport.Stack.Core.Primitives;
 
-namespace MWB.Networking.Layer0_Transport.Stack.Abstractions;
+namespace MWB.Networking.Layer0_Transport.Stack.Core.Connection;
 
 /// <summary>
 /// Represents a low‑level, transport‑oriented network connection that

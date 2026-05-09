@@ -1,4 +1,4 @@
-﻿namespace MWB.Networking.Layer0_Transport.Stack.Lifecycle;
+﻿namespace MWB.Networking.Layer0_Transport.Stack.Core.Lifecycle;
 
 /// <summary>
 /// Represents the lifecycle state of a transport-level network connection.
