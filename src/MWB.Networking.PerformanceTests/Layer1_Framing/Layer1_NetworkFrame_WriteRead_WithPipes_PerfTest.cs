@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Pipes;
+using MWB.Networking.Layer0_Transport.Stack;
+using MWB.Networking.Layer0_Transport.Stack.Hosting;
 using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
 using MWB.Networking.Layer1_Framing.Codec.Frames;
 using MWB.Networking.Layer1_Framing.Codecs.Default.Network.Hosting;
@@ -61,17 +63,19 @@ public sealed partial class Pipes
             resumeWriterThreshold: 1024 * 1024 * 50));
         var serverToClient = new Pipe();
 
-        var clientConnection = new PipeNetworkConnection(
-            logger,
-            reader: serverToClient.Reader,
-            writer: clientToServer.Writer,
-            status: new ObservableConnectionStatus());
+        var clientStack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(
+                new PipeNetworkConnectionProvider(
+                    logger, serverToClient.Reader, clientToServer.Writer))
+            .Build();
 
-        var serverConnection = new PipeNetworkConnection(
-            logger,
-            reader: clientToServer.Reader,
-            writer: serverToClient.Writer,
-            status: new ObservableConnectionStatus());
+        var serverStack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(
+                new PipeNetworkConnectionProvider(
+                    logger, clientToServer.Reader, serverToClient.Writer))
+            .Build();
 
         // ----------------------------
         // Build client pipeline
@@ -80,8 +84,7 @@ public sealed partial class Pipes
             .UseLogger(logger)
             .UseDefaultNetworkCodec()
             .UseLengthPrefixedCodec(logger)
-            .WrapConnectionAsProvider(logger, clientConnection)
-            .CreatePipelineAsync(TestContext.CancellationToken);
+            .Build();
 
         // ----------------------------
         // Build server pipeline
@@ -90,8 +93,7 @@ public sealed partial class Pipes
             .UseLogger(logger)
             .UseDefaultNetworkCodec()
             .UseLengthPrefixedCodec(logger)
-            .WrapConnectionAsProvider(logger, serverConnection)
-            .CreatePipelineAsync(TestContext.CancellationToken);
+            .Build();
 
         var payload = new ReadOnlyMemory<byte>([0x01, 0x02, 0x03]);
 

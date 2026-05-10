@@ -4,10 +4,6 @@ namespace MWB.Networking.Layer1_Framing.Pipeline.Hosting;
 
 public sealed class NetworkPipelineFactoryBuilder
 {
-    internal NetworkPipelineFactoryBuilder()
-    {
-    }
-
     // -----------------------------
     // Initial step
     // -----------------------------

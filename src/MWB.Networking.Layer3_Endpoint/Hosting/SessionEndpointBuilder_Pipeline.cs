@@ -24,10 +24,10 @@ public sealed partial class SessionEndpointBuilder
     /// <see cref="UseConnectionProvider"/>.
     /// </summary>
     public SessionEndpointBuilder UsePipeline(
-        Func<INetworkPipelineFactoryBuilderLoggerStage, INetworkPipelineFactoryBuilderBuildStage> configure)
+        Func<NetworkPipelineFactoryBuilder, INetworkPipelineFactoryBuilderBuildStage> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
-        var pipelineBuilder = NetworkPipelineFactoryBuilder.Create();
+        var pipelineBuilder = new NetworkPipelineFactoryBuilder();
         _pipelineFactory = configure(pipelineBuilder).BuildFactory();
         return this;
     }

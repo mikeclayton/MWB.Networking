@@ -67,7 +67,7 @@ internal sealed class ProtocolRuntimeFactory : IProtocolRuntimeFactory
         // 5. Create the protocol session.
         var session = new ProtocolSessionBuilder()
             .UseLogger(_logger)
-            .UseOddStreamIds()
+            .UseStreamIdParity(_streamIdParity)
             .Build();
 
         // 6. Wire the session adapter (bridges protocol frames ↔ network frames).

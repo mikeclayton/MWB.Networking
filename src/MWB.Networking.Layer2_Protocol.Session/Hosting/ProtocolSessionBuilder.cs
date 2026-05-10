@@ -28,7 +28,7 @@ public sealed class ProtocolSessionBuilder
 
     public ProtocolSessionBuilder UseEvenStreamIds()
         => this.UseStreamIdParity(OddEvenStreamIdParity.Even);
-    
+
     public ProtocolSessionHandle Build()
     {
         var logger = _logger
