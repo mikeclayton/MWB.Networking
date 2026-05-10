@@ -9,6 +9,12 @@
 
   <ItemGroup>
     <Compile Remove="Helpers\NetworkPipelineBuilderExtensions.cs" />
+    <Compile Remove="Layer2_Protocol\EndToEnd.cs" />
+    <Compile Remove="Layer2_Protocol\Pipes\Layer2_Protocol_EventEnqueueBeforeStart_WithPipes_PerfTest.cs" />
+    <Compile Remove="Layer2_Protocol\Pipes\Layer2_Protocol_RequestRoundtrip_WithPipes_PerfTest.cs" />
+    <Compile Remove="Layer2_Protocol\Session\Layer2_Protocol_EventEnqueue_SessionOnly_PerfTest.cs" />
+    <Compile Remove="Pipe_PerfTests_v1.cs" />
+    <Compile Remove="Pipe_PerfTests_v2.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -26,6 +32,10 @@
 
   <ItemGroup>
     <PackageReference Update="Microsoft.Testing.Extensions.CodeCoverage" Version="18.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Layer2_Protocol\Session\" />
   </ItemGroup>
 
 </Project>

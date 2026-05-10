@@ -1,15 +1,15 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
-using MWB.Networking.Layer0_Transport.Memory;
 using MWB.Networking.Layer1_Framing.Codec.Frames;
 using MWB.Networking.Layer1_Framing.Codecs.Default.Network.Hosting;
-using MWB.Networking.Layer1_Framing.Codecs.Null.Frame.Hosting;
+using MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.Transport.Hosting;
 using MWB.Networking.Layer1_Framing.Pipeline.Hosting;
+using System.Buffers;
 using System.Diagnostics;
 
 namespace Layer1_Framing;
 
 [TestClass]
-public sealed partial class NullCodec
+public sealed partial class Memory
 {
     public TestContext TestContext
     {
@@ -37,55 +37,66 @@ public sealed partial class NullCodec
     /// it demonstrates that Layer 0 and framing is not a bottleneck.
     /// </summary>
     [TestMethod]
-    public async Task Layer1_NetworkFrame_Write_NullCodec_PerfTest()
+    public async Task Layer1_Pipeline_EncodeDecode_InMemory_PerfTest()
     {
         const int FrameCount = 1_000_000;
 
         var logger = NullLogger.Instance;
 
         // ------------------------------------------------------------
-        // Arrange: null transport + framing pipeline
+        // Arrange: duplex in-memory transport + framing pipeline
         // ------------------------------------------------------------
-
-        // We'll write frames from A; B is unused in this test
-        var (providerA, providerB) =
-            InMemoryNetworkConnectionProvider.CreateDuplexProviders(logger);
 
         // Build framing pipeline on top of the in-memory connection
         var pipeline =
-            await new NetworkPipelineBuilder()
+            new NetworkPipelineBuilder()
                 .UseLogger(logger)
                 .UseDefaultNetworkCodec()
-                .UseNullFrameCodec()
-                .UseNullConnectionProvider(logger)
-                .CreatePipelineAsync(TestContext.CancellationToken);
+                .UseLengthPrefixedCodec(logger)
+                .Build();
 
         var payload = new ReadOnlyMemory<byte>(
             new byte[] { 0x01, 0x02, 0x03 });
 
         // ------------------------------------------------------------
-        // Act: write frames
+        // Act: encode frames
         // ------------------------------------------------------------
 
-        var stopwatch = Stopwatch.StartNew();
+        var decodedFrame = NetworkFrames.Event(
+            eventType: 1u,
+            payload: payload);
+
+        var encodeStopwatch = Stopwatch.StartNew();
         for (int i = 0; i < FrameCount; i++)
         {
-            var frame = NetworkFrames.Request(
-                requestId: (uint)(i + 1),
-                payload: payload);
-            await pipeline
-                .WriteFrameAsync(frame, TestContext.CancellationToken)
-                .AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
+            var encoded = pipeline.Encode(decodedFrame);
         }
-        stopwatch.Stop();
+        encodeStopwatch.Stop();
+
+        // ------------------------------------------------------------
+        // Act: decode frames
+        // ------------------------------------------------------------
+
+        var encodedFrame = new ReadOnlySequence<byte>(
+            pipeline.Encode(decodedFrame).Collapse()[0]);
+
+        var decodeStopwatch = Stopwatch.StartNew();
+        for (int i = 0; i < FrameCount; i++)
+        {
+            var result = pipeline.Decode(ref encodedFrame, out var decoded);
+        }
+        decodeStopwatch.Stop();
 
         // ------------------------------------------------------------
         // Report
         // ------------------------------------------------------------
 
         TestContext.WriteLine(
-            $"[Framing] Wrote {FrameCount} frames in {stopwatch.Elapsed.TotalMilliseconds:F2} ms " +
-            $"({FrameCount / stopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
+            $"[Framing] Encoded {FrameCount} frames in {encodeStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
+            $"({FrameCount / encodeStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
+
+        TestContext.WriteLine(
+            $"[Framing] Decoded {FrameCount} frames in {decodeStopwatch.Elapsed.TotalMilliseconds:F2} ms " +
+            $"({FrameCount / decodeStopwatch.Elapsed.TotalSeconds:N0} frames/sec)");
     }
 }
