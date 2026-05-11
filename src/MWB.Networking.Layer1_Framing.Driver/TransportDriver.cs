@@ -238,7 +238,7 @@ public sealed class TransportDriver :
                         throw new InvalidOperationException(
                             "Codec reported Success but consumed zero bytes; " +
                             "this indicates a codec implementation defect.");
-                    FrameReceived?.Invoke(frame!);
+                    this.FrameReceived?.Invoke(frame!);
                     break;
             }
         }

@@ -48,9 +48,8 @@
   </Folder>
   <Folder Name="/Layer2_Protocol/">
     <Project Path="MWB.Networking.Layer2_Protocol.Adapter.UnitTests/MWB.Networking.Layer2_Protocol.Adapter.UnitTests.csproj" />
-    <Project Path="MWB.Networking.Layer2_Protocol.Adapter/MWB.Networking.Layer2_Protocol.Adapter.csproj" />
     <Project Path="MWB.Networking.Layer2_Protocol.Session.UnitTests/MWB.Networking.Layer2_Protocol.Session.UnitTests.csproj" />
-    <Project Path="MWB.Networking.Layer2_Protocol.Session/MWB.Networking.Layer2_Protocol.Session.csproj" />
+    <Project Path="MWB.Networking.Layer2_Protocol/MWB.Networking.Layer2_Protocol.csproj" />
   </Folder>
   <Folder Name="/Layer3_Endpoint/">
     <Project Path="MWB.Networking.Layer3_Endpoint/MWB.Networking.Layer3_Endpoint.csproj" />

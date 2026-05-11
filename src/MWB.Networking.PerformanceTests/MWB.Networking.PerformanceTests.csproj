@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <Compile Remove="Helpers\NetworkPipelineBuilderExtensions.cs" />
+    <Compile Remove="Helpers\ProtocolSessionExtensions.cs" />
     <Compile Remove="Layer2_Protocol\EndToEnd.cs" />
     <Compile Remove="Layer2_Protocol\Pipes\Layer2_Protocol_EventEnqueueBeforeStart_WithPipes_PerfTest.cs" />
     <Compile Remove="Layer2_Protocol\Pipes\Layer2_Protocol_RequestRoundtrip_WithPipes_PerfTest.cs" />
@@ -24,7 +25,6 @@
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed\MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Codecs.Null\MWB.Networking.Layer1_Framing.Codecs.Null.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Pipeline\MWB.Networking.Layer1_Framing.Pipeline.csproj" />
-    <ProjectReference Include="..\MWB.Networking.Layer2_Protocol.Session\MWB.Networking.Layer2_Protocol.Session.csproj" />
     <ProjectReference Include="..\MWB.Networking.Layer3_Endpoint\MWB.Networking.Layer3_Endpoint.csproj" />
     <ProjectReference Include="..\MWB.Networking.Logging\MWB.Networking.Logging.csproj" />
     <ProjectReference Include="..\MWB.Networking.Logging.Debug\MWB.Networking.Logging.Debug.csproj" />
