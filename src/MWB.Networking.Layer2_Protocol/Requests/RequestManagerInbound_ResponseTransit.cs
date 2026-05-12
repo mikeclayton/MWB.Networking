@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
+using MWB.Networking.Layer2_Protocol.Requests.Internal;
 
 namespace MWB.Networking.Layer2_Protocol.Requests;
 
@@ -15,7 +16,7 @@ internal sealed partial class RequestManagerInbound
     /// <summary>
     /// Consumes an incoming response from a remote peer.
     /// </summary>
-    internal IncomingResponse ConsumeIncomingResponse(
+    internal Response ConsumeIncomingResponse(
         uint requestId,
         uint? responseType,
         bool isError,
@@ -41,9 +42,9 @@ internal sealed partial class RequestManagerInbound
 
         this.RequestManager.RemoveRequest(requestId);
 
-        this.PublishIncomingResponse(incomingResponse, payload);
-
-        return incomingResponse;
+        var response = incomingResponse.AsPublishable(payload);
+        this.PublishIncomingResponse(response);
+        return response;
     }
 
     // ------------------------------------------------------------
@@ -59,9 +60,7 @@ internal sealed partial class RequestManagerInbound
     /// Called by the request state machine after response semantics
     /// have been fully processed.
     /// </remarks>
-    internal void PublishIncomingResponse(
-        IncomingResponse response,
-        ReadOnlyMemory<byte> payload)
+    internal void PublishIncomingResponse(Response response)
     {
         ArgumentNullException.ThrowIfNull(response);
 
@@ -69,6 +68,6 @@ internal sealed partial class RequestManagerInbound
             "Publishing incoming response (Id={RequestId})",
             response.RequestId);
 
-        this.RequestManager.Session.IncomingActionSink.PublishIncomingResponse(response, payload);
+        this.RequestManager.Session.IncomingActionSink.PublishIncomingResponse(response);
     }
 }

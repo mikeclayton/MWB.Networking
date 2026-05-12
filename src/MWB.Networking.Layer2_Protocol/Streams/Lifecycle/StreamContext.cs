@@ -1,4 +1,5 @@
 ﻿using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 using System.Diagnostics.CodeAnalysis;
 
@@ -57,7 +58,7 @@ internal sealed class StreamContext
         if (this.State != StreamState.Open)
         {
             throw new ProtocolException(
-                ProtocolErrorKind.InvalidFrameSequence,
+                ProtocolErrorKind.InvalidSequence,
                 $"Stream {this.StreamId} is closed");
         }
         // If this is a request-scoped stream, the owning request must still be open

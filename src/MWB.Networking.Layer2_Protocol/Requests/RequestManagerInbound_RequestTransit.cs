@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
+using MWB.Networking.Layer2_Protocol.Requests.Internal;
 using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 
 namespace MWB.Networking.Layer2_Protocol.Requests;
@@ -15,7 +17,7 @@ internal sealed partial class RequestManagerInbound
     /// <summary>
     /// Consumes an incoming request from a remote peer.
     /// </summary>
-    internal IncomingRequest ConsumeIncomingRequest(
+    internal Request ConsumeIncomingRequest(
         uint requestId,
         uint? requestType,
         ReadOnlyMemory<byte> payload)
@@ -24,14 +26,14 @@ internal sealed partial class RequestManagerInbound
         this.RequestEntries.EnsureRequestDoesNotExist(requestId);
 
         // add a new entry to track the incoming request lifecycle
-        var requestContext = new RequestContext(requestId, requestType);
+        var requestContext = new RequestContext(requestId, requestType, ProtocolDirection.Incoming);
         var incomingRequest = new IncomingRequest(requestContext, this.RequestManager.Actions);
         var requestEntry = new RequestEntry(requestContext, incomingRequest);
         this.RequestEntries.AddRequestEntry(requestEntry);
 
-        this.PublishIncomingRequest(incomingRequest, payload);
-
-        return incomingRequest;
+        var request = incomingRequest.AsPublishable(payload);
+        this.PublishIncomingRequest(request);
+        return request;
     }
 
     // ------------------------------------------------------------
@@ -47,9 +49,7 @@ internal sealed partial class RequestManagerInbound
     /// Called by the request state machine after request semantics
     /// have been fully processed.
     /// </remarks>
-    internal void PublishIncomingRequest(
-        IncomingRequest request,
-        ReadOnlyMemory<byte> payload)
+    internal void PublishIncomingRequest(Request request)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -57,6 +57,6 @@ internal sealed partial class RequestManagerInbound
             "Publishing incoming request (Id={RequestId})",
             request.RequestId);
 
-        this.RequestManager.Session.IncomingActionSink.PublishIncomingRequest(request, payload);
+        this.RequestManager.Session.IncomingActionSink.PublishIncomingRequest(request);
     }
 }

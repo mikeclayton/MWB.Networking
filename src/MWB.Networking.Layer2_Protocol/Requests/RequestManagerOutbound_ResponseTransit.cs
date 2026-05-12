@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
+using MWB.Networking.Layer2_Protocol.Requests.Internal;
 
 namespace MWB.Networking.Layer2_Protocol.Requests;
 
@@ -15,7 +16,7 @@ internal sealed partial class RequestManagerOutbound
     /// <summary>
     /// Consumes a locally generated outgoing response.
     /// </summary>
-    internal OutgoingResponse ConsumeOutgoingResponse(
+    internal Response ConsumeOutgoingResponse(
         uint requestId,
         uint? responseType,
         ReadOnlyMemory<byte> payload)
@@ -40,9 +41,9 @@ internal sealed partial class RequestManagerOutbound
         this.RequestManager.RemoveRequest(requestId);
 
         // Commit the response
-        this.TransmitOutgoingResponse(outgoingResponse, payload);
-
-        return outgoingResponse;
+        var response = outgoingResponse.AsPublishable(payload);
+        this.TransmitOutgoingResponse(response);
+        return response;
     }
 
     // ------------------------------------------------------------
@@ -54,9 +55,7 @@ internal sealed partial class RequestManagerOutbound
     /// <summary>
     /// Transmits an outgoing response for delivery to the remote peer.
     /// </summary>
-    internal void TransmitOutgoingResponse(
-        OutgoingResponse response,
-        ReadOnlyMemory<byte> payload)
+    internal void TransmitOutgoingResponse(Response response)
     {
         ArgumentNullException.ThrowIfNull(response);
 
@@ -64,6 +63,6 @@ internal sealed partial class RequestManagerOutbound
             "Transmitting outgoing response (Id={RequestId})",
             response.RequestId);
 
-        this.RequestManager.Session.OutgoingActionSink.TransmitOutgoingResponse(response, payload);
+        this.RequestManager.Session.OutgoingActionSink.TransmitOutgoingResponse(response);
     }
 }

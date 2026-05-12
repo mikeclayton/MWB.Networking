@@ -1,20 +1,25 @@
 namespace MWB.Networking.Layer2_Protocol.Requests.Api;
 
 /// <summary>
-/// Represents a response received by the local peer for an <see cref="OutgoingRequest"/>.
-/// Provides read-only access to the payload and metadata carried by the terminal
-/// Response or Error frame sent by the remote peer.
+/// Represents a response delivered to or emitted by the application.
+///
+/// This is the application-facing projection of a protocol response and includes
+/// both the event metadata and associated payload. Instances of this type are
+/// materialized at publication or transmission time and do not participate in
+/// protocol lifecycle or invariant enforcement.
 /// </summary>
-public sealed class IncomingResponse
+public sealed class Response
 {
-    internal IncomingResponse(
+    internal Response(
         uint requestId,
         uint? responseType,
-        bool isError)
+        bool isError,
+        ReadOnlyMemory<byte> payload)
     {
-        this.IsError = isError;
         this.RequestId = requestId;
         this.ResponseType = responseType;
+        this.IsError = isError;
+        this.Payload = payload;
     }
 
     /// <summary>
@@ -37,6 +42,11 @@ public sealed class IncomingResponse
     /// The optional response-type discriminator sent by the remote peer.
     /// </summary>
     public uint? ResponseType
+    {
+        get;
+    }
+
+    public ReadOnlyMemory<byte> Payload
     {
         get;
     }

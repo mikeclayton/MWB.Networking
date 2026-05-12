@@ -14,7 +14,7 @@ internal sealed partial class RequestManager
 
         this.Outbound = new RequestManagerOutbound(logger, this, this.RequestEntries);
         this.Inbound = new RequestManagerInbound(logger, this, this.RequestEntries);
-        this.Actions = new IncomingRequestActions(this);
+        this.Actions = new RequestActions(this);
     }
 
     private ILogger Logger
@@ -37,7 +37,7 @@ internal sealed partial class RequestManager
         get;
     }
 
-    internal IncomingRequestActions Actions
+    internal RequestActions Actions
     {
         get;
     }

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer2_Protocol.Events.Api;
+using MWB.Networking.Layer2_Protocol.Events.Internal;
 
 namespace MWB.Networking.Layer2_Protocol.Events;
 
@@ -31,7 +32,7 @@ internal sealed partial class EventManager
     /// The caller should treat the input as consumed regardless of outcome;
     /// validation, filtering, or rejection are internal protocol concerns.
     /// </remarks>
-    internal void ConsumeIncomingEvent(
+    internal Event ConsumeIncomingEvent(
         uint? eventType,
         ReadOnlyMemory<byte> payload)
     {
@@ -41,7 +42,9 @@ internal sealed partial class EventManager
 
         var incomingEvent = new IncomingEvent(eventType);
 
-        this.PublishIncomingEvent(incomingEvent, payload);
+        var evt = incomingEvent.AsPublishable(payload);
+        this.PublishIncomingEvent(evt);
+        return evt;
     }
 
     // ------------------------------------------------------------
@@ -56,16 +59,14 @@ internal sealed partial class EventManager
     /// <remarks>
     /// This method represents the inbound egress boundary of the protocol. It is
     /// called after event-level semantics have been applied and emits the resulting
-    /// <see cref="IncomingEvent"/> to the session’s incoming action sink, marking the
+    /// <see cref="Event"/> to the session’s incoming action sink, marking the
     /// point at which the event is surfaced beyond the protocol boundary to the
     /// local, in-process application.
     ///
     /// Actual delivery mechanics, adapter concerns, and dispatch to application
     /// handlers are managed downstream by the session adapter.
     /// </remarks>
-    internal void PublishIncomingEvent(
-        IncomingEvent evt,
-        ReadOnlyMemory<byte> payload)
+    internal void PublishIncomingEvent(Event evt)
     {
         ArgumentNullException.ThrowIfNull(evt);
 
@@ -73,7 +74,7 @@ internal sealed partial class EventManager
             "Publishing incoming event (Type={EventType})",
             evt.EventType);
 
-        this.Session.IncomingActionSink.PublishIncomingEvent(evt, payload);
+        this.Session.IncomingActionSink.PublishIncomingEvent(evt);
     }
 
     // ------------------------------------------------------------
@@ -98,7 +99,7 @@ internal sealed partial class EventManager
     /// The caller should treat the input as consumed regardless of outcome;
     /// validation, filtering, or rejection are internal protocol concerns.
     /// </remarks>
-    internal void ConsumeOutgoingEvent(
+    internal Event ConsumeOutgoingEvent(
         uint? eventType,
         ReadOnlyMemory<byte> payload)
     {
@@ -108,7 +109,9 @@ internal sealed partial class EventManager
 
         var outgoingEvent = new OutgoingEvent(eventType);
 
-        this.TransmitOutgoingEvent(outgoingEvent, payload);
+        var evt = outgoingEvent.AsPublishable(payload);
+        this.TransmitOutgoingEvent(evt);
+        return evt;
     }
 
     // ------------------------------------------------------------
@@ -123,16 +126,14 @@ internal sealed partial class EventManager
     /// <remarks>
     /// This method represents the outbound protocol boundary for events originating
     /// within the local peer. It takes ownership of the outgoing event description,
-    /// applies any event-level protocol semantics, and commits the resulting
-    /// <see cref="OutgoingEvent"/> for delivery to the remote peer.
+    /// applies any event-level protocol semantics, commits the resulting event
+    /// for delivery to the remote peer.
     ///
     /// Actual execution concerns such as scheduling, ordering, transport, and
     /// delivery are handled downstream by the session’s outgoing action sink
     /// and adapter.
     /// </remarks>
-    internal void TransmitOutgoingEvent(
-        OutgoingEvent evt,
-        ReadOnlyMemory<byte> payload)
+    internal void TransmitOutgoingEvent(Event evt)
     {
         ArgumentNullException.ThrowIfNull(evt);
 
@@ -140,6 +141,6 @@ internal sealed partial class EventManager
             "Transmitting outgoing event (Type={EventType})",
             evt.EventType);
 
-        this.Session.OutgoingActionSink.TransmitOutgoingEvent(evt, payload);
+        this.Session.OutgoingActionSink.TransmitOutgoingEvent(evt);
     }
 }

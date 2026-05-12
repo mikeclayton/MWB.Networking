@@ -1,4 +1,4 @@
-﻿using MWB.Networking.Layer2_Protocol.Requests.Api;
+﻿using MWB.Networking.Layer2_Protocol.Requests.Internal;
 using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
@@ -45,7 +45,7 @@ public sealed class IncomingStream : IProtocolStream
     /// The request that owns this stream, if any.
     /// Null indicates a session-scoped stream.
     /// </summary>
-    public IncomingRequest? OwningRequest
+    internal IncomingRequest? OwningRequest
     {
         get;
     }

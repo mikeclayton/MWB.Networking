@@ -1,13 +1,15 @@
-﻿using MWB.Networking.Layer2_Protocol.Requests.Api;
+﻿using MWB.Networking.Layer2_Protocol.Internal;
+using MWB.Networking.Layer2_Protocol.Requests.Internal;
 
 namespace MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 
 internal sealed class RequestContext
 {
-    internal RequestContext(uint requestId, uint? requestType)
+    internal RequestContext(uint requestId, uint? requestType, ProtocolDirection direction)
     {
         this.RequestId = requestId;
         this.RequestType = requestType;
+        this.Direction = direction;
     }
 
     internal uint RequestId
@@ -16,6 +18,11 @@ internal sealed class RequestContext
     }
 
     internal uint? RequestType
+    {
+        get;
+    }
+
+    internal ProtocolDirection Direction
     {
         get;
     }

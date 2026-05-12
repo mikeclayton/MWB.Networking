@@ -1,4 +1,5 @@
 ﻿using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.Streams.Api;
@@ -50,8 +51,8 @@ internal sealed class StreamManagerInbound
     {
         if (this.StreamEntries.StreamEntryExists(streamId))
         {
-            throw ProtocolException.InvalidFrameSequence(
-                frame, "Duplicate StreamId");
+            throw ProtocolException.InvalidSequence(
+                "Duplicate StreamId");
         }
     }
 
@@ -65,8 +66,8 @@ internal sealed class StreamManagerInbound
             streamEntry = result;
             return;
         }
-        throw ProtocolException.InvalidFrameSequence(
-            frame, "Unknown StreamId");
+        throw ProtocolException.InvalidSequence(
+            "Unknown StreamId");
     }
 
 #pragma warning disable CA1822 // Mark members as static
@@ -123,7 +124,7 @@ internal sealed class StreamManagerInbound
                 this.ProcessIncomingStreamAbortFrame(frame);
                 break;
             default:
-                throw ProtocolException.InvalidFrameSequence(frame, "Invalid stream frame kind");
+                throw ProtocolException.InvalidSequence("Invalid stream frame kind");
         }
     }
 
@@ -149,7 +150,7 @@ internal sealed class StreamManagerInbound
         {
             if (!this.Session.RequestManager.TryGetRequestEntry(frame.RequestId.Value, out owningRequestEntry))
             {
-                throw ProtocolException.InvalidFrameSequence(frame, "Unknown RequestId for StreamOpen");
+                throw ProtocolException.InvalidSequence("Unknown RequestId for StreamOpen");
             }
         }
 
