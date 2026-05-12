@@ -14,7 +14,7 @@ namespace MWB.Networking.Layer2_Protocol.Requests.Internal;
 /// <remarks>
 /// Instances of this type are created during inbound request consumption
 /// and are used to coordinate admission, lifecycle state, and publication
-/// of an application-facing <see cref="Requests.Api.Request"/>.
+/// of an application-facing <see cref="Request"/>.
 /// </remarks>
 internal sealed class IncomingRequest
 {

@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer2_Protocol.Requests.Internal;
 using MWB.Networking.Layer2_Protocol.Session;
 
 namespace MWB.Networking.Layer2_Protocol.Requests;

@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 
 namespace MWB.Networking.Layer2_Protocol.Requests;
@@ -34,12 +35,17 @@ internal sealed partial class RequestManagerOutbound
     }
 
     /// <summary>
-    /// Generate a new unique request ID
-    /// (thread-safe, overflow-safe incrementing)
+    /// Generate a new unique request ID.
     /// </summary>
     /// <returns></returns>
-    private uint GetNextRequestId() =>
-        checked(
-            Interlocked.Increment(ref _nextRequestId) - 1
-        );
+    private uint GetNextRequestId()
+    {
+        if (_nextRequestId == uint.MaxValue)
+        {
+            throw new ProtocolException(ProtocolErrorKind.InternalError, "Request id pool exhausted.");
+        }
+        var requestId = _nextRequestId;
+        _nextRequestId++;
+        return requestId;
+    }
 }

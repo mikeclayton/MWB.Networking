@@ -3,7 +3,7 @@ using MWB.Networking.Layer2_Protocol.Requests.Api;
 using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 using MWB.Networking.Layer2_Protocol.Streams.Api;
 
-namespace MWB.Networking.Layer2_Protocol.Requests;
+namespace MWB.Networking.Layer2_Protocol.Requests.Internal;
 
 internal sealed class RequestActions
 {

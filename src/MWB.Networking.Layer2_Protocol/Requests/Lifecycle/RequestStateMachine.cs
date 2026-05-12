@@ -42,7 +42,7 @@ internal sealed class RequestStateMachine
     /// <summary>
     /// Whether a Request-scoped Stream has been opened.
     /// </summary>
-    public bool HasStream
+    internal bool HasStream
     {
         get;
         private set;
@@ -51,7 +51,7 @@ internal sealed class RequestStateMachine
     /// <summary>
     /// Whether the Request has already been responded to.
     /// </summary>
-    public bool IsResponded
+    internal bool IsResponded
         => this.RequestState == State.Responded;
 
     /// <summary>
@@ -61,7 +61,7 @@ internal sealed class RequestStateMachine
     /// Thrown if the Request has already been responded to, or if a
     /// Request-scoped Stream already exists.
     /// </exception>
-    public void OpenStream()
+    internal void OpenStream()
     {
         if (this.RequestState != State.Open)
         {
@@ -84,7 +84,7 @@ internal sealed class RequestStateMachine
     /// <exception cref="InvalidOperationException">
     /// Thrown if the Request has already been responded to.
     /// </exception>
-    public void Respond()
+    internal void Respond()
     {
         if (this.RequestState != State.Open)
         {
@@ -101,7 +101,7 @@ internal sealed class RequestStateMachine
     /// <exception cref="InvalidOperationException">
     /// Thrown if the Request has already been responded to.
     /// </exception>
-    public void EnsureOpen()
+    internal void EnsureOpen()
     {
         if (this.RequestState != State.Open)
         {
