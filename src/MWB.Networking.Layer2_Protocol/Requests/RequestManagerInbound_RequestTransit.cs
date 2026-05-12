@@ -15,7 +15,7 @@ internal sealed partial class RequestManagerInbound
     /// <summary>
     /// Consumes an incoming request from a remote peer.
     /// </summary>
-    internal void ConsumeIncomingRequest(
+    internal IncomingRequest ConsumeIncomingRequest(
         uint requestId,
         uint? requestType,
         ReadOnlyMemory<byte> payload)
@@ -30,6 +30,8 @@ internal sealed partial class RequestManagerInbound
         this.RequestEntries.AddRequestEntry(requestEntry);
 
         this.PublishIncomingRequest(incomingRequest, payload);
+
+        return incomingRequest;
     }
 
     // ------------------------------------------------------------

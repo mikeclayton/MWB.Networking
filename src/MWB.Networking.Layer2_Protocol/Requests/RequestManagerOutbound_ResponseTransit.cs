@@ -37,13 +37,7 @@ internal sealed partial class RequestManagerOutbound
         // Close the request from the outbound side
         requestEntry.Context.Close();
 
-        // Tear down all request-scoped streams
-        this.RequestManager.Session.StreamManager
-            .TearDownRequestStreams(requestId);
-
-        // Remove the request lifecycle entry (terminal)
-        // The request must no longer be observable by the time the response is transmitted.
-        this.RequestEntries.RemoveRequestEntry(requestId);
+        this.RequestManager.RemoveRequest(requestId);
 
         // Commit the response
         this.TransmitOutgoingResponse(outgoingResponse, payload);

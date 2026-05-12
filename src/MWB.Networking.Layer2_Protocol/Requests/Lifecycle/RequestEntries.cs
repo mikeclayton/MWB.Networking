@@ -1,5 +1,4 @@
-﻿using MWB.Networking.Layer2_Protocol.Frames;
-using MWB.Networking.Layer2_Protocol.Internal;
+﻿using MWB.Networking.Layer2_Protocol.Internal;
 using System.Diagnostics.CodeAnalysis;
 
 namespace MWB.Networking.Layer2_Protocol.Requests.Lifecycle;

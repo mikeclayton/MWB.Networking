@@ -30,20 +30,20 @@ public sealed class OutgoingRequest
     /// <summary>
     /// The protocol RequestId for this request.
     /// </summary>
-    internal uint RequestId
+    public uint RequestId
         => this.Context.RequestId;
 
     /// <summary>
     /// Task that completes when the terminal response or error
     /// frame is received for this request.
     /// </summary>
-    internal Task<IncomingResponse> Response
+    public Task<IncomingResponse> Response
         => this.Context.ResponseTask;
 
     /// <summary>
     /// Opens the single request-scoped outgoing stream for this request.
     /// </summary>
-    internal OutgoingStream OpenRequestStream(uint? streamType)
+    public OutgoingStream OpenRequestStream(uint? streamType)
     {
         return this.RequestManager.Actions.OpenRequestStream(this.Context, streamType);
     }

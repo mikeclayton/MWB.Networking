@@ -5,6 +5,9 @@ namespace MWB.Networking.Layer2_Protocol.Requests;
 
 internal sealed partial class RequestManagerOutbound
 {
+    private const uint _firstRequestId = 1;
+    private uint _nextRequestId = _firstRequestId;
+
     internal RequestManagerOutbound(
         ILogger logger,
         RequestManager requestManager,
@@ -30,9 +33,13 @@ internal sealed partial class RequestManagerOutbound
         get;
     }
 
-    private uint NextRequestId
-    {
-        get;
-        set;
-    } = 1;
+    /// <summary>
+    /// Generate a new unique request ID
+    /// (thread-safe, overflow-safe incrementing)
+    /// </summary>
+    /// <returns></returns>
+    private uint GetNextRequestId() =>
+        checked(
+            Interlocked.Increment(ref _nextRequestId) - 1
+        );
 }

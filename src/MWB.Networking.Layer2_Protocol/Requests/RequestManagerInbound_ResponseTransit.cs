@@ -15,7 +15,7 @@ internal sealed partial class RequestManagerInbound
     /// <summary>
     /// Consumes an incoming response from a remote peer.
     /// </summary>
-    internal void ConsumeIncomingResponse(
+    internal IncomingResponse ConsumeIncomingResponse(
         uint requestId,
         uint? responseType,
         bool isError,
@@ -39,13 +39,11 @@ internal sealed partial class RequestManagerInbound
         // Close the request based on a terminal frame received from the peer.
         requestEntry.Context.CloseFromInbound(incomingResponse);
 
-        // Tear down all request-scoped streams
-        this.RequestManager.Session.StreamManager.TearDownRequestStreams(requestId);
-
-        // Remove the request (terminal)
-        this.RequestEntries.RemoveRequestEntry(requestId);
+        this.RequestManager.RemoveRequest(requestId);
 
         this.PublishIncomingResponse(incomingResponse, payload);
+
+        return incomingResponse;
     }
 
     // ------------------------------------------------------------

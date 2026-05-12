@@ -59,7 +59,6 @@ internal sealed class RequestContext
 
     /// <summary>
     /// Marks the request as responded (terminal).
-    /// Outbound emission is handled by ProtocolSession.
     /// </summary>
     internal void Close()
     {

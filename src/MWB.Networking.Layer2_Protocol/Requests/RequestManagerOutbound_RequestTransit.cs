@@ -15,12 +15,13 @@ internal sealed partial class RequestManagerOutbound
     /// <summary>
     /// Consumes a locally generated outgoing request.
     /// </summary>
-    internal void ConsumeOutgoingRequest(
+    internal OutgoingRequest ConsumeOutgoingRequest(
         uint? requestType,
         ReadOnlyMemory<byte> payload)
     {
-        // Generate a new unique request ID<br>
-        var requestId = this.NextRequestId++;
+        // Generate a new unique request ID
+        // (thread-safe, overflow-safe incrementing)
+        var requestId = this.GetNextRequestId();
 
         // Create and track request context
         var context = new RequestContext(requestId, requestType);
@@ -28,8 +29,10 @@ internal sealed partial class RequestManagerOutbound
         var requestEntry = new RequestEntry(context, outgoingRequest);
         this.RequestEntries.AddRequestEntry(requestEntry);
 
-        // Emit the protocol request frame to the local peer
+        // transmit the protocol request frame to the remote peer
         this.TransmitOutgoingRequest(outgoingRequest, payload);
+
+        return outgoingRequest;
     }
 
     // ------------------------------------------------------------
