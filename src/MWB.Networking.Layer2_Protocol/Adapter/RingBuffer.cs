@@ -65,6 +65,4 @@ public sealed class RingBuffer<T>
             return snapshot;
         }
     }
-
-    /// <summary>
 }

@@ -9,19 +9,19 @@ namespace MWB.Networking.Layer2_Protocol.Requests.Api;
 public sealed class IncomingRequest
 {
     internal IncomingRequest(
-        RequestManager requestManager,
-        RequestContext context)
+        RequestContext context,
+        IncomingRequestActions actions)
     {
-        this.RequestManager = requestManager ?? throw new ArgumentNullException(nameof(requestManager));
         this.Context = context ?? throw new ArgumentNullException(nameof(context));
+        this.Actions = actions ?? throw new ArgumentNullException(nameof(actions));
     }
 
-    internal RequestManager RequestManager
+    private RequestContext Context
     {
         get;
     }
 
-    internal RequestContext Context
+    private IncomingRequestActions Actions
     {
         get;
     }
@@ -33,19 +33,11 @@ public sealed class IncomingRequest
         => this.Context.RequestType;
 
     /// <summary>
-    /// Sends the Response for this Request and closes the Request.
+    /// Sends a normal (non-error) Response for this Request and closes it.
     /// </summary>
     public OutgoingResponse Respond(uint? responseType = null, ReadOnlyMemory<byte> payload = default)
     {
-        return this.RequestManager.Actions.Respond(this.Context, responseType, payload);
-    }
-
-    /// <summary>
-    /// Sends an error Response for this Request and closes the Request.
-    /// </summary>
-    public OutgoingResponse Reject(ReadOnlyMemory<byte> payload = default)
-    {
-        return this.RequestManager.Actions.Reject(this.Context, payload);
+        return this.Actions.Respond(this.Context, responseType, payload);
     }
 
     /// <summary>
@@ -54,10 +46,6 @@ public sealed class IncomingRequest
 
     public OutgoingStream OpenRequestStream(uint? streamType)
     {
-        // validate request is open
-        this.Context.OpenStream();
-
-        // delegate to ProtocolSession
-        return this.RequestManager.Session.StreamManager.Outbound.OpenRequestStream(streamType, this.Context);
+        return this.Actions.OpenRequestStream(this.Context, streamType);
     }
 }

@@ -1,4 +1,4 @@
-﻿namespace MWB.Networking.Layer2_Protocol.Frames;
+﻿namespace MWB.Networking.Layer2_Protocol.Internal;
 
 public sealed class ProtocolException : Exception
 {
@@ -33,11 +33,10 @@ public sealed class ProtocolException : Exception
     }
 
     internal static ProtocolException ProtocolViolation(
-        ProtocolFrame frame,
         string message)
     {
         return new ProtocolException(
             ProtocolErrorKind.ProtocolViolation,
-            $"{message} (FrameKind={frame.Kind}, RequestId={frame.RequestId}, StreamId={frame.StreamId})");
+            message);
     }
 }

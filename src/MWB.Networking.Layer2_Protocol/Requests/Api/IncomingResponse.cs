@@ -8,15 +8,13 @@ namespace MWB.Networking.Layer2_Protocol.Requests.Api;
 public sealed class IncomingResponse
 {
     internal IncomingResponse(
-        bool isError,
         uint requestId,
         uint? responseType,
-        ReadOnlyMemory<byte> payload)
+        bool isError)
     {
         this.IsError = isError;
         this.RequestId = requestId;
         this.ResponseType = responseType;
-        this.Payload = payload;
     }
 
     /// <summary>
@@ -39,14 +37,6 @@ public sealed class IncomingResponse
     /// The optional response-type discriminator sent by the remote peer.
     /// </summary>
     public uint? ResponseType
-    {
-        get;
-    }
-
-    /// <summary>
-    /// The payload carried by the terminal response frame.
-    /// </summary>
-    public ReadOnlyMemory<byte> Payload
     {
         get;
     }

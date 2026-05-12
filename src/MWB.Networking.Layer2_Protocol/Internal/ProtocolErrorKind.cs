@@ -1,4 +1,4 @@
-﻿namespace MWB.Networking.Layer2_Protocol.Frames;
+﻿namespace MWB.Networking.Layer2_Protocol.Internal;
 
 public enum ProtocolErrorKind
 {

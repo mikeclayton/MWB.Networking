@@ -1,4 +1,5 @@
 ﻿using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Internal;
 using System.Diagnostics.CodeAnalysis;
 
 namespace MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
@@ -39,5 +40,30 @@ internal sealed class RequestEntries
     internal bool RemoveRequestEntry(uint requestId)
     {
         return _requestEntries.Remove(requestId);
+    }
+
+    // ------------------------------------------------------------------
+    // Utility methods
+    // ------------------------------------------------------------------
+
+    internal void EnsureRequestDoesNotExist(
+        uint requestId)
+    {
+        if (this.RequestEntryExists(requestId))
+        {
+            throw ProtocolException.InvalidSequence(
+                $"Duplicate RequestId {requestId}");
+        }
+    }
+
+    internal RequestEntry EnsureRequestExists(
+        uint requestId)
+    {
+        if (this.TryGetRequestEntry(requestId, out var result))
+        {
+            return result;
+        }
+        throw ProtocolException.InvalidSequence(
+            $"Unknown or completed RequestId {requestId}");
     }
 }

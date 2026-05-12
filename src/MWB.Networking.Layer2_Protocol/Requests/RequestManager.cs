@@ -12,9 +12,9 @@ internal sealed partial class RequestManager
         this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         this.Session = session ?? throw new ArgumentNullException(nameof(session));
 
-        this.Outbound = new RequestManagerOutbound(this, this.RequestEntries);
-        this.Inbound = new RequestManagerInbound(this, this.RequestEntries);
-        this.Actions = new RequestManagerActions(this, this.Session);
+        this.Outbound = new RequestManagerOutbound(logger, this, this.RequestEntries);
+        this.Inbound = new RequestManagerInbound(logger, this, this.RequestEntries);
+        this.Actions = new IncomingRequestActions(this);
     }
 
     private ILogger Logger
@@ -22,22 +22,22 @@ internal sealed partial class RequestManager
         get;
     }
 
-    private ProtocolSession Session
+    internal ProtocolSession Session
     {
         get;
     }
 
-    private RequestManagerOutbound Outbound
+    internal RequestManagerOutbound Outbound
     {
         get;
     }
 
-    private RequestManagerInbound Inbound
+    internal RequestManagerInbound Inbound
     {
         get;
     }
 
-    internal RequestManagerActions Actions
+    internal IncomingRequestActions Actions
     {
         get;
     }

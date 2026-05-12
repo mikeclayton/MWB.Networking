@@ -11,11 +11,15 @@
     <Compile Remove="Session\Api\IProtocolSessionCommands.cs" />
     <Compile Remove="Session\Api\IProtocolSessionObserver.cs" />
     <Compile Remove="Session\Api\IProtocolSessionProcessor.cs" />
+    <Compile Remove="Session\Api\IProtocolSessionRequests.cs" />
+    <Compile Remove="Session\Api\IProtocolSessionRequestsInbound.cs" />
+    <Compile Remove="Session\Api\IProtocolSessionRequestsOutbound.cs" />
     <Compile Remove="Session\ProtocolSession_Commands.cs" />
     <Compile Remove="Session\ProtocolSession_Input.cs" />
     <Compile Remove="Session\ProtocolSession_Observers.cs" />
     <Compile Remove="Session\ProtocolSession_Output.cs" />
     <Compile Remove="Session\ProtocolSession_Processor.cs" />
+    <Compile Remove="Session\ProtocolSession_Requests.cs" />
   </ItemGroup>
 
   <ItemGroup>

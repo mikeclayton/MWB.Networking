@@ -4,7 +4,7 @@ namespace MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 
 internal sealed class RequestEntry
 {
-    public RequestEntry(RequestContext context, IncomingRequest incomingRequest)
+    internal RequestEntry(RequestContext context, IncomingRequest incomingRequest)
         : this(
             context,
             incomingRequest ?? throw new ArgumentNullException(nameof(incomingRequest)),
@@ -12,7 +12,7 @@ internal sealed class RequestEntry
     {
     }
 
-    public RequestEntry(RequestContext context, OutgoingRequest outgoingRequest)
+    internal RequestEntry(RequestContext context, OutgoingRequest outgoingRequest)
         : this(
             context,
             null,
@@ -36,35 +36,35 @@ internal sealed class RequestEntry
         this.OutgoingRequest = outgoingRequest;
     }
 
-    public uint RequestId
+    internal uint RequestId
     {
         get;
     }
 
-    public RequestContext Context
+    internal RequestContext Context
     {
         get;
     }
 
-    public bool IsIncoming => this.IncomingRequest is not null;
+    internal bool IsIncoming => this.IncomingRequest is not null;
 
-    public bool IsOutgoing => this.OutgoingRequest is not null;
+    internal bool IsOutgoing => this.OutgoingRequest is not null;
 
-    public IncomingRequest? IncomingRequest
+    internal IncomingRequest? IncomingRequest
     {
         get;
     }
 
-    public OutgoingRequest? OutgoingRequest
+    internal OutgoingRequest? OutgoingRequest
     {
         get;
     }
 
-    public IncomingRequest GetIncomingRequestOrThrow()
+    internal IncomingRequest GetIncomingRequestOrThrow()
         => this.IncomingRequest ?? throw new InvalidOperationException(
             $"{nameof(RequestEntry)} does not represent an incoming request.");
 
-    public OutgoingRequest GetOutgoingRequestOrThrow()
+    internal OutgoingRequest GetOutgoingRequestOrThrow()
         => this.OutgoingRequest ?? throw new InvalidOperationException(
             $"{nameof(RequestEntry)} does not represent an outgoing request.");
 }

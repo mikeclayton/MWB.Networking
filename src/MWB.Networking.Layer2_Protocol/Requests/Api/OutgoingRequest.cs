@@ -10,12 +10,19 @@ namespace MWB.Networking.Layer2_Protocol.Requests.Api;
 public sealed class OutgoingRequest
 {
     internal OutgoingRequest(
+        RequestManager requestManager,
         RequestContext context)
     {
+        this.RequestManager = requestManager ?? throw new ArgumentNullException(nameof(requestManager));
         this.Context = context ?? throw new ArgumentNullException(nameof(context));
     }
 
-    internal RequestContext Context
+    private RequestManager RequestManager
+    {
+        get;
+    }
+
+    private RequestContext Context
     {
         get;
     }
@@ -23,25 +30,21 @@ public sealed class OutgoingRequest
     /// <summary>
     /// The protocol RequestId for this request.
     /// </summary>
-    public uint RequestId
+    internal uint RequestId
         => this.Context.RequestId;
 
     /// <summary>
     /// Task that completes when the terminal response or error
     /// frame is received for this request.
     /// </summary>
-    public Task<IncomingResponse> Response
+    internal Task<IncomingResponse> Response
         => this.Context.ResponseTask;
 
     /// <summary>
     /// Opens the single request-scoped outgoing stream for this request.
     /// </summary>
-    public OutgoingStream OpenRequestStream(uint? streamType)
+    internal OutgoingStream OpenRequestStream(uint? streamType)
     {
-        // Enforce request lifecycle rules
-        this.Context.OpenStream();
-
-        return this.Session.StreamManager.Outbound
-            .OpenRequestStream(streamType, this.Context);
+        return this.RequestManager.Actions.OpenRequestStream(this.Context, streamType);
     }
 }

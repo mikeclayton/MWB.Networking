@@ -30,19 +30,19 @@ internal sealed class RequestContext
         get;
     } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    public Task<IncomingResponse> ResponseTask
+    internal Task<IncomingResponse> ResponseTask
         => this.ResponseTcs.Task;
 
     /// <summary>
     /// Indicates whether a Request-scoped Stream has been opened.
     /// </summary>
-    public bool HasStream
+    internal bool HasStream
         => this.StateMachine.HasStream;
 
     /// <summary>
     /// Indicates whether the Request has already been responded to.
     /// </summary>
-    public bool IsCompleted
+    internal bool IsCompleted
         => this.StateMachine.IsResponded;
 
     /// <summary>
@@ -52,7 +52,7 @@ internal sealed class RequestContext
     /// Thrown if the Request has already been responded to, or if a
     /// Request-scoped Stream has already been opened.
     /// </exception>
-    public void OpenStream()
+    internal void OpenStream()
     {
         this.StateMachine.OpenStream();
     }
@@ -61,7 +61,7 @@ internal sealed class RequestContext
     /// Marks the request as responded (terminal).
     /// Outbound emission is handled by ProtocolSession.
     /// </summary>
-    public void Close()
+    internal void Close()
     {
         this.StateMachine.Respond();
     }
@@ -73,7 +73,7 @@ internal sealed class RequestContext
     /// This method is used when processing Responses to Requests initiated by the
     /// local peer. It MUST NOT emit any protocol frames.
     /// </remarks>
-    public void CloseFromInbound(IncomingResponse incomingResponse)
+    internal void CloseFromInbound(IncomingResponse incomingResponse)
     {
         // Transition the Request lifecycle to terminal
         this.StateMachine.Respond();
@@ -87,7 +87,7 @@ internal sealed class RequestContext
     /// <exception cref="InvalidOperationException">
     /// Thrown if the Request has already been responded to.
     /// </exception>
-    public void EnsureOpen()
+    internal void EnsureOpen()
     {
         this.StateMachine.EnsureOpen();
     }
