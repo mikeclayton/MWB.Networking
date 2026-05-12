@@ -51,12 +51,12 @@ internal sealed class OutgoingResponse
     }
 
     /// <summary>
-    /// Projects this internal request into an application-facing <see cref="Response"/>,
+    /// Projects this internal response into an application-facing <see cref="Response"/>,
     /// attaching the provided payload for publication or transmission. The
     /// publishable form must not be used internally for protocol-level processing
     /// or validation.
     /// </summary>
-    public Response AsPublishable(ReadOnlyMemory<byte> payload)
+    internal Response AsPublishable(ReadOnlyMemory<byte> payload)
     {
         return new Response(
             this.RequestId, this.ResponseType, this.IsError, payload);

@@ -63,7 +63,7 @@ internal sealed class OutgoingRequest
     /// publishable form must not be used internally for protocol-level processing
     /// or validation.
     /// </summary>
-    public Request AsPublishable(ReadOnlyMemory<byte> payload)
+    internal Request AsPublishable(ReadOnlyMemory<byte> payload)
     {
         return new Request(
             this.Context, this.Actions, payload);

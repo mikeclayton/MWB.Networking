@@ -12,7 +12,7 @@ namespace MWB.Networking.Layer2_Protocol.Events.Internal;
 /// <remarks>
 /// Incoming events are materialized into application-facing <see cref="Event"/>
 /// instances at publication time, at which point the associated payload is attached.
-//
+///
 /// A null event type has no special meaning to the protocol itself and does not
 /// affect protocol behavior, validation, or routing.
 /// </remarks>

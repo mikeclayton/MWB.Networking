@@ -3,7 +3,7 @@
 namespace MWB.Networking.Layer2_Protocol.Events.Internal;
 
 
-// <summary>
+/// <summary>
 /// Represents a protocol event initiated by the local peer.
 ///
 /// This type is part of the internal protocol core and exists to coordinate
@@ -28,7 +28,7 @@ internal sealed class OutgoingEvent
     /// <summary>
     /// Gets the optional application-defined event type.
     /// </summary>
-    public uint? EventType
+    internal uint? EventType
     {
         get;
     }

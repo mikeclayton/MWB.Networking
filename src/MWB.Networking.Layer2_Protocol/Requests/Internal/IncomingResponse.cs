@@ -56,7 +56,7 @@ internal sealed class IncomingResponse
     /// publishable form must not be used internally for protocol-level processing
     /// or validation.
     /// </summary>
-    public Response AsPublishable(ReadOnlyMemory<byte> payload)
+    internal Response AsPublishable(ReadOnlyMemory<byte> payload)
     {
         return new Response(
             this.RequestId, this.ResponseType, this.IsError, payload);
