@@ -13,9 +13,12 @@ internal sealed class RequestContext
         this.RequestId = requestId;
         this.RequestType = requestType;
         this.Direction = direction;
+
+        // note - ResponseTcs is null for incoming requests because
+        // only outgoing requests can be awaited for a response
         this.ResponseTcs = (direction == ProtocolDirection.Outgoing)
-        ? new TaskCompletionSource<IncomingResponse>(TaskCreationOptions.RunContinuationsAsynchronously)
-        : null;
+            ? new TaskCompletionSource<IncomingResponse>(TaskCreationOptions.RunContinuationsAsynchronously)
+            : null;
     }
 
     // ------------------------------------------------------------------
@@ -51,17 +54,6 @@ internal sealed class RequestContext
     /// </summary>
     internal bool IsCompleted
         => this.StateMachine.IsResponded;
-
-    /// <summary>
-    /// Ensures the Request is still open and able to perform Request-scoped operations.
-    /// </summary>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown if the Request has already been responded to.
-    /// </exception>
-    internal void EnsureOpen()
-    {
-        this.StateMachine.EnsureOpen();
-    }
 
     /// <summary>
     /// Marks the request as responded (terminal).

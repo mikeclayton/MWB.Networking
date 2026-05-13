@@ -51,19 +51,4 @@ internal sealed class RequestStateMachine
 
         this.RequestState = State.Responded;
     }
-
-    /// <summary>
-    /// Validates that a Request-scoped action is still permitted.
-    /// </summary>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown if the Request has already been responded to.
-    /// </exception>
-    internal void EnsureOpen()
-    {
-        if (this.RequestState != State.Open)
-        {
-            throw new InvalidOperationException(
-                "No Request-scoped operations are permitted after the Response has been sent.");
-        }
-    }
 }

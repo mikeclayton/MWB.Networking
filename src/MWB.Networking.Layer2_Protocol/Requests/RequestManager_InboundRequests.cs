@@ -44,8 +44,7 @@ internal sealed partial class RequestManager
     /// Publishes an incoming request for delivery to the local application.
     /// </summary>
     /// <remarks>
-    /// Called by the request state machine after request semantics
-    /// have been fully processed.
+    /// Called after request semantics have been fully processed.
     /// </remarks>
     internal void PublishIncomingRequest(IncomingRequest request)
     {

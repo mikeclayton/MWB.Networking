@@ -35,7 +35,8 @@ public abstract class PublicResponse
     }
 
     /// <summary>
-    /// The optional response-type discriminator sent by the remote peer.
+    /// The optional response-type discriminator. The value is specified by
+    /// the application process, and has no inherent meaning to the protocol.
     /// </summary>
     public uint? ResponseType
     {

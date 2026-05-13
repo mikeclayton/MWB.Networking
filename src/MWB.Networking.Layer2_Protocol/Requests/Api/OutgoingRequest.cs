@@ -7,8 +7,7 @@ namespace MWB.Networking.Layer2_Protocol.Requests.Api;
 /// Represents a request initiated by the local application.
 /// </summary>
 /// <remarks>
-/// Provides a task that completes when the corresponding response
-/// is received, and supports opening request-scoped streams.
+/// Provides a task that completes when the corresponding response is received.
 /// </remarks>
 public sealed class OutgoingRequest : PublicRequest
 {

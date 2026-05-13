@@ -1,6 +1,4 @@
 ﻿using MWB.Networking.Layer2_Protocol.Internal;
-using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
-using System.Diagnostics.CodeAnalysis;
 
 namespace MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
@@ -16,11 +14,10 @@ internal sealed class StreamContext
         Closed
     }
 
-    internal StreamContext(uint streamId, uint? streamType, RequestContext? owningRequest)
+    internal StreamContext(uint streamId, uint? streamType)
     {
         this.StreamId = streamId;
         this.StreamType = streamType;
-        this.OwningRequest = owningRequest;
     }
 
     internal uint StreamId
@@ -32,19 +29,6 @@ internal sealed class StreamContext
     {
         get;
     }
-
-    /// <summary>
-    /// The Request that owns this Stream, if any.
-    /// Null indicates a session-scoped Stream.
-    /// </summary>
-    internal RequestContext? OwningRequest
-    {
-        get;
-    }
-
-    [MemberNotNullWhen(true, nameof(OwningRequest))]
-    internal bool IsRequestScoped
-        => this.OwningRequest is not null;
 
     private StreamState State
     {
@@ -60,8 +44,6 @@ internal sealed class StreamContext
                 ProtocolErrorKind.InvalidSequence,
                 $"Stream {this.StreamId} is closed");
         }
-        // If this is a request-scoped stream, the owning request must still be open
-        this.OwningRequest?.EnsureOpen();
     }
 
     internal void Close()

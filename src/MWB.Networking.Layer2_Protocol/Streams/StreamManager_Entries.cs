@@ -53,17 +53,4 @@ internal sealed class StreamManager
         entry.Context.Close();
         this.RemoveStream(streamId);
     }
-
-    internal void TearDownRequestStreams(uint requestId)
-    {
-        // Iterate over a snapshot to avoid modifying during enumeration
-        var snapshot = this.StreamEntries.GetStreamEntries();
-        foreach (var entry in snapshot)
-        {
-            if (entry.Context.OwningRequest?.RequestId == requestId)
-            {
-                this.TearDownStream(entry.StreamId);
-            }
-        }
-    }
 }

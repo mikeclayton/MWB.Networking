@@ -30,6 +30,9 @@ public abstract class PublicEvent
         get;
     }
 
+    /// <summary>
+    /// The payload associated with this event.
+    /// </summary>
     public ReadOnlyMemory<byte> Payload
     {
         get;

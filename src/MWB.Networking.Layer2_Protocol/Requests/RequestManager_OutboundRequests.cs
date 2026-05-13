@@ -21,13 +21,16 @@ internal sealed partial class RequestManager
     /// </summary>
     private uint GetNextRequestId()
     {
-        if (_nextRequestId == uint.MaxValue)
+        // get the next value safely (thread-safe, overflow-safe incrementing)
+        var next = Interlocked.Increment(ref _nextRequestId);
+        if (next == 0)
         {
-            throw new ProtocolException(ProtocolErrorKind.InternalError, "Request id pool exhausted.");
+            // wrapped from uint.MaxValue → 0
+            throw new ProtocolException(
+                ProtocolErrorKind.InternalError,
+                "Request id pool exhausted.");
         }
-        var requestId = _nextRequestId;
-        _nextRequestId++;
-        return requestId;
+        return next;
     }
 
     /// <summary>

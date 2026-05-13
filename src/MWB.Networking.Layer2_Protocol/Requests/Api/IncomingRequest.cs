@@ -7,8 +7,7 @@ namespace MWB.Networking.Layer2_Protocol.Requests.Api;
 /// Represents a request received from a remote peer.
 /// </summary>
 /// <remarks>
-/// Provides operations for responding to the request and opening
-/// request-scoped streams.
+/// Provides operations for responding to the request.
 /// </remarks>
 public sealed class IncomingRequest : PublicRequest
 {
