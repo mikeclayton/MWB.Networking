@@ -1,4 +1,5 @@
 ﻿using MWB.Networking.Layer2_Protocol.Internal;
+using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 using System.Diagnostics.CodeAnalysis;
 
 namespace MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
@@ -39,5 +40,28 @@ internal sealed class StreamContexts
     internal bool Remove(uint streamId)
     {
         return _streamContexts.Remove(streamId);
+    }
+
+    // ------------------------------------------------------------------
+    // Utility methods
+    // ------------------------------------------------------------------
+
+    internal void ThrowIfExists(uint streamId)
+    {
+        if (_streamContexts.ContainsKey(streamId))
+        {
+            throw ProtocolException.InvalidSequence(
+                $"Duplicate StreamId {streamId}");
+        }
+    }
+
+    internal StreamContext GetOrThrow(uint streamId)
+    {
+        if (this.TryGet(streamId, out var result))
+        {
+            return result;
+        }
+        throw ProtocolException.InvalidSequence(
+            $"Unknown StreamId {streamId}");
     }
 }

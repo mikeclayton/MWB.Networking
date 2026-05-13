@@ -1,19 +1,30 @@
-﻿using MWB.Networking.Layer2_Protocol.Frames;
+﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Internal;
-using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.Streams.Api;
 using MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
+using MWB.Networking.Layer2_Protocol.Streams.Publish;
 
 namespace MWB.Networking.Layer2_Protocol.Streams;
 
 internal sealed class StreamManagerInbound
 {
-    internal StreamManagerInbound(ProtocolSession session, StreamManager streamManager, StreamContexts streamContexts)
+    internal StreamManagerInbound(
+        ILogger logger,
+        ProtocolSession session,
+        StreamManager streamManager,
+        StreamContexts streamContexts)
     {
+        this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         this.Session = session ?? throw new ArgumentNullException(nameof(session));
         this.StreamManager = streamManager ?? throw new ArgumentNullException(nameof(streamManager));
         this.StreamContexts = streamContexts ?? throw new ArgumentNullException(nameof(streamContexts));
+    }
+
+    private ILogger Logger
+    {
+        get;
     }
 
     private ProtocolSession Session
@@ -35,30 +46,6 @@ internal sealed class StreamManagerInbound
     // Utility methods
     // ------------------------------------------------------------------
 
-    private void EnsureStreamEntryDoesNotExist(
-        ProtocolFrame frame,
-        uint streamId)
-    {
-        if (this.StreamContexts.Exists(streamId))
-        {
-            throw ProtocolException.InvalidSequence(
-                "Duplicate StreamId");
-        }
-    }
-
-    private void EnsureStreamContextExists(
-        uint streamId,
-        out StreamContext streamEntry)
-    {
-        if (this.StreamContexts.TryGet(streamId, out var result))
-        {
-            streamEntry = result;
-            return;
-        }
-        throw ProtocolException.InvalidSequence(
-            "Unknown StreamId");
-    }
-
 #pragma warning disable CA1822 // Mark members as static
     // this *could* be static but it reads better at call sites if it's an instance method
     private void EnsureIsIncomingStream(
@@ -66,11 +53,7 @@ internal sealed class StreamManagerInbound
         StreamContext streamContext,
         out IncomingStream incomingStream)
     {
-        if (!streamContext.IsIncoming)
-        {
-            throw ProtocolException.ProtocolViolation(
-                "Inbound stream frames may only target streams opened by the peer.");
-        }
+        streamContext.EnsureIncoming();
         incomingStream = streamContext.GetIncomingStreamOrThrow();
     }
 
@@ -95,31 +78,16 @@ internal sealed class StreamManagerInbound
         this.StreamManager.RemoveStream(streamId);
     }
 
-    internal void ProcessStreamFrame(ProtocolFrame frame)
-    {
-        switch (frame.Kind)
-        {
-            case ProtocolFrameKind.StreamOpen:
-                this.ProcessIncomingStreamOpenFrame(frame);
-                return;
-            case ProtocolFrameKind.StreamData:
-                this.ProcessIncomingStreamDataFrame(frame);
-                return;
-            case ProtocolFrameKind.StreamClose:
-                this.ProcessIncomingStreamCloseFrame(frame);
-                break;
-            case ProtocolFrameKind.StreamAbort:
-                this.ProcessIncomingStreamAbortFrame(frame);
-                break;
-            default:
-                throw ProtocolException.InvalidSequence("Invalid stream frame kind");
-        }
-    }
+    // ------------------------------------------------------------------
+    // Consume: Open
+    // ------------------------------------------------------------------
 
-    private void ProcessIncomingStreamOpenFrame(ProtocolFrame frame)
+    private void ConsumeIncomingStreamOpen(
+        uint streamId,
+        uint? streamType,
+        ReadOnlyMemory<byte> payload)
     {
-        // validate the frame
-        this.EnsureStreamEntryDoesNotExist(frame, streamId);
+        this.StreamContexts.ThrowIfExists(streamId);
 
         // Enforce the odd/even parity contract: the peer must use IDs of the
         // opposite parity to our outbound IDs. Accepting same-parity IDs would
@@ -130,53 +98,159 @@ internal sealed class StreamManagerInbound
                 $"StreamId {streamId} has the wrong parity for an inbound stream.");
         }
 
-        // build the context and create the IncomingStream instance
-        var streamType = frame.StreamType;
-        var streamContext = new StreamContext(streamId, streamType);
-        var incomingStream = new IncomingStream(this.Session, streamContext);
+        // create context
+        var streamContext = new StreamContext(
+            streamId,
+            streamType,
+            ProtocolDirection.Incoming);
 
-        // add a new stream context into the cache
+        // create stream entity (no payload!)
+        var incomingStream = new IncomingStream(
+            streamContext,
+            payload);
+
+        // Attach stream to context (critical for identity consistency)
+        streamContext.AttachIncomingStream(incomingStream);
+
+        // Register context
         this.StreamContexts.Add(streamContext);
 
-        // semantic notification
-        this.Session.OnStreamOpened(
-            incomingStream,
-            new StreamMetadata(frame.Payload));
+        // Publish open event
+        this.PublishIncomingStreamOpened(incomingStream, payload);
     }
 
-    private void ProcessIncomingStreamDataFrame(ProtocolFrame frame)
+    // ------------------------------------------------------------------
+    // Consume: Data
+    // ------------------------------------------------------------------
+
+    private void ConsumeIncomingStreamData(
+        uint streamId,
+        ReadOnlyMemory<byte> payload)
     {
-        // validate the frame
-        this.EnsureStreamContextExists(streamId, out var streamContext);
+        var streamContext = this.StreamContexts.GetOrThrow(streamId);
+
         this.EnsureIsIncomingStream(streamContext, out var incomingStream);
 
         streamContext.EnsureOpen();
-        this.Session.OnStreamDataReceived(incomingStream, frame.Payload);
+
+        this.PublishIncomingStreamData(incomingStream, payload);
     }
 
-    private void ProcessIncomingStreamCloseFrame(ProtocolFrame frame)
+    // ------------------------------------------------------------------
+    // Consume: Close
+    // ------------------------------------------------------------------
+
+    private void ConsumeIncomingStreamClose(
+        uint streamId,
+        ReadOnlyMemory<byte> payload)
     {
-        // validate the frame
-        this.EnsureStreamContextExists(streamId, out var streamContext);
+        var streamContext = this.StreamContexts.GetOrThrow(streamId);
+
         this.EnsureIsIncomingStream(streamContext, out var incomingStream);
 
-        // close the stream context
+        // Transition state first
         streamContext.Close();
-        // mark the IncomingStream as closed by peer
         incomingStream.Close();
-        this.Session.OnStreamClosed(incomingStream, new StreamMetadata(frame.Payload));
 
+        // Publish while still registered
+        this.PublishIncomingStreamClosed(incomingStream, payload);
+
+        // Then remove from manager
         this.StreamManager.RemoveStream(streamId);
     }
 
-    private void ProcessIncomingStreamAbortFrame(ProtocolFrame frame)
+    // ------------------------------------------------------------------
+    // Consume: Abort
+    // ------------------------------------------------------------------
+
+    private void ConsumeIncomingStreamAbort(
+        uint streamId,
+        ReadOnlyMemory<byte> payload)
     {
-        this.EnsureStreamContextExists(frame, streamId, out var streamContext);
-        this.EnsureIsIncomingStream(frame, streamContext, out var incomingStream);
+        var streamContext = this.StreamContexts.GetOrThrow(streamId);
 
+        this.EnsureIsIncomingStream(streamContext, out var incomingStream);
+
+        // Transition state first
         streamContext.Close();
-        this.StreamManager.RemoveStream(streamId);
+        incomingStream.Close();
 
-        this.Session.OnStreamAborted(incomingStream, new StreamMetadata(frame.Payload));
+        // Publish while still registered
+        this.PublishIncomingStreamAborted(incomingStream, payload);
+
+        // Then remove
+        this.StreamManager.RemoveStream(streamId);
+    }
+
+    // ------------------------------------------------------------------
+    // Publish helpers
+    // ------------------------------------------------------------------
+
+    private void PublishIncomingStreamOpened(
+        IncomingStream stream,
+        ReadOnlyMemory<byte> metadata)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+
+        this.Logger.LogTrace(
+            "Publishing incoming stream open (Id={StreamId})",
+            stream.StreamId);
+
+        var streamOpened = new IncomingStreamOpened(
+            stream,
+            new StreamMetadata(metadata));
+
+        this.Session.IncomingActionSink.PublishIncomingStreamOpened(streamOpened);
+    }
+
+    private void PublishIncomingStreamData(
+        IncomingStream stream,
+        ReadOnlyMemory<byte> payload)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+
+        this.Logger.LogTrace(
+            "Publishing incoming stream data (Id={StreamId})",
+            stream.StreamId);
+
+        var streamData = new IncomingStreamData(
+            stream,
+            payload);
+
+        this.Session.IncomingActionSink.PublishIncomingStreamData(streamData);
+    }
+
+    private void PublishIncomingStreamClosed(
+        IncomingStream stream,
+        ReadOnlyMemory<byte> metadata)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+
+        this.Logger.LogTrace(
+            "Publishing incoming stream close (Id={StreamId})",
+            stream.StreamId);
+
+        var streamClosed = new IncomingStreamClosed(
+            stream,
+            new StreamMetadata(metadata));
+
+        this.Session.IncomingActionSink.PublishIncomingStreamClosed(streamClosed);
+    }
+
+    private void PublishIncomingStreamAborted(
+        IncomingStream stream,
+        ReadOnlyMemory<byte> metadata)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+
+        this.Logger.LogTrace(
+            "Publishing incoming stream abort (Id={StreamId})",
+            stream.StreamId);
+
+        var streamAborted = new IncomingStreamAborted(
+            stream,
+            new StreamMetadata(metadata));
+
+        this.Session.IncomingActionSink.PublishIncomingStreamAborted(streamAborted);
     }
 }

@@ -14,10 +14,14 @@ internal sealed class StreamContext
         Closed
     }
 
-    internal StreamContext(uint streamId, uint? streamType)
+    internal StreamContext(
+        uint streamId,
+        uint? streamType,
+        ProtocolDirection direction)
     {
         this.StreamId = streamId;
         this.StreamType = streamType;
+        this.Direction = direction;
     }
 
     internal uint StreamId
@@ -26,6 +30,11 @@ internal sealed class StreamContext
     }
 
     internal uint? StreamType
+    {
+        get;
+    }
+
+    internal ProtocolDirection Direction
     {
         get;
     }
@@ -43,6 +52,15 @@ internal sealed class StreamContext
             throw new ProtocolException(
                 ProtocolErrorKind.InvalidSequence,
                 $"Stream {this.StreamId} is closed");
+        }
+    }
+
+    internal void EnsureIncoming()
+    {
+        if (this.Direction != ProtocolDirection.Incoming)
+        {
+            throw ProtocolException.ProtocolViolation(
+                $"Stream {this.StreamId} is not inbound.");
         }
     }
 

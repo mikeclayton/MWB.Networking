@@ -13,8 +13,8 @@ internal sealed partial class StreamManager
         ArgumentNullException.ThrowIfNull(streamIdProvider);
         this.Logger = logger;
         this.StreamIdProvider = streamIdProvider;
-        this.Inbound = new StreamManagerInbound(session, this, this.StreamContexts);
-        this.Outbound = new StreamManagerOutbound(session, this, this.StreamContexts, streamIdProvider);
+        this.Inbound = new StreamManagerInbound(logger, session, this, this.StreamContexts);
+        this.Outbound = new StreamManagerOutbound(logger, session, this, this.StreamContexts, streamIdProvider);
     }
 
     private ILogger Logger

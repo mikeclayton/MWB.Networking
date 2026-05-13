@@ -1,5 +1,8 @@
-﻿using MWB.Networking.Layer2_Protocol.Frames;
+﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer2_Protocol.Frames;
+using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Session;
+using MWB.Networking.Layer2_Protocol.Streams.Api;
 using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
 using MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
@@ -8,15 +11,22 @@ namespace MWB.Networking.Layer2_Protocol.Streams;
 internal sealed class StreamManagerOutbound
 {
     internal StreamManagerOutbound(
+        ILogger logger,
         ProtocolSession session,
         StreamManager streamManager,
         StreamContexts streamContexts,
         OddEvenStreamIdProvider streamIdProvider)
     {
+        this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         this.Session = session ?? throw new ArgumentNullException(nameof(session));
         this.StreamManager = streamManager ?? throw new ArgumentNullException(nameof(streamManager));
         this.StreamContexts = streamContexts ?? throw new ArgumentNullException(nameof(streamContexts));
         this.StreamIdProvider = streamIdProvider ?? throw new ArgumentNullException(nameof(streamIdProvider));
+    }
+
+    private ILogger Logger
+    {
+        get;
     }
 
     private ProtocolSession Session
@@ -43,12 +53,9 @@ internal sealed class StreamManagerOutbound
     {
         var streamId = this.StreamIdProvider.AllocateOutbound();
 
-        var streamContext = new StreamContext(
-            streamId: streamId,
-            streamType: streamType
-        );
+        var streamContext = new StreamContext(streamId, streamType, ProtocolDirection.Outgoing);
 
-        var stream = new OutgoingStream(this.Session, streamContext, streamId);
+        var stream = new OutgoingStream(streamContext, this.StreamActions, metadata);
 
         this.StreamContexts.Add(streamContext);
 
