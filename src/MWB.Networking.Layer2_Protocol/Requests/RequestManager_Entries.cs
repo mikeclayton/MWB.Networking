@@ -8,31 +8,23 @@ internal sealed partial class RequestManager
     // Request handling
     // ------------------------------------------------------------------
 
-    private RequestEntries RequestEntries
+    private RequestContexts RequestContexts
     {
         get;
     } = new();
 
-    internal List<uint> GetRequestEntryIds()
+    internal IReadOnlyCollection<uint> GetRequestIds()
     {
-        return this.RequestEntries.GetRequestEntryIds();
+        return this.RequestContexts.GetRequestIds();
     }
 
-    internal void RemoveRequest(uint requestId)
-    {
-        // Look up the request context first
-        if (!this.RequestEntries.TryGetRequestEntry(requestId, out var entry))
-        {
-            // not a valid request
-            throw new InvalidOperationException(
-                $"Cannot remove request {requestId}: the request does not exist or has already completed.");
-        }
-
+    internal void RemoveRequest(RequestContext context)
+    {      
         // auto-close streams owned by the request
-        this.Session.StreamManager.TearDownRequestStreams(requestId);
+        this.Session.StreamManager.TearDownRequestStreams(context.RequestId);
 
         // Remove the request lifecycle entry before transmitting the response
         // to prevent re-entrant lookup during transmission
-        this.RequestEntries.RemoveRequestEntry(requestId);
+        this.RequestContexts.Remove(context.RequestId);
     }
 }

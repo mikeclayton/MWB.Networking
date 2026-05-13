@@ -6,8 +6,6 @@ using System.Threading.Channels;
 namespace MWB.Networking.Layer2_Protocol.Adapter;
 
 public sealed partial class SessionAdapter :
-    IIncomingActionSink,
-    IOutgoingActionSink,
     IDisposable
 {
     private readonly ILogger _logger;

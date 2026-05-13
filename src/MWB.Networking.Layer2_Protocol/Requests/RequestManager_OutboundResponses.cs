@@ -1,11 +1,10 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
-using MWB.Networking.Layer2_Protocol.Requests.Internal;
 
 namespace MWB.Networking.Layer2_Protocol.Requests;
 
-internal sealed partial class RequestManagerOutbound
+internal sealed partial class RequestManager
 {
     // ------------------------------------------------------------
     // Outgoing Request / Response ingress
@@ -16,34 +15,32 @@ internal sealed partial class RequestManagerOutbound
     /// <summary>
     /// Consumes a locally generated outgoing response.
     /// </summary>
-    internal Response ConsumeOutgoingResponse(
+    internal OutgoingResponse ConsumeOutgoingResponse(
         uint requestId,
         uint? responseType,
-        ReadOnlyMemory<byte> payload)
+        ReadOnlyMemory<byte> payload,
+        bool isError)
     {
-        // Ensure the request exists
-        var requestEntry = this.RequestEntries.EnsureRequestExists(requestId);
+        // make sure the request being responded to exists
+        var requestContext = this.RequestContexts.GetOrThrow(requestId);
 
-        // Only respond to incoming requests
-        if (!requestEntry.IsIncoming)
+        // only respond to incoming requests
+        if (requestContext.Direction != ProtocolDirection.Incoming)
         {
             throw ProtocolException.InvalidSequence(
                 "Cannot send a response for a request initiated by the local peer.");
         }
 
-        // This is a successful (non-error) terminal response.
-        // Error responses are emitted via the separate error-handling path.
-        var outgoingResponse = new OutgoingResponse(requestId, responseType, isError:false);
+        // create the public api response
+        var outgoingResponse = new OutgoingResponse(requestId, responseType, payload, isError);
 
-        // Close the request from the outbound side
-        requestEntry.Context.Close();
+        // close the request from the outbound side
+        requestContext.Close();
+        this.RemoveRequest(requestContext);
 
-        this.RequestManager.RemoveRequest(requestId);
-
-        // Commit the response
-        var response = outgoingResponse.AsPublishable(payload);
-        this.TransmitOutgoingResponse(response);
-        return response;
+        // publish to sinks
+        this.TransmitOutgoingResponse(outgoingResponse);
+        return outgoingResponse;
     }
 
     // ------------------------------------------------------------
@@ -55,7 +52,7 @@ internal sealed partial class RequestManagerOutbound
     /// <summary>
     /// Transmits an outgoing response for delivery to the remote peer.
     /// </summary>
-    internal void TransmitOutgoingResponse(Response response)
+    internal void TransmitOutgoingResponse(OutgoingResponse response)
     {
         ArgumentNullException.ThrowIfNull(response);
 
@@ -63,6 +60,6 @@ internal sealed partial class RequestManagerOutbound
             "Transmitting outgoing response (Id={RequestId})",
             response.RequestId);
 
-        this.RequestManager.Session.OutgoingActionSink.TransmitOutgoingResponse(response);
+        this.Session.OutgoingActionSink.TransmitOutgoingResponse(response);
     }
 }

@@ -1,33 +1,29 @@
+using MWB.Networking.Layer2_Protocol.Internal;
+
 namespace MWB.Networking.Layer2_Protocol.Requests.Api;
 
 /// <summary>
 /// Represents a response delivered to or emitted by the application.
-///
-/// This is the application-facing projection of a protocol response and includes
-/// both the response metadata and associated payload. Instances of this type are
-/// materialized at publication or transmission time and do not participate in
-/// protocol lifecycle or invariant enforcement.
 /// </summary>
-public sealed class Response
+/// <remarks>
+/// Encapsulates the response metadata and payload associated with a request.
+/// Responses are immutable data objects and do not participate in request
+/// lifecycle or protocol invariant enforcement.
+/// </remarks>
+public abstract class PublicResponse
 {
-    internal Response(
+    internal PublicResponse(
         uint requestId,
         uint? responseType,
+        ReadOnlyMemory<byte> payload,
         bool isError,
-        ReadOnlyMemory<byte> payload)
+        ProtocolDirection direction)
     {
         this.RequestId = requestId;
         this.ResponseType = responseType;
-        this.IsError = isError;
         this.Payload = payload;
-    }
-
-    /// <summary>
-    /// Indicates whether this response represents a protocol-level error.
-    /// </summary>
-    public bool IsError
-    {
-        get;
+        this.IsError = isError;
+        this.Direction = direction;
     }
 
     /// <summary>
@@ -50,6 +46,19 @@ public sealed class Response
     /// The payload associated with this response.
     /// </summary>
     public ReadOnlyMemory<byte> Payload
+    {
+        get;
+    }
+
+    /// <summary>
+    /// Indicates whether this response represents a protocol-level error.
+    /// </summary>
+    public bool IsError
+    {
+        get;
+    }
+
+    internal ProtocolDirection Direction
     {
         get;
     }

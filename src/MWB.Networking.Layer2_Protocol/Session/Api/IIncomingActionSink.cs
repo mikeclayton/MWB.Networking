@@ -5,16 +5,21 @@ namespace MWB.Networking.Layer2_Protocol.Session.Api;
 
 internal interface IIncomingActionSink
 {
-    // Action sinks represent execution boundaries.
-    // All methods receive fully materialized semantic domain objects.
-    // Domain objects do not own payload lifetime.
+    // Action sinks represent execution boundaries between the protocol layer
+    // and the local application.
+    //
+    // All methods receive fully materialized domain objects that encapsulate
+    // request, response, or event data along with their associated payload.
+    //
+    // These objects are immutable representations of protocol messages and
+    // expose only application-relevant behaviour.
 
     // Events (remote peer → local application)
-    void PublishIncomingEvent(Event evt);
+    void PublishIncomingEvent(IncomingEvent evt);
 
     // Requests (remote peer → local application)
-    void PublishIncomingRequest(Request request);
+    void PublishIncomingRequest(IncomingRequest request);
 
     // Responses (remote peer → local application)
-    void PublishIncomingResponse(Response response);
+    void PublishIncomingResponse(IncomingResponse response);
 }

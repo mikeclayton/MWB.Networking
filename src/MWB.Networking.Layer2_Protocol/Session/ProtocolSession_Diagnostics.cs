@@ -10,7 +10,7 @@ internal sealed partial class ProtocolSession : IProtocolSessionDiagnostics
     ProtocolSnapshot IProtocolSessionDiagnostics.GetSnapshot()
     {
         return new ProtocolSnapshot(
-            OpenRequests: this.RequestManager.GetRequestEntryIds().ToArray(),
+            OpenRequests: this.RequestManager.GetRequestIds().ToArray(),
             OpenStreams: this.StreamManager.GetStreamIds().ToArray());
     }
 }

@@ -1,12 +1,11 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
-using MWB.Networking.Layer2_Protocol.Requests.Internal;
 using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 
 namespace MWB.Networking.Layer2_Protocol.Requests;
 
-internal sealed partial class RequestManagerOutbound
+internal sealed partial class RequestManager
 {
     // ------------------------------------------------------------
     // Outgoing Request / Response ingress
@@ -14,10 +13,27 @@ internal sealed partial class RequestManagerOutbound
     //  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     // ------------------------------------------------------------
 
+    private const uint _firstRequestId = 1;
+    private uint _nextRequestId = _firstRequestId;
+
+    /// <summary>
+    /// Generate a new unique request ID.
+    /// </summary>
+    private uint GetNextRequestId()
+    {
+        if (_nextRequestId == uint.MaxValue)
+        {
+            throw new ProtocolException(ProtocolErrorKind.InternalError, "Request id pool exhausted.");
+        }
+        var requestId = _nextRequestId;
+        _nextRequestId++;
+        return requestId;
+    }
+
     /// <summary>
     /// Consumes a locally generated outgoing request.
     /// </summary>
-    internal Request ConsumeOutgoingRequest(
+    internal OutgoingRequest ConsumeOutgoingRequest(
         uint? requestType,
         ReadOnlyMemory<byte> payload)
     {
@@ -25,16 +41,14 @@ internal sealed partial class RequestManagerOutbound
         // (thread-safe, overflow-safe incrementing)
         var requestId = this.GetNextRequestId();
 
-        // Create and track request context
-        var context = new RequestContext(requestId, requestType, ProtocolDirection.Outgoing);
-        var outgoingRequest = new OutgoingRequest(context, this.RequestManager.Actions);
-        var requestEntry = new RequestEntry(context, outgoingRequest);
-        this.RequestEntries.AddRequestEntry(requestEntry);
+        // add a new request context to track the outgoing request lifecycle
+        var requestContext = new RequestContext(requestId, requestType, ProtocolDirection.Outgoing);
+        this.RequestContexts.Add(requestContext);
 
-        // transmit the protocol request frame to the remote peer
-        var request = outgoingRequest.AsPublishable(payload);
-        this.TransmitOutgoingRequest(request);
-        return request;
+        // transmit the protocol request to the remote peer
+        var outgoingRequest = new OutgoingRequest(requestContext, this.Actions, payload);
+        this.TransmitOutgoingRequest(outgoingRequest);
+        return outgoingRequest;
     }
 
     // ------------------------------------------------------------
@@ -46,7 +60,7 @@ internal sealed partial class RequestManagerOutbound
     /// <summary>
     /// Transmits an outgoing request for delivery to the remote peer.
     /// </summary>
-    internal void TransmitOutgoingRequest(Request request)
+    internal void TransmitOutgoingRequest(OutgoingRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -54,6 +68,6 @@ internal sealed partial class RequestManagerOutbound
             "Transmitting outgoing request (Id={RequestId})",
             request.RequestId);
 
-        this.RequestManager.Session.OutgoingActionSink.TransmitOutgoingRequest(request);
+        this.Session.OutgoingActionSink.TransmitOutgoingRequest(request);
     }
 }

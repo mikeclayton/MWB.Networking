@@ -1,9 +1,8 @@
 ﻿using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
-using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 using MWB.Networking.Layer2_Protocol.Streams.Api;
 
-namespace MWB.Networking.Layer2_Protocol.Requests.Internal;
+namespace MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 
 internal sealed class RequestActions
 {
@@ -17,20 +16,21 @@ internal sealed class RequestActions
         get;
     }
 
-    internal Response Respond(
+    internal OutgoingResponse Respond(
         RequestContext context,
         uint? responseType,
-        ReadOnlyMemory<byte> payload)
+        ReadOnlyMemory<byte> payload,
+        bool isError)
     {
         ArgumentNullException.ThrowIfNull(context);
 
         if (context.Direction != ProtocolDirection.Incoming)
         {
-            throw new InvalidOperationException("Cannot respond to an outbound request.");
+            throw new InvalidOperationException("Cannot respond to an outgoing request.");
         }
 
-        var response = this.RequestManager.Outbound.ConsumeOutgoingResponse(
-            context.RequestId, responseType, payload);
+        var response = this.RequestManager.ConsumeOutgoingResponse(
+            context.RequestId, responseType, payload, isError);
 
         return response;
     }

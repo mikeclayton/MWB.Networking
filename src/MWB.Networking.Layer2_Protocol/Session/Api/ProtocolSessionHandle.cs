@@ -5,11 +5,7 @@ internal sealed class ProtocolSessionHandle
     internal ProtocolSessionHandle(ProtocolSession session)
     {
         this.Session = session ?? throw new ArgumentNullException(nameof(session));
-        //this.Commands = session;
         this.Diagnostics = session;
-        //this.FrameIO = session;
-        //this.Observer = session;
-        //this.Processor = session;
     }
 
     internal ProtocolSession Session
@@ -17,28 +13,8 @@ internal sealed class ProtocolSessionHandle
         get;
     }
 
-    //public IProtocolSessionCommands Commands
-    //{
-    //    get;
-    //}
-
     internal IProtocolSessionDiagnostics Diagnostics
     {
         get;
     }
-
-    //public IProtocolSessionFrameIO FrameIO
-    //{
-    //    get;
-    //}
-
-    //public IProtocolSessionObserver Observer
-    //{
-    //    get;
-    //}
-
-    //internal IProtocolSessionProcessor Processor
-    //{
-    //    get;
-    //}
 }

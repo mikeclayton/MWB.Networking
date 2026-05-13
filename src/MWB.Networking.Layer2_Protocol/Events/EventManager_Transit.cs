@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer2_Protocol.Events.Api;
-using MWB.Networking.Layer2_Protocol.Events.Internal;
 
 namespace MWB.Networking.Layer2_Protocol.Events;
 
@@ -32,7 +31,7 @@ internal sealed partial class EventManager
     /// The caller should treat the input as consumed regardless of outcome;
     /// validation, filtering, or rejection are internal protocol concerns.
     /// </remarks>
-    internal Event ConsumeIncomingEvent(
+    internal IncomingEvent ConsumeIncomingEvent(
         uint? eventType,
         ReadOnlyMemory<byte> payload)
     {
@@ -40,11 +39,9 @@ internal sealed partial class EventManager
             "Consuming incoming event (Type={EventType})",
             eventType);
 
-        var incomingEvent = new IncomingEvent(eventType);
-
-        var evt = incomingEvent.AsPublishable(payload);
-        this.PublishIncomingEvent(evt);
-        return evt;
+        var incomingEvent = new IncomingEvent(eventType, payload);
+        this.PublishIncomingEvent(incomingEvent);
+        return incomingEvent;
     }
 
     // ------------------------------------------------------------
@@ -59,14 +56,14 @@ internal sealed partial class EventManager
     /// <remarks>
     /// This method represents the inbound egress boundary of the protocol. It is
     /// called after event-level semantics have been applied and emits the resulting
-    /// <see cref="Event"/> to the session’s incoming action sink, marking the
+    /// <see cref="IncomingEvent"/> to the session’s incoming action sink, marking the
     /// point at which the event is surfaced beyond the protocol boundary to the
     /// local, in-process application.
     ///
     /// Actual delivery mechanics, adapter concerns, and dispatch to application
     /// handlers are managed downstream by the session adapter.
     /// </remarks>
-    internal void PublishIncomingEvent(Event evt)
+    internal void PublishIncomingEvent(IncomingEvent evt)
     {
         ArgumentNullException.ThrowIfNull(evt);
 
@@ -99,7 +96,7 @@ internal sealed partial class EventManager
     /// The caller should treat the input as consumed regardless of outcome;
     /// validation, filtering, or rejection are internal protocol concerns.
     /// </remarks>
-    internal Event ConsumeOutgoingEvent(
+    internal OutgoingEvent ConsumeOutgoingEvent(
         uint? eventType,
         ReadOnlyMemory<byte> payload)
     {
@@ -107,11 +104,9 @@ internal sealed partial class EventManager
             "Consuming outgoing event (Type={EventType})",
             eventType);
 
-        var outgoingEvent = new OutgoingEvent(eventType);
-
-        var evt = outgoingEvent.AsPublishable(payload);
-        this.TransmitOutgoingEvent(evt);
-        return evt;
+        var outgoingEvent = new OutgoingEvent(eventType, payload);
+        this.TransmitOutgoingEvent(outgoingEvent);
+        return outgoingEvent;
     }
 
     // ------------------------------------------------------------
@@ -133,7 +128,7 @@ internal sealed partial class EventManager
     /// delivery are handled downstream by the session’s outgoing action sink
     /// and adapter.
     /// </remarks>
-    internal void TransmitOutgoingEvent(Event evt)
+    internal void TransmitOutgoingEvent(OutgoingEvent evt)
     {
         ArgumentNullException.ThrowIfNull(evt);
 

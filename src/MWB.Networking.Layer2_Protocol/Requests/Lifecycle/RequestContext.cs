@@ -1,16 +1,26 @@
 ﻿using MWB.Networking.Layer2_Protocol.Internal;
-using MWB.Networking.Layer2_Protocol.Requests.Internal;
+using MWB.Networking.Layer2_Protocol.Requests.Api;
 
 namespace MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 
 internal sealed class RequestContext
 {
-    internal RequestContext(uint requestId, uint? requestType, ProtocolDirection direction)
+    internal RequestContext(
+        uint requestId,
+        uint? requestType,
+        ProtocolDirection direction)
     {
         this.RequestId = requestId;
         this.RequestType = requestType;
         this.Direction = direction;
+        this.ResponseTcs = (direction == ProtocolDirection.Outgoing)
+        ? new TaskCompletionSource<IncomingResponse>(TaskCreationOptions.RunContinuationsAsynchronously)
+        : null;
     }
+
+    // ------------------------------------------------------------------
+    // Identity
+    // ------------------------------------------------------------------
 
     internal uint RequestId
     {
@@ -27,18 +37,14 @@ internal sealed class RequestContext
         get;
     }
 
+    // ------------------------------------------------------------------
+    // Lifecycle / state
+    // ------------------------------------------------------------------
+
     private RequestStateMachine StateMachine
     {
         get;
     } = new RequestStateMachine();
-
-    private TaskCompletionSource<IncomingResponse> ResponseTcs
-    {
-        get;
-    } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-    internal Task<IncomingResponse> ResponseTask
-        => this.ResponseTcs.Task;
 
     /// <summary>
     /// Indicates whether a Request-scoped Stream has been opened.
@@ -51,6 +57,17 @@ internal sealed class RequestContext
     /// </summary>
     internal bool IsCompleted
         => this.StateMachine.IsResponded;
+
+    /// <summary>
+    /// Ensures the Request is still open and able to perform Request-scoped operations.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown if the Request has already been responded to.
+    /// </exception>
+    internal void EnsureOpen()
+    {
+        this.StateMachine.EnsureOpen();
+    }
 
     /// <summary>
     /// Opens the single Request-scoped Stream associated with this Request.
@@ -72,29 +89,44 @@ internal sealed class RequestContext
         this.StateMachine.Respond();
     }
 
-    /// <summary>
-    /// Completes the Request based on an inbound terminal Response or Error frame.
-    /// </summary>
-    /// <remarks>
-    /// This method is used when processing Responses to Requests initiated by the
-    /// local peer. It MUST NOT emit any protocol frames.
-    /// </remarks>
-    internal void CloseFromInbound(IncomingResponse incomingResponse)
+    // ------------------------------------------------------------------
+    // Response completion (outgoing requests only)
+    // ------------------------------------------------------------------
+
+    private TaskCompletionSource<IncomingResponse>? ResponseTcs
     {
-        // Transition the Request lifecycle to terminal
-        this.StateMachine.Respond();
-        // Complete the awaiting caller with the received response
-        this.ResponseTcs.SetResult(incomingResponse);
+        get;
     }
 
-    /// <summary>
-    /// Ensures the Request is still open and able to perform Request-scoped operations.
-    /// </summary>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown if the Request has already been responded to.
-    /// </exception>
-    internal void EnsureOpen()
+    private TaskCompletionSource<IncomingResponse> GetResponseTcs()
     {
-        this.StateMachine.EnsureOpen();
+        if (this.Direction != ProtocolDirection.Outgoing)
+        {
+            throw new InvalidOperationException(
+                "Internal error: incoming requests cannot be completed with an inbound response.");
+        }
+
+        // assert that we have a task completion before we update the state machine
+        var tcs = this.ResponseTcs
+            ?? throw new InvalidOperationException(
+                "Internal error: an outgoing request is missing its task completion source");
+        
+        return tcs;
+    }
+
+    internal Task<IncomingResponse> ResponseTask
+        => this.GetResponseTcs().Task;
+
+    /// <summary>
+    /// Completes an outgoing Request based on an inbound terminal Response or Error frame.
+    /// </summary>
+    internal void CompleteWithResponse(IncomingResponse response)
+    {
+        // make sure we have a task completion before we update the state machine
+        var tcs = this.GetResponseTcs();
+
+        this.StateMachine.Respond();
+
+        tcs.SetResult(response);
     }
 }

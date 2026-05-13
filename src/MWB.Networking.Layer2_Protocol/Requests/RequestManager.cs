@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer2_Protocol.Requests.Internal;
+using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 using MWB.Networking.Layer2_Protocol.Session;
 
 namespace MWB.Networking.Layer2_Protocol.Requests;
@@ -12,9 +12,6 @@ internal sealed partial class RequestManager
     {
         this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         this.Session = session ?? throw new ArgumentNullException(nameof(session));
-
-        this.Outbound = new RequestManagerOutbound(logger, this, this.RequestEntries);
-        this.Inbound = new RequestManagerInbound(logger, this, this.RequestEntries);
         this.Actions = new RequestActions(this);
     }
 
@@ -24,16 +21,6 @@ internal sealed partial class RequestManager
     }
 
     internal ProtocolSession Session
-    {
-        get;
-    }
-
-    internal RequestManagerOutbound Outbound
-    {
-        get;
-    }
-
-    internal RequestManagerInbound Inbound
     {
         get;
     }

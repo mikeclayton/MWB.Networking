@@ -1,12 +1,11 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
-using MWB.Networking.Layer2_Protocol.Requests.Internal;
 using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 
 namespace MWB.Networking.Layer2_Protocol.Requests;
 
-internal sealed partial class RequestManagerInbound
+internal sealed partial class RequestManager
 {
     // ------------------------------------------------------------
     // Incoming Request / Response ingress
@@ -17,23 +16,22 @@ internal sealed partial class RequestManagerInbound
     /// <summary>
     /// Consumes an incoming request from a remote peer.
     /// </summary>
-    internal Request ConsumeIncomingRequest(
+    internal IncomingRequest ConsumeIncomingRequest(
         uint requestId,
         uint? requestType,
         ReadOnlyMemory<byte> payload)
     {
         // prevent duplicate request ids
-        this.RequestEntries.EnsureRequestDoesNotExist(requestId);
+        this.RequestContexts.ThrowIfExists(requestId);
 
-        // add a new entry to track the incoming request lifecycle
+        // add a new request context to track the incoming request lifecycle
         var requestContext = new RequestContext(requestId, requestType, ProtocolDirection.Incoming);
-        var incomingRequest = new IncomingRequest(requestContext, this.RequestManager.Actions);
-        var requestEntry = new RequestEntry(requestContext, incomingRequest);
-        this.RequestEntries.AddRequestEntry(requestEntry);
+        this.RequestContexts.Add(requestContext);
 
-        var request = incomingRequest.AsPublishable(payload);
-        this.PublishIncomingRequest(request);
-        return request;
+        // publish the incoming request to the application
+        var incomingRequest = new IncomingRequest(requestContext, this.Actions, payload);
+        this.PublishIncomingRequest(incomingRequest);
+        return incomingRequest;
     }
 
     // ------------------------------------------------------------
@@ -49,7 +47,7 @@ internal sealed partial class RequestManagerInbound
     /// Called by the request state machine after request semantics
     /// have been fully processed.
     /// </remarks>
-    internal void PublishIncomingRequest(Request request)
+    internal void PublishIncomingRequest(IncomingRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -57,6 +55,6 @@ internal sealed partial class RequestManagerInbound
             "Publishing incoming request (Id={RequestId})",
             request.RequestId);
 
-        this.RequestManager.Session.IncomingActionSink.PublishIncomingRequest(request);
+        this.Session.IncomingActionSink.PublishIncomingRequest(request);
     }
 }

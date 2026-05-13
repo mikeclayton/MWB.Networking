@@ -1,35 +1,44 @@
 ```
-              ┌────────────────────────────┐
-              │ RequestContext             │
-              │  - requestId               │
-              │  - state (Open/Completed)  │
-              │  - invariant checks        │
-              │  - response tracking       │
-              └─────────────▲──────────────┘
-                            │
-              ┌─────────────┴──────────────┐
-              │ RequestManager             │
-              │  - inbound validation      │
-              │  - outbound creation       │
-              │  - lifecycle enforcement   │
-              │  - request lookup          │
-              └──────────▲───────────┬─────┘
-                         │           │
-           inbound frames│           │outbound intent
-                         │           ▼
-      ┌──────────────────┼──────────────────┐
-      │                  │                  │
-┌────────────────┐  ┌─────────────────┐  ┌─────────────────────────┐
-│ IncomingRequest│  │ ProtocolSession │  │ (future) OutgoingRequest│
-│ (observer/API) │  │  _Observer.cs   │  │ (if you ever add one)   │
-└────────────────┘  └─────────────────┘  └─────────────────────────┘
-            │
-            │ exposed to application
-            ▼
-┌────────────────────────────┐
-│ Application code           │
-│  - reads payload           │
-│  - sends response          │
-│  - can fail request        │
-└────────────────────────────┘
+                    ┌────────────────────────────┐
+                    │ RequestContext             │
+                    │  - requestId               │
+                    │  - requestType             │
+                    │  - direction               │
+                    │  - state machine           │
+                    │  - response tracking       │
+                    └─────────────▲──────────────┘
+                                  │
+                    ┌─────────────┴──────────────┐
+                    │ RequestActions             │
+                    │  - Respond(...)            │
+                    │  - OpenRequestStream(...)  │
+                    │  - protocol enforcement    │
+                    └─────────────▲──────────────┘
+                                  │
+                    ┌─────────────┴──────────────┐
+                    │ RequestManager             │
+                    │  - inbound consumption     │
+                    │  - outbound creation       │
+                    │  - request lookup/store    │
+                    │  - lifecycle coordination  │
+                    └───────▲───────────┬────────┘
+                            │           │
+             inbound frames │           │ outbound intent
+                            │           ▼
+        ┌───────────────────┼───────────────────┐
+        │                   │                   │
+┌────────────────┐  ┌─────────────────┐  ┌────────────────┐
+│ IncomingRequest│  │ ProtocolSession │  │ OutgoingRequest│
+│ (API surface)  │  │ (transport)     │  │ (API surface)  │
+└────────▲───────┘  └─────────────────┘  └────────▲───────┘
+         │                                        │
+         │ exposed to application                 │ returned to caller
+         ▼                                        ▼
+┌────────────────────────────────────────────────────────────┐
+│ Application code                                           │
+│  - reads Payload                                           │
+│  - IncomingRequest.Respond(...)                            │
+│  - OutgoingRequest.Response (await)                        │
+│  - Request.OpenRequestStream(...)                          │
+└────────────────────────────────────────────────────────────┘
 ```
