@@ -1,4 +1,5 @@
 ﻿using MWB.Networking.Layer2_Protocol.Internal;
+using MWB.Networking.Layer2_Protocol.Requests.Internal;
 using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 
 namespace MWB.Networking.Layer2_Protocol.Requests.Api;

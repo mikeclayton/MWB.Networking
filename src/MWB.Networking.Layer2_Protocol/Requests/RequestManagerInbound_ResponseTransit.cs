@@ -2,6 +2,8 @@
 using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
 using MWB.Networking.Layer2_Protocol.Requests.Internal;
+using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
+using System.Text;
 
 namespace MWB.Networking.Layer2_Protocol.Requests;
 
@@ -39,11 +41,17 @@ internal sealed partial class RequestManagerInbound
 
         // Close the request based on a terminal frame received from the peer.
         requestEntry.Context.CloseFromInbound(incomingResponse);
-
         this.RequestManager.RemoveRequest(requestId);
 
+        // project once
         var response = incomingResponse.AsPublishable(payload);
+
+        // complete the awaiting response task
+        requestEntry.Context.SetResult(response);
+
+        // publish to sinks
         this.PublishIncomingResponse(response);
+
         return response;
     }
 

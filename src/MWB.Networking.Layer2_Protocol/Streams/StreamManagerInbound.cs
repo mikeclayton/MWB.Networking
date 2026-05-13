@@ -41,7 +41,6 @@ internal sealed class StreamManagerInbound
     {
         streamId = frame.StreamId
             ?? throw ProtocolException.ProtocolViolation(
-                frame,
                 $"{nameof(ProtocolFrame)} with {nameof(ProtocolFrame.Kind)} of {nameof(ProtocolFrameKind)} must have a {nameof(ProtocolFrame.StreamId)}");
     }
 
@@ -81,7 +80,7 @@ internal sealed class StreamManagerInbound
         if (!streamEntry.IsIncoming)
         {
             throw ProtocolException.ProtocolViolation(
-                frame, "Inbound stream frames may only target streams opened by the peer.");
+                "Inbound stream frames may only target streams opened by the peer.");
         }
         incomingStream = streamEntry.GetIncomingStreamOrThrow();
     }
@@ -140,7 +139,6 @@ internal sealed class StreamManagerInbound
         if (!this.StreamManager.IsValidInboundStreamId(streamId))
         {
             throw ProtocolException.ProtocolViolation(
-                frame,
                 $"StreamId {streamId} has the wrong parity for an inbound stream.");
         }
 

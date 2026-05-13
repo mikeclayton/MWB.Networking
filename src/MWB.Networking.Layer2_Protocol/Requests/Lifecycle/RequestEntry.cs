@@ -6,7 +6,7 @@ internal sealed class RequestEntry
 {
     internal RequestEntry(RequestContext context, IncomingRequest incomingRequest)
         : this(
-            context,
+            context ?? throw new ArgumentNullException(nameof(context)),
             incomingRequest ?? throw new ArgumentNullException(nameof(incomingRequest)),
             null)
     {
@@ -14,7 +14,7 @@ internal sealed class RequestEntry
 
     internal RequestEntry(RequestContext context, OutgoingRequest outgoingRequest)
         : this(
-            context,
+            context ?? throw new ArgumentNullException(nameof(context)),
             null,
             outgoingRequest ?? throw new ArgumentNullException(nameof(outgoingRequest)))
     {
@@ -29,9 +29,9 @@ internal sealed class RequestEntry
                 "RequestEntry must have exactly one of IncomingRequest or OutgoingRequest.");
         }
 
-        this.RequestId = incomingRequest?.RequestId ?? outgoingRequest?.RequestId
+        this.RequestId = (incomingRequest?.RequestId ?? outgoingRequest?.RequestId)
             ?? throw new InvalidOperationException();
-        this.Context = context;
+        this.Context = context ?? throw new ArgumentNullException(nameof(context));
         this.IncomingRequest = incomingRequest;
         this.OutgoingRequest = outgoingRequest;
     }

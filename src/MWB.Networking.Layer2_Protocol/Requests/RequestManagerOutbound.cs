@@ -37,7 +37,6 @@ internal sealed partial class RequestManagerOutbound
     /// <summary>
     /// Generate a new unique request ID.
     /// </summary>
-    /// <returns></returns>
     private uint GetNextRequestId()
     {
         if (_nextRequestId == uint.MaxValue)

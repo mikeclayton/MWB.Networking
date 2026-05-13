@@ -31,8 +31,8 @@ internal sealed partial class RequestManager
         // auto-close streams owned by the request
         this.Session.StreamManager.TearDownRequestStreams(requestId);
 
-        // Remove the request lifecycle entry (terminal)
-        // The request must no longer be observable by the time the response is transmitted.
+        // Remove the request lifecycle entry before transmitting the response
+        // to prevent re-entrant lookup during transmission
         this.RequestEntries.RemoveRequestEntry(requestId);
     }
 }

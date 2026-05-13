@@ -4,7 +4,7 @@ namespace MWB.Networking.Layer2_Protocol.Requests.Api;
 /// Represents a response delivered to or emitted by the application.
 ///
 /// This is the application-facing projection of a protocol response and includes
-/// both the event metadata and associated payload. Instances of this type are
+/// both the response metadata and associated payload. Instances of this type are
 /// materialized at publication or transmission time and do not participate in
 /// protocol lifecycle or invariant enforcement.
 /// </summary>
@@ -46,6 +46,9 @@ public sealed class Response
         get;
     }
 
+    /// <summary>
+    /// The payload associated with this response.
+    /// </summary>
     public ReadOnlyMemory<byte> Payload
     {
         get;
