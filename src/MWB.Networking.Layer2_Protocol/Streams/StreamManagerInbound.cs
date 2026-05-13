@@ -9,11 +9,11 @@ namespace MWB.Networking.Layer2_Protocol.Streams;
 
 internal sealed class StreamManagerInbound
 {
-    internal StreamManagerInbound(ProtocolSession session, StreamManager streamManager, StreamEntries streamEntries)
+    internal StreamManagerInbound(ProtocolSession session, StreamManager streamManager, StreamContexts streamContexts)
     {
         this.Session = session ?? throw new ArgumentNullException(nameof(session));
         this.StreamManager = streamManager ?? throw new ArgumentNullException(nameof(streamManager));
-        this.StreamEntries = streamEntries ?? throw new ArgumentNullException(nameof(streamEntries));
+        this.StreamContexts = streamContexts ?? throw new ArgumentNullException(nameof(streamContexts));
     }
 
     private ProtocolSession Session
@@ -26,7 +26,7 @@ internal sealed class StreamManagerInbound
         get;
     }
 
-    private StreamEntries StreamEntries
+    private StreamContexts StreamContexts
     {
         get;
     }
@@ -35,32 +35,22 @@ internal sealed class StreamManagerInbound
     // Utility methods
     // ------------------------------------------------------------------
 
-    private void EnsureFrameHasStreamId(
-        ProtocolFrame frame,
-        out uint streamId)
-    {
-        streamId = frame.StreamId
-            ?? throw ProtocolException.ProtocolViolation(
-                $"{nameof(ProtocolFrame)} with {nameof(ProtocolFrame.Kind)} of {nameof(ProtocolFrameKind)} must have a {nameof(ProtocolFrame.StreamId)}");
-    }
-
     private void EnsureStreamEntryDoesNotExist(
         ProtocolFrame frame,
         uint streamId)
     {
-        if (this.StreamEntries.StreamEntryExists(streamId))
+        if (this.StreamContexts.Exists(streamId))
         {
             throw ProtocolException.InvalidSequence(
                 "Duplicate StreamId");
         }
     }
 
-    private void EnsureStreamEntryExists(
-        ProtocolFrame frame,
+    private void EnsureStreamContextExists(
         uint streamId,
-        out StreamEntry streamEntry)
+        out StreamContext streamEntry)
     {
-        if (this.StreamEntries.TryGetStreamEntry(streamId, out var result))
+        if (this.StreamContexts.TryGet(streamId, out var result))
         {
             streamEntry = result;
             return;
@@ -73,16 +63,15 @@ internal sealed class StreamManagerInbound
     // this *could* be static but it reads better at call sites if it's an instance method
     private void EnsureIsIncomingStream(
 #pragma warning restore CA1822 // Mark members as static
-        ProtocolFrame frame,
-        StreamEntry streamEntry,
+        StreamContext streamContext,
         out IncomingStream incomingStream)
     {
-        if (!streamEntry.IsIncoming)
+        if (!streamContext.IsIncoming)
         {
             throw ProtocolException.ProtocolViolation(
                 "Inbound stream frames may only target streams opened by the peer.");
         }
-        incomingStream = streamEntry.GetIncomingStreamOrThrow();
+        incomingStream = streamContext.GetIncomingStreamOrThrow();
     }
 
     // ------------------------------------------------------------------
@@ -91,12 +80,12 @@ internal sealed class StreamManagerInbound
 
     internal void AbortIncomingStream(uint streamId)
     {
-        if (!this.StreamEntries.TryGetStreamEntry(streamId, out var entry))
+        if (!this.StreamContexts.TryGet(streamId, out var streamContext))
         {
             return;
         }
 
-        entry.Context.Close();
+        streamContext.Close();
 
         // peer-owned stream aborted by local peer
         // so notify the remote peer to abort the stream as well
@@ -130,7 +119,6 @@ internal sealed class StreamManagerInbound
     private void ProcessIncomingStreamOpenFrame(ProtocolFrame frame)
     {
         // validate the frame
-        this.EnsureFrameHasStreamId(frame, out var streamId);
         this.EnsureStreamEntryDoesNotExist(frame, streamId);
 
         // Enforce the odd/even parity contract: the peer must use IDs of the
@@ -142,27 +130,13 @@ internal sealed class StreamManagerInbound
                 $"StreamId {streamId} has the wrong parity for an inbound stream.");
         }
 
-        // if the frame is associated with a request, make sure the request exists and get its context
-        RequestContext? owningRequestContext = null;
-        if (frame.RequestId is not null)
-        {
-            if (!this.Session.RequestManager.TryGetRequestEntry(frame.RequestId.Value, out owningRequestContext))
-            {
-                throw ProtocolException.InvalidSequence("Unknown RequestId for StreamOpen");
-            }
-        }
-
         // build the context and create the IncomingStream instance
         var streamType = frame.StreamType;
-        var streamContext = new StreamContext(streamId, streamType, owningRequestEntry?.Context);
-        var incomingStream = new IncomingStream(this.Session, streamContext, owningRequestEntry?.IncomingRequest);
+        var streamContext = new StreamContext(streamId, streamType);
+        var incomingStream = new IncomingStream(this.Session, streamContext);
 
-        // add a new stream entry into the entry cache
-        var streamEntry = new StreamEntry(
-            streamContext,
-            incomingStream
-        );
-        this.StreamEntries.AddStreamEntry(streamEntry);
+        // add a new stream context into the cache
+        this.StreamContexts.Add(streamContext);
 
         // semantic notification
         this.Session.OnStreamOpened(
@@ -173,23 +147,21 @@ internal sealed class StreamManagerInbound
     private void ProcessIncomingStreamDataFrame(ProtocolFrame frame)
     {
         // validate the frame
-        this.EnsureFrameHasStreamId(frame, out var streamId);
-        this.EnsureStreamEntryExists(frame, streamId, out var streamEntry);
-        this.EnsureIsIncomingStream(frame, streamEntry, out var incomingStream);
+        this.EnsureStreamContextExists(streamId, out var streamContext);
+        this.EnsureIsIncomingStream(streamContext, out var incomingStream);
 
-        streamEntry.Context.EnsureOpen();
+        streamContext.EnsureOpen();
         this.Session.OnStreamDataReceived(incomingStream, frame.Payload);
     }
 
     private void ProcessIncomingStreamCloseFrame(ProtocolFrame frame)
     {
         // validate the frame
-        this.EnsureFrameHasStreamId(frame, out var streamId);
-        this.EnsureStreamEntryExists(frame, streamId, out var streamEntry);
-        this.EnsureIsIncomingStream(frame, streamEntry, out var incomingStream);
+        this.EnsureStreamContextExists(streamId, out var streamContext);
+        this.EnsureIsIncomingStream(streamContext, out var incomingStream);
 
         // close the stream context
-        streamEntry.Context.Close();
+        streamContext.Close();
         // mark the IncomingStream as closed by peer
         incomingStream.Close();
         this.Session.OnStreamClosed(incomingStream, new StreamMetadata(frame.Payload));
@@ -199,11 +171,10 @@ internal sealed class StreamManagerInbound
 
     private void ProcessIncomingStreamAbortFrame(ProtocolFrame frame)
     {
-        this.EnsureFrameHasStreamId(frame, out var streamId);
-        this.EnsureStreamEntryExists(frame, streamId, out var streamEntry);
-        this.EnsureIsIncomingStream(frame, streamEntry, out var incomingStream);
+        this.EnsureStreamContextExists(frame, streamId, out var streamContext);
+        this.EnsureIsIncomingStream(frame, streamContext, out var incomingStream);
 
-        streamEntry.Context.Close();
+        streamContext.Close();
         this.StreamManager.RemoveStream(streamId);
 
         this.Session.OnStreamAborted(incomingStream, new StreamMetadata(frame.Payload));
