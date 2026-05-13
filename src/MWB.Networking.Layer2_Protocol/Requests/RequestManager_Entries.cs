@@ -17,14 +17,4 @@ internal sealed partial class RequestManager
     {
         return this.RequestContexts.GetRequestIds();
     }
-
-    internal void RemoveRequest(RequestContext context)
-    {      
-        // auto-close streams owned by the request
-        this.Session.StreamManager.TearDownRequestStreams(context.RequestId);
-
-        // Remove the request lifecycle entry before transmitting the response
-        // to prevent re-entrant lookup during transmission
-        this.RequestContexts.Remove(context.RequestId);
-    }
 }

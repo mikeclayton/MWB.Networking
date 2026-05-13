@@ -36,7 +36,10 @@ internal sealed partial class RequestManager
 
         // close the request from the outbound side
         requestContext.Close();
-        this.RemoveRequest(requestContext);
+
+        // Remove the request lifecycle entry before transmitting the response
+        // to prevent re-entrant lookup during transmission
+        this.RequestContexts.Remove(requestContext.RequestId);
 
         // publish to sinks
         this.TransmitOutgoingResponse(outgoingResponse);

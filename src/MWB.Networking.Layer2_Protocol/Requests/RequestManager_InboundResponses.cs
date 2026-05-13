@@ -39,7 +39,10 @@ internal sealed partial class RequestManager
 
         // Close the request based on a terminal frame received from the peer.
         requestContext.CompleteWithResponse(incomingResponse);
-        this.RemoveRequest(requestContext);
+
+        // Remove the request lifecycle entry before transmitting the response
+        // to prevent re-entrant lookup during transmission
+        this.RequestContexts.Remove(requestContext.RequestId);
 
         // publish to sinks
         this.PublishIncomingResponse(incomingResponse);

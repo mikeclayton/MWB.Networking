@@ -1,6 +1,5 @@
 ﻿using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
-using MWB.Networking.Layer2_Protocol.Streams.Api;
 
 namespace MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 
@@ -33,17 +32,5 @@ internal sealed class RequestActions
             context.RequestId, responseType, payload, isError);
 
         return response;
-    }
-
-    internal OutgoingStream OpenRequestStream(
-        RequestContext context,
-        uint? streamType)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-
-        context.OpenStream();
-
-        return this.RequestManager.Session.StreamManager.Outbound
-            .OpenRequestStream(streamType, context);
     }
 }

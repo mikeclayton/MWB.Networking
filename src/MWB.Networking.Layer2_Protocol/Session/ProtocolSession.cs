@@ -47,7 +47,7 @@ internal sealed partial class ProtocolSession
         get;
     }
 
-    public ProtocolSessionHandle AsHandle()
+    internal ProtocolSessionHandle AsHandle()
     {
         return new ProtocolSessionHandle(this);
     }

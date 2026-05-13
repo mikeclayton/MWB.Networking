@@ -143,10 +143,10 @@ internal sealed class StreamManagerInbound
         }
 
         // if the frame is associated with a request, make sure the request exists and get its context
-        RequestEntry? owningRequestEntry = null;
+        RequestContext? owningRequestContext = null;
         if (frame.RequestId is not null)
         {
-            if (!this.Session.RequestManager.TryGetRequestEntry(frame.RequestId.Value, out owningRequestEntry))
+            if (!this.Session.RequestManager.TryGetRequestEntry(frame.RequestId.Value, out owningRequestContext))
             {
                 throw ProtocolException.InvalidSequence("Unknown RequestId for StreamOpen");
             }

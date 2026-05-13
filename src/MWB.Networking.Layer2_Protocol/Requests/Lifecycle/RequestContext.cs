@@ -47,12 +47,6 @@ internal sealed class RequestContext
     } = new RequestStateMachine();
 
     /// <summary>
-    /// Indicates whether a Request-scoped Stream has been opened.
-    /// </summary>
-    internal bool HasStream
-        => this.StateMachine.HasStream;
-
-    /// <summary>
     /// Indicates whether the Request has already been responded to.
     /// </summary>
     internal bool IsCompleted
@@ -67,18 +61,6 @@ internal sealed class RequestContext
     internal void EnsureOpen()
     {
         this.StateMachine.EnsureOpen();
-    }
-
-    /// <summary>
-    /// Opens the single Request-scoped Stream associated with this Request.
-    /// </summary>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown if the Request has already been responded to, or if a
-    /// Request-scoped Stream has already been opened.
-    /// </exception>
-    internal void OpenStream()
-    {
-        this.StateMachine.OpenStream();
     }
 
     /// <summary>

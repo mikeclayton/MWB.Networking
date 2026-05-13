@@ -50,12 +50,4 @@ public abstract class PublicRequest
     {
         get;
     }
-
-    /// <summary>
-    /// Opens the single Request-scoped Stream for this Request.
-    /// </summary>
-    public SessionStream OpenRequestStream(uint? streamType)
-    {
-        return this.Actions.OpenRequestStream(this.Context, streamType);
-    }
 }
