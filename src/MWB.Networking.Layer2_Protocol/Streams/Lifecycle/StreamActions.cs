@@ -1,6 +1,4 @@
-﻿using MWB.Networking.Layer2_Protocol.Frames;
-
-namespace MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
+﻿namespace MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
 internal sealed class StreamActions
 {
@@ -51,7 +49,7 @@ internal sealed class StreamActions
     }
 
     // ------------------------------------------------------------------
-    // Close (graceful)
+    // Abort (immediate)
     // ------------------------------------------------------------------
 
     /// <summary>

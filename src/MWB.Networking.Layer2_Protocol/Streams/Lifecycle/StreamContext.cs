@@ -154,6 +154,11 @@ internal sealed class StreamContext
         {
             throw ProtocolException.InvalidSequence($"Stream {StreamId} is aborted.");
         }
+        if (this.StreamState.HasFlag(StreamState.LocalClosed))
+        {
+            // already closed — idempotent
+            return;
+        }
         this.StreamState |= StreamState.LocalClosed;   // callers check IsFullyClosed themselves
     }
 

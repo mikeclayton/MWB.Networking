@@ -136,8 +136,8 @@ internal sealed class StreamManagerInbound
 
         streamContext.Abort();
 
-        // peer-owned stream aborted by local peer
-        // so notify the remote peer to abort the stream as well
+        // The remote peer sent a StreamAbort frame.
+        // tear down local state and notify the application.
         var streamAborted = new IncomingStreamAborted(incomingStream, new StreamMetadata(metadata));
         this.PublishIncomingStreamAborted(streamAborted);
 

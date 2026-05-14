@@ -75,7 +75,8 @@ internal sealed class StreamManagerOutbound
 
         // transmit event
         var outgoingStream = streamContext.GetOutgoingStream();
-        this.TransmitOutgoingStreamOpen(outgoingStream);
+        var streamOpened = new OutgoingStreamOpened(outgoingStream, new StreamMetadata(metadata));
+        this.TransmitOutgoingStreamOpen(streamOpened);
 
         return outgoingStream;
     }
@@ -85,8 +86,6 @@ internal sealed class StreamManagerOutbound
         ReadOnlyMemory<byte> payload)
     {
         var streamContext = this.StreamContexts.GetOrThrow(streamId);
-
-        streamContext.EnsureCanSend();
 
         var outgoingStream = streamContext.GetOutgoingStream();
         var streamData = new OutgoingStreamData(outgoingStream, payload);
@@ -130,9 +129,47 @@ internal sealed class StreamManagerOutbound
     // Transmit
     // ------------------------------------------------------------------
 
-    internal void TransmitOutgoingStreamOpen(OutgoingStream stream)
+    internal void TransmitOutgoingStreamOpen(OutgoingStreamOpened streamOpened)
     {
-        var streamOpened = new OutgoingStreamOpened(stream, new StreamMetadata(stream.Metadata));
+        ArgumentNullException.ThrowIfNull(streamOpened);
+
+        this.Logger.LogTrace(
+            "Transmitting outgoing stream open (Id={StreamId})",
+            streamOpened.Stream.StreamId);
+
         this.Session.OutgoingActionSink.TransmitOutgoingStreamOpened(streamOpened);
+    }
+
+    internal void TransmitOutgoingStreamData(OutgoingStreamData streamData)
+    {
+        ArgumentNullException.ThrowIfNull(streamData);
+
+        this.Logger.LogTrace(
+            "Transmitting outgoing stream data (Id={StreamId})",
+            streamData.Stream.StreamId);
+
+        this.Session.OutgoingActionSink.TransmitOutgoingStreamData(streamData);
+    }
+
+    internal void TransmitOutgoingStreamClosed(OutgoingStreamClosed streamClosed)
+    {
+        ArgumentNullException.ThrowIfNull(streamClosed);
+
+        this.Logger.LogTrace(
+            "Transmitting outgoing stream closed (Id={StreamId})",
+            streamClosed.Stream.StreamId);
+
+        this.Session.OutgoingActionSink.TransmitOutgoingStreamClosed(streamClosed);
+    }
+
+    internal void TransmitOutgoingStreamOpen(OutgoingStreamAborted streamAborted)
+    {
+        ArgumentNullException.ThrowIfNull(streamAborted);
+
+        this.Logger.LogTrace(
+            "Transmitting outgoing stream open (Id={StreamId})",
+            streamAborted.Stream.StreamId);
+
+        this.Session.OutgoingActionSink.TransmitOutgoingStreamAborted(streamAborted);
     }
 }
