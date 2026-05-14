@@ -1,53 +1,67 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer1_Framing.Driver.Abstractions;
 using MWB.Networking.Layer2_Protocol.Adapter;
-using MWB.Networking.Layer2_Protocol.Session;
-using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
 
 namespace MWB.Networking.Layer2_Protocol.Hosting;
 
-public sealed class ProtocolAdapterBuilder
+public sealed class SessionAdapterBuilder
 {
-    private ILogger? _logger;
-    private OddEvenStreamIdParity _parity = OddEvenStreamIdParity.Odd;
+    // ------------------------------------------------------------------
+    // Logger
+    // ------------------------------------------------------------------
 
-    public ProtocolAdapterBuilder UseLogger(ILogger logger)
+    private ILogger? _logger;
+
+    public SessionAdapterBuilder UseLogger(ILogger logger)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
         return this;
     }
 
-    public ProtocolAdapterBuilder UseStreamIdParity(
-          OddEvenStreamIdParity parity)
+    // ------------------------------------------------------------------
+    // Session configuration
+    // ------------------------------------------------------------------
+
+    private readonly ProtocolSessionBuilder _sessionBuilder
+        = new ProtocolSessionBuilder();
+
+    public SessionAdapterBuilder ConfigureSession(
+        Action<ProtocolSessionBuilder> configure)
     {
-        _parity = parity;
+        configure?.Invoke(_sessionBuilder);
         return this;
     }
 
-    // Optional convenience
-    public ProtocolAdapterBuilder UseOddStreamIds()
-        => this.UseStreamIdParity(OddEvenStreamIdParity.Odd);
+    // ------------------------------------------------------------------
+    // Transport
+    // ------------------------------------------------------------------
 
-    public ProtocolAdapterBuilder UseEvenStreamIds()
-        => this.UseStreamIdParity(OddEvenStreamIdParity.Even);
+    private INetworkFrameIO? _transport;
 
-    public ProtocolAdapterBuilder UseTransportDriver(INetworkFrameIO _networkFrameIO)
-        => this.UseStreamIdParity(OddEvenStreamIdParity.Even);
+    public SessionAdapterBuilder UseTransportDriver(INetworkFrameIO transport)
+    {
+        _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+        return this;
+    }
+
+    // ------------------------------------------------------------------
+    // Build
+    // ------------------------------------------------------------------
 
     public SessionAdapter Build()
     {
         var logger = _logger
             ?? throw new InvalidOperationException("A logger must be configured.");
 
-        var options = new ProtocolSessionOptions(
-            new OddEvenStreamIdProvider(_parity));
-
-        var session = new ProtocolSession(logger, options);
-
-        var networkFrameIO = _networkFrameIO
+        var transport = _transport
             ?? throw new InvalidOperationException("A transport driver must be configured.");
 
-        var adapter = new SessionAdapter(logger, session);
+        // SessionAdapter will call builder.Build(this, this)
+        var adapter = new SessionAdapter(
+            logger,
+            _sessionBuilder,
+            transport);
 
         return adapter;
     }

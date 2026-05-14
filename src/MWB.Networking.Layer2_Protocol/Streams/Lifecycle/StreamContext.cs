@@ -1,4 +1,5 @@
 ﻿using MWB.Networking.Layer2_Protocol.Internal;
+using MWB.Networking.Layer2_Protocol.Streams.Api;
 
 namespace MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
@@ -8,13 +9,7 @@ namespace MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 /// </summary>
 internal sealed class StreamContext
 {
-    private enum StreamState
-    {
-        Open,
-        Closed
-    }
-
-    internal StreamContext(
+    private StreamContext(
         uint streamId,
         uint? streamType,
         ProtocolDirection direction)
@@ -22,6 +17,62 @@ internal sealed class StreamContext
         this.StreamId = streamId;
         this.StreamType = streamType;
         this.Direction = direction;
+    }
+
+    internal static StreamContext CreateIncoming(
+        uint streamId,
+        uint? streamType,
+        StreamActions actions)
+    {
+        var context = new StreamContext(streamId, streamType, ProtocolDirection.Incoming);
+        var incomingStream = new IncomingStream(context, actions);
+        context.IncomingStream = incomingStream;
+        context.OutgoingStream = null;
+        return context;
+    }
+
+    internal static StreamContext CreateOutgoing(
+        uint streamId,
+        uint? streamType,
+        StreamActions actions)
+    {
+        var context = new StreamContext(streamId, streamType, ProtocolDirection.Outgoing);
+        var outgoingStream = new OutgoingStream(context, actions);
+        context.IncomingStream = null;
+        context.OutgoingStream = outgoingStream;
+        return context;
+    }
+
+    internal IncomingStream? IncomingStream
+    {
+        get;
+        private set;
+    }
+
+    internal IncomingStream GetIncomingStream()
+    {
+        if ((this.Direction != ProtocolDirection.Incoming) || (this.IncomingStream is null))
+        {
+            throw ProtocolException.ProtocolViolation(
+                $"Stream {this.StreamId} is not inbound.");
+        }
+        return this.IncomingStream;
+    }
+
+    internal OutgoingStream? OutgoingStream
+    {
+        get;
+        private set;
+    }
+
+    internal OutgoingStream GetOutgoingStream()
+    {
+        if ((this.Direction != ProtocolDirection.Outgoing) || (this.OutgoingStream is null))
+        {
+            throw ProtocolException.ProtocolViolation(
+                $"Stream {this.StreamId} is not outbound.");
+        }
+        return this.OutgoingStream;
     }
 
     internal uint StreamId
@@ -34,24 +85,49 @@ internal sealed class StreamContext
         get;
     }
 
+    internal StreamState StreamState
+    {
+        get;
+        private set;
+    } = StreamState.None;
+
     internal ProtocolDirection Direction
     {
         get;
     }
 
-    private StreamState State
+    internal void EnsureCanSend()
     {
-        get;
-        set;
-    } = StreamState.Open;
-
-    internal void EnsureOpen()
-    {
-        if (this.State != StreamState.Open)
+        if (this.StreamState.HasFlag(StreamState.Aborted))
+        {
+            throw new ProtocolException(
+                ProtocolErrorKind.StreamAborted,
+                $"Stream {StreamId} is aborted.");
+        }
+        if (this.StreamState.HasFlag(StreamState.LocalClosed))
         {
             throw new ProtocolException(
                 ProtocolErrorKind.InvalidSequence,
-                $"Stream {this.StreamId} is closed");
+                $"Stream {StreamId} has already closed its send direction.");
+        }
+    }
+
+    internal void EnsureCanReceive()
+    {
+        if (this.StreamState.HasFlag(StreamState.Aborted))
+        {
+            throw new ProtocolException(
+                ProtocolErrorKind.StreamAborted,
+                $"Stream {StreamId} is aborted.");
+        }
+
+        if (this.StreamState.HasFlag(StreamState.RemoteClosed))
+        {
+            // THIS is the real invariant:
+            // it's an error for the remote to send data after closing its half of the stream.
+            throw new ProtocolException(
+                ProtocolErrorKind.InvalidSequence,
+                $"Stream {StreamId} received data after remote close.");
         }
     }
 
@@ -64,12 +140,84 @@ internal sealed class StreamContext
         }
     }
 
-    internal void Close()
+    /// <summary>
+    /// Marks the stream as cleanly closed by the local peer.
+    /// The local peer cannot send any more data, but can still receive.
+    /// </summary>
+    internal void CloseLocal()
     {
-        if (this.State == StreamState.Closed)
+        if (this.StreamState.HasFlag(StreamState.Aborted))
+        {
+            throw ProtocolException.InvalidSequence(
+                $"Stream {StreamId} is aborted.");
+        }
+        if (this.StreamState.HasFlag(StreamState.LocalClosed))
+        {
+            return; // idempotent
+        }
+        this.StreamState |= StreamState.LocalClosed;
+        this.TryFinalize();
+    }
+
+    /// <summary>
+    /// Marks the stream as cleanly closed by the remote peer.
+    /// The remote peer cannot send any more data, but can still receive.
+    /// </summary>
+    internal void CloseRemote()
+    {
+        if (this.StreamState.HasFlag(StreamState.Aborted))
+        {
+            throw ProtocolException.InvalidSequence(
+                $"Stream {StreamId} is aborted.");
+        }
+        if (this.StreamState.HasFlag(StreamState.RemoteClosed))
+        {
+            return; // idempotent
+        }
+        this.StreamState |= StreamState.RemoteClosed;
+        this.TryFinalize();
+    }
+
+    /// <summary>
+    /// Abort this stream due to a failure condition signalled by
+    /// either the local or remote peer.
+    /// This sends a StreamAbort frame to the peer and tears down local state.
+    /// </summary>
+    internal void Abort()
+    {
+        if (this.StreamState.HasFlag(StreamState.Aborted))
+        {
+            return; // idempotent
+        }
+        // Escalate any state (including Closed) to Aborted
+        // and perform Abort-mode clean up tasks
+        this.StreamState = StreamState.Aborted;
+        this.FinalizeImmediately();
+    }
+
+    private void TryFinalize()
+    {
+        if (this.StreamState.HasFlag(StreamState.Aborted))
         {
             return;
         }
-        this.State = StreamState.Closed;
+        var closedMask = StreamState.LocalClosed | StreamState.RemoteClosed;
+        if ((this.StreamState & closedMask) == closedMask)
+        {
+            this.FinalizeGracefully();
+        }
+    }
+
+    private void FinalizeGracefully()
+    {
+        // Notify once
+        this.PublishStreamClosed();
+        this.StreamManager.Remove(StreamId);
+    }
+
+    private void FinalizeImmediately()
+    {
+        this.PublishStreamAborted();
+        this.StreamManager.Remove(StreamId);
     }
 }

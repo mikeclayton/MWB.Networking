@@ -49,7 +49,7 @@ internal sealed partial class RequestManager
         this.RequestContexts.Add(requestContext);
 
         // transmit the protocol request to the remote peer
-        var outgoingRequest = new OutgoingRequest(requestContext, this.Actions, payload);
+        var outgoingRequest = new OutgoingRequest(requestId, requestType, this.Actions, payload);
         this.TransmitOutgoingRequest(outgoingRequest);
         return outgoingRequest;
     }

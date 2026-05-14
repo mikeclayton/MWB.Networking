@@ -10,7 +10,7 @@
 /// When T is a class, entries are references and must be treated as
 /// immutable (or observationally safe) after being written.
 /// </summary>
-public sealed class RingBuffer<T>
+internal sealed class RingBuffer<T>
 {
     private readonly T[] _buffer;
     private readonly int _capacity;

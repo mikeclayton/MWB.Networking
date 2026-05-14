@@ -14,32 +14,28 @@ namespace MWB.Networking.Layer2_Protocol.Requests.Api;
 public abstract class PublicRequest
 {
     internal PublicRequest(
-        RequestContext context,
+        uint requestId,
+        uint? requestType,
         RequestActions actions,
         ReadOnlyMemory<byte> payload,
         ProtocolDirection direction)
     {
-        this.Context = context ?? throw new ArgumentNullException(nameof(context));
-        this.Actions = actions ?? throw new ArgumentNullException(nameof(actions));
+        this.RequestId = requestId;
+        this.RequestType = requestType;
         this.Payload = payload;
         this.Direction = direction;
-    }
-
-    private protected RequestContext Context
-    {
-        get;
-    }
-
-    private protected RequestActions Actions
-    {
-        get;
+        this.Actions = actions ?? throw new ArgumentNullException(nameof(actions));
     }
 
     public uint RequestId
-        => this.Context.RequestId;
+    {
+        get;
+    }
 
     public uint? RequestType
-        => this.Context.RequestType;
+    {
+        get;
+    }
 
     public ReadOnlyMemory<byte> Payload
     {
@@ -47,6 +43,11 @@ public abstract class PublicRequest
     }
 
     internal ProtocolDirection Direction
+    {
+        get;
+    }
+
+    private protected RequestActions Actions
     {
         get;
     }

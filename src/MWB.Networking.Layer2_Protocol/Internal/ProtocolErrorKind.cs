@@ -12,6 +12,7 @@ public enum ProtocolErrorKind
     DuplicateStreamId,
     InvalidSequence,
     DuplicateTerminalFrame,
+    StreamAborted,
 
     // Missing or malformed fields
     MissingRequestId,

@@ -14,12 +14,14 @@ internal sealed class StreamManagerOutbound
         ILogger logger,
         ProtocolSession session,
         StreamManager streamManager,
+        StreamActions actions,
         StreamContexts streamContexts,
         OddEvenStreamIdProvider streamIdProvider)
     {
         this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         this.Session = session ?? throw new ArgumentNullException(nameof(session));
         this.StreamManager = streamManager ?? throw new ArgumentNullException(nameof(streamManager));
+        this.Actions = actions ?? throw new ArgumentNullException(nameof(actions));
         this.StreamContexts = streamContexts ?? throw new ArgumentNullException(nameof(streamContexts));
         this.StreamIdProvider = streamIdProvider ?? throw new ArgumentNullException(nameof(streamIdProvider));
     }
@@ -39,6 +41,11 @@ internal sealed class StreamManagerOutbound
         get;
     }
 
+    private StreamActions Actions
+    {
+        get;
+    }
+
     private StreamContexts StreamContexts
     {
         get;
@@ -49,20 +56,28 @@ internal sealed class StreamManagerOutbound
         get;
     }
 
-    internal OutgoingStream OpenSessionStream(uint? streamType = null, ReadOnlyMemory<byte> metadata = default)
+    // ------------------------------------------------------------------
+    // Consume: Open
+    // ------------------------------------------------------------------
+
+    internal OutgoingStream ConsumeOutgoingStreamOpen(
+        uint? streamType = null,
+        ReadOnlyMemory<byte> metadata = default)
     {
         var streamId = this.StreamIdProvider.AllocateOutbound();
 
-        var streamContext = new StreamContext(streamId, streamType, ProtocolDirection.Outgoing);
+        // create context
+        var streamContext = StreamContext.CreateOutgoing(
+            streamId, streamType, this.Actions);
 
-        var stream = new OutgoingStream(streamContext, this.StreamActions, metadata);
-
+        // register context
         this.StreamContexts.Add(streamContext);
 
-        this.Session.SendOutboundFrame(
-            ProtocolFrames.StreamOpen(streamId, streamType: streamType, metadata: metadata));
+        // transmit event
+        var outgoingStream = streamContext.GetOutgoingStream();
+        this.TransmitOutgoingStreamOpen(outgoingStream);
 
-        return stream;
+        return outgoingStream;
     }
 
     internal void CloseOutgoingStream(uint streamId)
@@ -96,4 +111,21 @@ internal sealed class StreamManagerOutbound
 
         this.StreamManager.RemoveStream(streamId);
     }
+
+
+    // ------------------------------------------------------------------
+    // Transmit
+    // ------------------------------------------------------------------
+
+    internal void TransmitOutgoingStreamOpen(OutgoingStream stream)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+
+        this.Session.OutgoingActionSink.TransmitOutgoingStreamOpen(
+            ProtocolFrames.StreamOpen(
+                stream.StreamId,
+                stream.StreamType,
+                stream.Metadata));
+    }
+
 }

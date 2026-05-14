@@ -30,6 +30,7 @@ internal sealed partial class ProtocolSession
         this.EventManager = new EventManager(logger, this);
         this.RequestManager = new RequestManager(logger, this);
         this.StreamManager = new StreamManager(logger, this, options.OutboundStreamIdProvider);
+        this.Diagnostics = new SessionDiagnostics(this);
     }
 
     private ILogger Logger
@@ -47,11 +48,6 @@ internal sealed partial class ProtocolSession
         get;
     }
 
-    internal ProtocolSessionHandle AsHandle()
-    {
-        return new ProtocolSessionHandle(this);
-    }
-
     internal EventManager EventManager
     {
         get;
@@ -63,6 +59,11 @@ internal sealed partial class ProtocolSession
     }
 
     internal StreamManager StreamManager
+    {
+        get;
+    }
+
+    internal SessionDiagnostics Diagnostics
     {
         get;
     }

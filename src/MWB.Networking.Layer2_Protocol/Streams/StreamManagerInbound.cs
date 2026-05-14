@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.Streams.Api;
@@ -14,11 +13,13 @@ internal sealed class StreamManagerInbound
         ILogger logger,
         ProtocolSession session,
         StreamManager streamManager,
+        StreamActions actions,
         StreamContexts streamContexts)
     {
         this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         this.Session = session ?? throw new ArgumentNullException(nameof(session));
         this.StreamManager = streamManager ?? throw new ArgumentNullException(nameof(streamManager));
+        this.Actions = actions ?? throw new ArgumentNullException(nameof(actions));
         this.StreamContexts = streamContexts ?? throw new ArgumentNullException(nameof(streamContexts));
     }
 
@@ -37,55 +38,24 @@ internal sealed class StreamManagerInbound
         get;
     }
 
+    private StreamActions Actions
+    {
+        get;
+    }
+
     private StreamContexts StreamContexts
     {
         get;
     }
 
     // ------------------------------------------------------------------
-    // Utility methods
-    // ------------------------------------------------------------------
-
-#pragma warning disable CA1822 // Mark members as static
-    // this *could* be static but it reads better at call sites if it's an instance method
-    private void EnsureIsIncomingStream(
-#pragma warning restore CA1822 // Mark members as static
-        StreamContext streamContext,
-        out IncomingStream incomingStream)
-    {
-        streamContext.EnsureIncoming();
-        incomingStream = streamContext.GetIncomingStreamOrThrow();
-    }
-
-    // ------------------------------------------------------------------
-    // Stream handling - Inbound
-    // ------------------------------------------------------------------
-
-    internal void AbortIncomingStream(uint streamId)
-    {
-        if (!this.StreamContexts.TryGet(streamId, out var streamContext))
-        {
-            return;
-        }
-
-        streamContext.Close();
-
-        // peer-owned stream aborted by local peer
-        // so notify the remote peer to abort the stream as well
-        this.Session.SendOutboundFrame(
-            ProtocolFrames.StreamAbort(streamId));
-
-        this.StreamManager.RemoveStream(streamId);
-    }
-
-    // ------------------------------------------------------------------
     // Consume: Open
     // ------------------------------------------------------------------
 
-    private void ConsumeIncomingStreamOpen(
+    internal void ConsumeIncomingStreamOpen(
         uint streamId,
         uint? streamType,
-        ReadOnlyMemory<byte> payload)
+        ReadOnlyMemory<byte> metadata)
     {
         this.StreamContexts.ThrowIfExists(streamId);
 
@@ -99,61 +69,52 @@ internal sealed class StreamManagerInbound
         }
 
         // create context
-        var streamContext = new StreamContext(
-            streamId,
-            streamType,
-            ProtocolDirection.Incoming);
+        var streamContext = StreamContext.CreateIncoming(
+            streamId, streamType, this.Actions);
 
-        // create stream entity (no payload!)
-        var incomingStream = new IncomingStream(
-            streamContext,
-            payload);
-
-        // Attach stream to context (critical for identity consistency)
-        streamContext.AttachIncomingStream(incomingStream);
-
-        // Register context
+        // register context
         this.StreamContexts.Add(streamContext);
 
-        // Publish open event
-        this.PublishIncomingStreamOpened(incomingStream, payload);
+        // publish event
+        var incomingStream = streamContext.GetIncomingStream();
+        var streamOpened = new IncomingStreamOpened(incomingStream, new StreamMetadata(metadata));
+        this.PublishIncomingStreamOpened(streamOpened);
     }
 
     // ------------------------------------------------------------------
     // Consume: Data
     // ------------------------------------------------------------------
 
-    private void ConsumeIncomingStreamData(
+    internal void ConsumeIncomingStreamData(
         uint streamId,
         ReadOnlyMemory<byte> payload)
     {
         var streamContext = this.StreamContexts.GetOrThrow(streamId);
+        var incomingStream = streamContext.GetIncomingStream();
+        streamContext.EnsureCanReceive();
 
-        this.EnsureIsIncomingStream(streamContext, out var incomingStream);
-
-        streamContext.EnsureOpen();
-
-        this.PublishIncomingStreamData(incomingStream, payload);
+        // Publish data event
+        var streamData = new IncomingStreamData(incomingStream, payload);
+        this.PublishIncomingStreamData(streamData);
     }
 
     // ------------------------------------------------------------------
     // Consume: Close
     // ------------------------------------------------------------------
 
-    private void ConsumeIncomingStreamClose(
+    internal void ConsumeIncomingStreamClose(
         uint streamId,
-        ReadOnlyMemory<byte> payload)
+        ReadOnlyMemory<byte> metadata)
     {
         var streamContext = this.StreamContexts.GetOrThrow(streamId);
-
-        this.EnsureIsIncomingStream(streamContext, out var incomingStream);
+        var incomingStream = streamContext.GetIncomingStream();
 
         // Transition state first
-        streamContext.Close();
-        incomingStream.Close();
+        streamContext.CloseRemote();
 
         // Publish while still registered
-        this.PublishIncomingStreamClosed(incomingStream, payload);
+        var streamClosed = new IncomingStreamClosed(incomingStream, new StreamMetadata(metadata));
+        this.PublishIncomingStreamClosed(streamClosed);
 
         // Then remove from manager
         this.StreamManager.RemoveStream(streamId);
@@ -163,93 +124,72 @@ internal sealed class StreamManagerInbound
     // Consume: Abort
     // ------------------------------------------------------------------
 
-    private void ConsumeIncomingStreamAbort(
+    internal void ConsumeIncomingStreamAbort(
         uint streamId,
-        ReadOnlyMemory<byte> payload)
+        ReadOnlyMemory<byte> metadata)
     {
         var streamContext = this.StreamContexts.GetOrThrow(streamId);
+        var incomingStream = streamContext.GetIncomingStream();
 
-        this.EnsureIsIncomingStream(streamContext, out var incomingStream);
+        streamContext.Abort();
+        incomingStream.Abort();
 
-        // Transition state first
-        streamContext.Close();
-        incomingStream.Close();
+        // peer-owned stream aborted by local peer
+        // so notify the remote peer to abort the stream as well
+        var streamAborted = new IncomingStreamAborted(incomingStream, new StreamMetadata(metadata));
+        this.PublishIncomingStreamAborted(streamAborted);
 
-        // Publish while still registered
-        this.PublishIncomingStreamAborted(incomingStream, payload);
-
-        // Then remove
         this.StreamManager.RemoveStream(streamId);
     }
 
     // ------------------------------------------------------------------
-    // Publish helpers
+    // Publish
     // ------------------------------------------------------------------
 
-    private void PublishIncomingStreamOpened(
-        IncomingStream stream,
-        ReadOnlyMemory<byte> metadata)
+    internal void PublishIncomingStreamOpened(
+        IncomingStreamOpened streamOpened)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(streamOpened);
 
         this.Logger.LogTrace(
             "Publishing incoming stream open (Id={StreamId})",
-            stream.StreamId);
-
-        var streamOpened = new IncomingStreamOpened(
-            stream,
-            new StreamMetadata(metadata));
+            streamOpened.Stream.StreamId);
 
         this.Session.IncomingActionSink.PublishIncomingStreamOpened(streamOpened);
     }
 
-    private void PublishIncomingStreamData(
-        IncomingStream stream,
-        ReadOnlyMemory<byte> payload)
+    internal void PublishIncomingStreamData(
+        IncomingStreamData streamData)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(streamData);
 
         this.Logger.LogTrace(
             "Publishing incoming stream data (Id={StreamId})",
-            stream.StreamId);
-
-        var streamData = new IncomingStreamData(
-            stream,
-            payload);
+            streamData.Stream.StreamId);
 
         this.Session.IncomingActionSink.PublishIncomingStreamData(streamData);
     }
 
-    private void PublishIncomingStreamClosed(
-        IncomingStream stream,
-        ReadOnlyMemory<byte> metadata)
+    internal void PublishIncomingStreamClosed(
+        IncomingStreamClosed streamClosed)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(streamClosed);
 
         this.Logger.LogTrace(
             "Publishing incoming stream close (Id={StreamId})",
-            stream.StreamId);
-
-        var streamClosed = new IncomingStreamClosed(
-            stream,
-            new StreamMetadata(metadata));
+            streamClosed.Stream.StreamId);
 
         this.Session.IncomingActionSink.PublishIncomingStreamClosed(streamClosed);
     }
 
-    private void PublishIncomingStreamAborted(
-        IncomingStream stream,
-        ReadOnlyMemory<byte> metadata)
+    internal void PublishIncomingStreamAborted(
+        IncomingStreamAborted streamAborted)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(streamAborted);
 
         this.Logger.LogTrace(
             "Publishing incoming stream abort (Id={StreamId})",
-            stream.StreamId);
-
-        var streamAborted = new IncomingStreamAborted(
-            stream,
-            new StreamMetadata(metadata));
+            streamAborted.Stream.StreamId);
 
         this.Session.IncomingActionSink.PublishIncomingStreamAborted(streamAborted);
     }

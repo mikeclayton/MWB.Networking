@@ -12,10 +12,11 @@ namespace MWB.Networking.Layer2_Protocol.Requests.Api;
 public sealed class IncomingRequest : PublicRequest
 {
     internal IncomingRequest(
-        RequestContext context,
+        uint requestId,
+        uint? requestType,
         RequestActions actions,
         ReadOnlyMemory<byte> payload)
-        : base(context, actions, payload, ProtocolDirection.Incoming)
+        : base(requestId, requestType, actions, payload, ProtocolDirection.Incoming)
     {
     }
 

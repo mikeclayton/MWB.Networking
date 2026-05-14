@@ -49,7 +49,7 @@ internal sealed partial class StreamManager
             // this.Logger.Warn($"{nameof(TearDownStream)} called for non-existent stream {streamId}");
             return;
         }
-        context.Close();
+        context.Abort();
         this.RemoveStream(streamId);
     }
 }

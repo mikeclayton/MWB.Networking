@@ -1,4 +1,5 @@
-﻿using System.Threading.Channels;
+﻿using Microsoft.Extensions.Logging;
+using System.Threading.Channels;
 
 namespace MWB.Networking.Layer2_Protocol.Adapter;
 
@@ -12,8 +13,16 @@ public sealed partial class SessionAdapter
 
     private void Enqueue(Action action)
     {
-        var success = _queue.Writer.TryWrite(action);
-        ObjectDisposedException.ThrowIf(!success, this);
+        ArgumentNullException.ThrowIfNull(action);
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_cts.IsCancellationRequested)
+        {
+            return;
+        }
+        if (!_queue.Writer.TryWrite(action))
+        {
+            throw new InvalidOperationException("SessionAdapter queue is not accepting work.");
+        }
     }
 
     private async Task RunAsync()

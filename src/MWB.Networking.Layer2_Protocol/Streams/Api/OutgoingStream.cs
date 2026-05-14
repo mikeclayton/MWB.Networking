@@ -7,9 +7,8 @@ public sealed class OutgoingStream : SessionStream
 {
     internal OutgoingStream(
         StreamContext context,
-        StreamActions actions,
-        ReadOnlyMemory<byte> payload)
-        : base(context, actions, payload, ProtocolDirection.Outgoing)
+        StreamActions actions)
+        : base(context, actions)
     {
     }
 }

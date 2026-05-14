@@ -1,4 +1,4 @@
-﻿using MWB.Networking.Layer2_Protocol.Frames;
+﻿using Microsoft.Extensions.Options;
 using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
@@ -8,22 +8,13 @@ public abstract class SessionStream
 {
     internal SessionStream(
         StreamContext context,
-        StreamActions actions,
-        ReadOnlyMemory<byte> payload,
-        ProtocolDirection direction)
+        StreamActions actions)
     {
         this.Context = context ?? throw new ArgumentNullException(nameof(context));
         this.Actions = actions ?? throw new ArgumentNullException(nameof(actions));
-        this.Payload = payload;
-        this.Direction = direction;
     }
 
     private StreamContext Context
-    {
-        get;
-    }
-
-    private StreamActions Actions
     {
         get;
     }
@@ -34,69 +25,32 @@ public abstract class SessionStream
     public uint? StreamType
         => this.Context.StreamType;
 
-    public ReadOnlyMemory<byte> Payload
-    {
-        get;
-    }
-
     private ProtocolDirection Direction
+        => this.Context.Direction;
+
+    public StreamState StreamState
+        => this.Context.StreamState;
+
+    private StreamActions Actions
     {
         get;
     }
 
-    private IncomingStreamState State
-    {
-        get;
-        set;
-    } = IncomingStreamState.Open;
-
-    private void EnsureOpen()
-    {
-        if (this.State != IncomingStreamState.Open)
-        {
-            throw new InvalidOperationException(
-                "Cannot operate on a closed or aborted stream.");
-        }
-    }
-    
     /// <summary>
     /// Sends data on this stream.
     /// </summary>
     public void SendData(ReadOnlyMemory<byte> payload)
-    {
-        this.EnsureOpen();
-
-        this.Session.SendOutboundFrame(
-            ProtocolFrames.StreamData(this.StreamId, payload));
-    }
+        => this.Actions.SendData(this.Context, payload);
 
     /// <summary>
-    /// Marks the stream as cleanly closed by the remote peer
-    /// following receipt of a StreamClose frame.
+    /// Cleanly closes this stream and notifies the peer.
     /// </summary>
     internal void Close()
-    {
-        if (this.State != IncomingStreamState.Open)
-        {
-            // we only abort an open stream
-            return;
-        }
-        this.State = IncomingStreamState.Closed;
-    }
+        => this.Actions.Close(this.Context);
 
     /// <summary>
-    /// Abort this incoming stream due to a failure condition.
-    /// This sends a StreamAbort frame to the peer and tears down local state.
+    /// Aborts the stream immediately and notifies the remote peer.
     /// </summary>
     public void Abort()
-    {
-        if (this.State != IncomingStreamState.Open)
-        {
-            // we only abort an open stream
-            return;
-        }
-
-        this.State = IncomingStreamState.Aborted;
-        this.Session.StreamManager.Inbound.AbortIncomingStream(this.StreamId);
-    }
+        => this.Actions.Abort(this.Context);
 }

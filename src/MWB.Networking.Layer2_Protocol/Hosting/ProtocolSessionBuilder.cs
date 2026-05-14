@@ -7,14 +7,23 @@ namespace MWB.Networking.Layer2_Protocol.Hosting;
 
 public sealed class ProtocolSessionBuilder
 {
+    // ------------------------------------------------------------------
+    // Logger
+    // ------------------------------------------------------------------
+
     private ILogger? _logger;
-    private OddEvenStreamIdParity _parity = OddEvenStreamIdParity.Odd;
 
     public ProtocolSessionBuilder UseLogger(ILogger logger)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         return this;
     }
+
+    // ------------------------------------------------------------------
+    // Parity
+    // ------------------------------------------------------------------
+    
+    private OddEvenStreamIdParity _parity = OddEvenStreamIdParity.Odd;
 
     public ProtocolSessionBuilder UseStreamIdParity(
           OddEvenStreamIdParity parity)
@@ -30,16 +39,33 @@ public sealed class ProtocolSessionBuilder
     public ProtocolSessionBuilder UseEvenStreamIds()
         => this.UseStreamIdParity(OddEvenStreamIdParity.Even);
 
-    public ProtocolSessionHandle Build()
+    // ------------------------------------------------------------------
+    // Build
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// Builds a <see cref="ProtocolSession"/> using the configured options and
+    /// the provided runtime action sinks.
+    /// </summary>
+    /// <remarks>
+    /// The builder defines protocol configuration only; runtime wiring (i.e. action sinks)
+    /// is supplied as parameters to keep configuration and execution concerns separate.
+    /// </remarks>
+    internal ProtocolSession Build(
+        IIncomingActionSink incomingActions,
+        IOutgoingActionSink outgoingActions)
     {
+        // runtime wiring
+        ArgumentNullException.ThrowIfNull(incomingActions);
+        ArgumentNullException.ThrowIfNull(outgoingActions);
+
+        // session configuration
         var logger = _logger
             ?? throw new InvalidOperationException("A logger must be configured.");
-
         var options = new ProtocolSessionOptions(
             new OddEvenStreamIdProvider(_parity));
 
-        var session = new ProtocolSession(logger, options);
-
-        return session.AsHandle();
+        var session = new ProtocolSession(logger, incomingActions, outgoingActions, options);
+        return session;
     }
 }
