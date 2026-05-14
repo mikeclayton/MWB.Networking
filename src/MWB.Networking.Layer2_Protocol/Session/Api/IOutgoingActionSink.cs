@@ -1,5 +1,6 @@
 ﻿using MWB.Networking.Layer2_Protocol.Events.Api;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
+using MWB.Networking.Layer2_Protocol.Streams.Publish;
 
 namespace MWB.Networking.Layer2_Protocol.Session.Api;
 
@@ -22,4 +23,12 @@ internal interface IOutgoingActionSink
 
     // Responses (local application → remote peer)
     void TransmitOutgoingResponse(OutgoingResponse response);
+
+    void TransmitOutgoingStreamOpened(OutgoingStreamOpened streamOpened);
+
+    void TransmitOutgoingStreamData(OutgoingStreamData streamData);
+
+    void TransmitOutgoingStreamClosed(OutgoingStreamClosed streamClosed);
+
+    void TransmitOutgoingStreamAborted(OutgoingStreamAborted streamAborted);
 }

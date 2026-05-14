@@ -1,4 +1,4 @@
-﻿namespace MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
+﻿namespace MWB.Networking.Layer2_Protocol.Streams.Api;
 
 /// <summary>
 /// Represents the lifecycle state of a bidirectional stream.

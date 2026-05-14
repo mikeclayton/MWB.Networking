@@ -116,8 +116,11 @@ internal sealed class StreamManagerInbound
         var streamClosed = new IncomingStreamClosed(incomingStream, new StreamMetadata(metadata));
         this.PublishIncomingStreamClosed(streamClosed);
 
-        // Then remove from manager
-        this.StreamManager.RemoveStream(streamId);
+        // only remove when both halves are done
+        if (streamContext.IsFullyClosed)
+        {
+            this.StreamManager.RemoveStream(streamId);
+        }
     }
 
     // ------------------------------------------------------------------
@@ -132,7 +135,6 @@ internal sealed class StreamManagerInbound
         var incomingStream = streamContext.GetIncomingStream();
 
         streamContext.Abort();
-        incomingStream.Abort();
 
         // peer-owned stream aborted by local peer
         // so notify the remote peer to abort the stream as well

@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Options;
-using MWB.Networking.Layer2_Protocol.Internal;
+﻿using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
 namespace MWB.Networking.Layer2_Protocol.Streams.Api;
@@ -25,9 +24,6 @@ public abstract class SessionStream
     public uint? StreamType
         => this.Context.StreamType;
 
-    private ProtocolDirection Direction
-        => this.Context.Direction;
-
     public StreamState StreamState
         => this.Context.StreamState;
 
@@ -45,12 +41,12 @@ public abstract class SessionStream
     /// <summary>
     /// Cleanly closes this stream and notifies the peer.
     /// </summary>
-    internal void Close()
-        => this.Actions.Close(this.Context);
+    public void Close(ReadOnlyMemory<byte> metadata = default)
+        => this.Actions.Close(this.Context, metadata);
 
     /// <summary>
     /// Aborts the stream immediately and notifies the remote peer.
     /// </summary>
-    public void Abort()
-        => this.Actions.Abort(this.Context);
+    public void Abort(ReadOnlyMemory<byte> metadata = default)
+        => this.Actions.Abort(this.Context, metadata);
 }

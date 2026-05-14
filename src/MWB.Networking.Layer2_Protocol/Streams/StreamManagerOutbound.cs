@@ -1,10 +1,10 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer2_Protocol.Frames;
-using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.Streams.Api;
 using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
 using MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
+using MWB.Networking.Layer2_Protocol.Streams.Publish;
 
 namespace MWB.Networking.Layer2_Protocol.Streams;
 
@@ -80,38 +80,51 @@ internal sealed class StreamManagerOutbound
         return outgoingStream;
     }
 
-    internal void CloseOutgoingStream(uint streamId)
+    internal void ConsumeOutgoingStreamData(
+        uint streamId,
+        ReadOnlyMemory<byte> payload)
     {
-        if (!this.StreamContexts.TryGet(streamId, out var streamContext))
+        var streamContext = this.StreamContexts.GetOrThrow(streamId);
+
+        streamContext.EnsureCanSend();
+
+        var outgoingStream = streamContext.GetOutgoingStream();
+        var streamData = new OutgoingStreamData(outgoingStream, payload);
+        this.Session.OutgoingActionSink.TransmitOutgoingStreamData(streamData);
+    }
+
+    internal void ConsumeOutgoingStreamClose(
+        uint streamId,
+        ReadOnlyMemory<byte> metadata = default)
+    {
+        var streamContext = this.StreamContexts.GetOrThrow(streamId);
+
+        streamContext.CloseLocal();
+
+        var outgoingStream = streamContext.GetOutgoingStream();
+        var streamClosed = new OutgoingStreamClosed(outgoingStream, new StreamMetadata(metadata));
+        this.Session.OutgoingActionSink.TransmitOutgoingStreamClosed(streamClosed);
+
+        if (streamContext.IsFullyClosed)
         {
-            return;
+            this.StreamManager.RemoveStream(streamId);
         }
+    }
 
-        streamContext.Close();
+    internal void ConsumeOutgoingStreamAbort(
+        uint streamId,
+        ReadOnlyMemory<byte> metadata)
+    {
+        var streamContext = this.StreamContexts.GetOrThrow(streamId);
 
-        this.Session.SendOutboundFrame(
-            ProtocolFrames.StreamClose(streamId));
+        streamContext.Abort();
+
+        var outgoingStream = streamContext.GetOutgoingStream();
+        var streamAborted = new OutgoingStreamAborted(outgoingStream, new StreamMetadata(metadata));
+        this.Session.OutgoingActionSink.TransmitOutgoingStreamAborted(streamAborted);
 
         this.StreamManager.RemoveStream(streamId);
     }
-
-    internal void AbortStream(uint streamId)
-    {
-        if (!this.StreamContexts.TryGet(streamId, out var streamContext))
-        {
-            return;
-        }
-
-        streamContext.Close();
-
-        // locally-owned stream aborted by local peer
-        // so notify the remote peer to abort the stream as well
-        this.Session.SendOutboundFrame(
-            ProtocolFrames.StreamAbort(streamId));
-
-        this.StreamManager.RemoveStream(streamId);
-    }
-
 
     // ------------------------------------------------------------------
     // Transmit
@@ -119,13 +132,7 @@ internal sealed class StreamManagerOutbound
 
     internal void TransmitOutgoingStreamOpen(OutgoingStream stream)
     {
-        ArgumentNullException.ThrowIfNull(stream);
-
-        this.Session.OutgoingActionSink.TransmitOutgoingStreamOpen(
-            ProtocolFrames.StreamOpen(
-                stream.StreamId,
-                stream.StreamType,
-                stream.Metadata));
+        var streamOpened = new OutgoingStreamOpened(stream, new StreamMetadata(stream.Metadata));
+        this.Session.OutgoingActionSink.TransmitOutgoingStreamOpened(streamOpened);
     }
-
 }

@@ -30,8 +30,7 @@ internal sealed class StreamActions
         context.EnsureCanSend();
 
         this.StreamManager.Outbound.ConsumeOutgoingStreamData(
-            context.StreamId,
-            payload);
+            context.StreamId, payload);
     }
 
     // ------------------------------------------------------------------
@@ -41,12 +40,14 @@ internal sealed class StreamActions
     /// <summary>
     /// Cleanly closes this stream and notifies the peer.
     /// </summary>
-    internal void Close(StreamContext context)
+    internal void Close(
+        StreamContext context,
+        ReadOnlyMemory<byte> metadata)
     {
         ArgumentNullException.ThrowIfNull(context);
 
         this.StreamManager.Outbound.ConsumeOutgoingStreamClose(
-            context.StreamId);
+            context.StreamId, metadata);
     }
 
     // ------------------------------------------------------------------
@@ -56,11 +57,13 @@ internal sealed class StreamActions
     /// <summary>
     /// Aborts the stream immediately and notifies the remote peer.
     /// </summary>
-    internal void Abort(StreamContext context)
+    internal void Abort(
+        StreamContext context,
+        ReadOnlyMemory<byte> metadata)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        this.StreamManager.ConsumeOutgoingStreamAbort(
-            context.StreamId);
+        this.StreamManager.Outbound.ConsumeOutgoingStreamAbort(
+            context.StreamId, metadata);
     }
 }

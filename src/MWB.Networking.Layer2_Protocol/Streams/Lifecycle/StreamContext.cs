@@ -91,6 +91,10 @@ internal sealed class StreamContext
         private set;
     } = StreamState.None;
 
+    internal bool IsFullyClosed
+        => !this.StreamState.HasFlag(StreamState.Aborted)
+        && this.StreamState.HasFlag(StreamState.LocalClosed | StreamState.RemoteClosed);
+
     internal ProtocolDirection Direction
     {
         get;
@@ -148,15 +152,9 @@ internal sealed class StreamContext
     {
         if (this.StreamState.HasFlag(StreamState.Aborted))
         {
-            throw ProtocolException.InvalidSequence(
-                $"Stream {StreamId} is aborted.");
+            throw ProtocolException.InvalidSequence($"Stream {StreamId} is aborted.");
         }
-        if (this.StreamState.HasFlag(StreamState.LocalClosed))
-        {
-            return; // idempotent
-        }
-        this.StreamState |= StreamState.LocalClosed;
-        this.TryFinalize();
+        this.StreamState |= StreamState.LocalClosed;   // callers check IsFullyClosed themselves
     }
 
     /// <summary>
@@ -167,57 +165,18 @@ internal sealed class StreamContext
     {
         if (this.StreamState.HasFlag(StreamState.Aborted))
         {
-            throw ProtocolException.InvalidSequence(
-                $"Stream {StreamId} is aborted.");
-        }
-        if (this.StreamState.HasFlag(StreamState.RemoteClosed))
-        {
-            return; // idempotent
+            throw ProtocolException.InvalidSequence($"Stream {StreamId} is aborted.");
         }
         this.StreamState |= StreamState.RemoteClosed;
-        this.TryFinalize();
     }
 
     /// <summary>
     /// Abort this stream due to a failure condition signalled by
     /// either the local or remote peer.
-    /// This sends a StreamAbort frame to the peer and tears down local state.
     /// </summary>
     internal void Abort()
     {
-        if (this.StreamState.HasFlag(StreamState.Aborted))
-        {
-            return; // idempotent
-        }
-        // Escalate any state (including Closed) to Aborted
-        // and perform Abort-mode clean up tasks
+        // callers publish and remove themselves
         this.StreamState = StreamState.Aborted;
-        this.FinalizeImmediately();
-    }
-
-    private void TryFinalize()
-    {
-        if (this.StreamState.HasFlag(StreamState.Aborted))
-        {
-            return;
-        }
-        var closedMask = StreamState.LocalClosed | StreamState.RemoteClosed;
-        if ((this.StreamState & closedMask) == closedMask)
-        {
-            this.FinalizeGracefully();
-        }
-    }
-
-    private void FinalizeGracefully()
-    {
-        // Notify once
-        this.PublishStreamClosed();
-        this.StreamManager.Remove(StreamId);
-    }
-
-    private void FinalizeImmediately()
-    {
-        this.PublishStreamAborted();
-        this.StreamManager.Remove(StreamId);
     }
 }
