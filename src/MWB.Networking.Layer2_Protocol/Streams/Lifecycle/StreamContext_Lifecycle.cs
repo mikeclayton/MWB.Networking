@@ -11,7 +11,7 @@ internal sealed partial class StreamContext
     internal StreamState StreamState
     {
         get;
-        set;
+        private set;
     } = StreamState.None;
 
     // ------------------------------------------------------------------
@@ -119,14 +119,14 @@ internal sealed partial class StreamContext
         }
     }
 
-    //private void EnsureCanCloseRemote()
-    //{
-    //    if (this.IsAborted)
-    //    {
-    //        throw ProtocolException.StreamAborted(
-    //            $"Cannot close stream {this.StreamId} - stream is aborted.");
-    //    }
-    //}
+    private void EnsureCanCloseRemote()
+    {
+        if (this.IsAborted)
+        {
+            throw ProtocolException.StreamAborted(
+                $"Cannot close stream {this.StreamId} - stream is aborted.");
+        }
+    }
 
     /// <summary>
     /// Marks the stream as cleanly closed by the local peer.
@@ -150,11 +150,7 @@ internal sealed partial class StreamContext
     /// </summary>
     internal void CloseRemote()
     {
-        if (this.IsAborted)
-        {
-            throw ProtocolException.InvalidSequence(
-                $"Cannot close stream {this.StreamId} - stream is aborted."); ;
-        }
+        this.EnsureCanCloseLocal();
         if (this.IsRemoteClosed)
         {
             // already closed — idempotent

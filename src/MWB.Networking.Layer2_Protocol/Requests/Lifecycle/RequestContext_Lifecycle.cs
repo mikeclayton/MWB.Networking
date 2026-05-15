@@ -34,10 +34,10 @@ internal sealed partial class RequestContext
     /// <summary>
     /// Whether the Request has already been responded to.
     /// </summary>
-    internal bool HasResponded
-        => this.RequestState == State.Responded;
+    //internal bool HasResponded
+    //    => this.RequestState == State.Responded;
 
-    internal bool CanRespond
+    private bool CanRespond
         => this.RequestState == State.Open;
 
     internal void EnsureCanRespond()
