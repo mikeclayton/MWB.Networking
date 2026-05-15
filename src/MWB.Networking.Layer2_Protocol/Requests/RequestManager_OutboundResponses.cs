@@ -32,7 +32,7 @@ internal sealed partial class RequestManager
         }
 
         // create the public api response
-        var outgoingResponse = new OutgoingResponse(requestId, responseType, payload, isError);
+        var outgoingResponse = new OutgoingResponse(requestContext, responseType, payload, isError);
 
         // close the request from the outbound side
         requestContext.Close();

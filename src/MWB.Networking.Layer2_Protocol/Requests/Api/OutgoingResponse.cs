@@ -1,4 +1,5 @@
 using MWB.Networking.Layer2_Protocol.Internal;
+using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 
 namespace MWB.Networking.Layer2_Protocol.Requests.Api;
 
@@ -11,11 +12,11 @@ namespace MWB.Networking.Layer2_Protocol.Requests.Api;
 public sealed class OutgoingResponse : PublicResponse
 {
     internal OutgoingResponse(
-        uint requestId,
+        RequestContext context,
         uint? responseType,
         ReadOnlyMemory<byte> payload,
         bool isError)
-        : base(requestId, responseType, payload, isError, ProtocolDirection.Outgoing)
+        : base(context, responseType, payload, isError)
     {
     }
 }

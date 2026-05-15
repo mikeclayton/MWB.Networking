@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer2_Protocol.Frames;
 using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.Streams.Api;
 using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
@@ -162,7 +161,7 @@ internal sealed class StreamManagerOutbound
         this.Session.OutgoingActionSink.TransmitOutgoingStreamClosed(streamClosed);
     }
 
-    internal void TransmitOutgoingStreamOpen(OutgoingStreamAborted streamAborted)
+    internal void TransmitOutgoingStreamAborted(OutgoingStreamAborted streamAborted)
     {
         ArgumentNullException.ThrowIfNull(streamAborted);
 

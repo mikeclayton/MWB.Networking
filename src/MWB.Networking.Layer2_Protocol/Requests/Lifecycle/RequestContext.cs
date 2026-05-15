@@ -1,11 +1,16 @@
 ﻿using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
+using MWB.Networking.Layer2_Protocol.Streams.Api;
 
 namespace MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 
+/// <summary>
+/// Holds the identity and lifecycle state of a protocol request,
+/// from creation through completion or cancellation.
+/// </summary>
 internal sealed class RequestContext
 {
-    internal RequestContext(
+    private RequestContext(
         uint requestId,
         uint? requestType,
         ProtocolDirection direction)
@@ -19,6 +24,64 @@ internal sealed class RequestContext
         this.ResponseTcs = (direction == ProtocolDirection.Outgoing)
             ? new TaskCompletionSource<IncomingResponse>(TaskCreationOptions.RunContinuationsAsynchronously)
             : null;
+    }
+
+    internal static RequestContext CreateIncoming(
+        uint requestId,
+        uint? requestType,
+        RequestActions actions,
+        ReadOnlyMemory<byte> payload)
+    {
+        var context = new RequestContext(requestId, requestType, ProtocolDirection.Incoming);
+        var request = new IncomingRequest(context, actions, payload);
+        context.IncomingRequest = request;
+        context.OutgoingRequest = null;
+        return context;
+    }
+
+    internal static RequestContext CreateOutgoing(
+        uint requestId,
+        uint? requestType,
+        RequestActions actions,
+        ReadOnlyMemory<byte> payload)
+    {
+        var context = new RequestContext(requestId, requestType, ProtocolDirection.Outgoing);
+        var request = new OutgoingRequest(context, actions, payload);
+        context.IncomingRequest = null;
+        context.OutgoingRequest = request;
+        return context;
+    }
+
+    internal IncomingRequest? IncomingRequest
+    {
+        get;
+        private set;
+    }
+
+    internal IncomingRequest GetIncomingRequest()
+    {
+        if ((this.Direction != ProtocolDirection.Incoming) || (this.IncomingRequest is null))
+        {
+            throw ProtocolException.ProtocolViolation(
+                $"Request {this.RequestId} is not inbound.");
+        }
+        return this.IncomingRequest;
+    }
+
+    internal OutgoingRequest? OutgoingRequest
+    {
+        get;
+        private set;
+    }
+
+    internal OutgoingRequest GetOutgoingRequest()
+    {
+        if ((this.Direction != ProtocolDirection.Outgoing) || (this.OutgoingRequest is null))
+        {
+            throw ProtocolException.ProtocolViolation(
+                $"Request {this.RequestId} is not outbound.");
+        }
+        return this.OutgoingRequest;
     }
 
     // ------------------------------------------------------------------

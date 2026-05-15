@@ -2,6 +2,7 @@
 using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
 using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
+using MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
 namespace MWB.Networking.Layer2_Protocol.Requests;
 
@@ -25,11 +26,11 @@ internal sealed partial class RequestManager
         this.RequestContexts.ThrowIfExists(requestId);
 
         // add a new request context to track the incoming request lifecycle
-        var requestContext = new RequestContext(requestId, requestType, ProtocolDirection.Incoming);
+        var requestContext = RequestContext.CreateIncoming(requestId, requestType, this.Actions, payload);
         this.RequestContexts.Add(requestContext);
 
         // publish the incoming request to the application
-        var incomingRequest = new IncomingRequest(requestContext, this.Actions, payload);
+        var incomingRequest = requestContext.GetIncomingRequest();
         this.PublishIncomingRequest(incomingRequest);
         return incomingRequest;
     }

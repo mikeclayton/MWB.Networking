@@ -4,8 +4,8 @@ using MWB.Networking.Layer2_Protocol.Streams.Api;
 namespace MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
 /// <summary>
-/// Internal protocol invariant state for a stream.
-/// Not an API object and not direction-specific.
+/// Holds the identity and lifecycle state of a protocol stream,
+/// from opening through closure or abort.
 /// </summary>
 internal sealed class StreamContext
 {
@@ -171,6 +171,11 @@ internal sealed class StreamContext
         if (this.StreamState.HasFlag(StreamState.Aborted))
         {
             throw ProtocolException.InvalidSequence($"Stream {StreamId} is aborted.");
+        }
+        if (this.StreamState.HasFlag(StreamState.RemoteClosed))
+        {
+            // already closed — idempotent
+            return;
         }
         this.StreamState |= StreamState.RemoteClosed;
     }

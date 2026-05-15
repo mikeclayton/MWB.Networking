@@ -55,13 +55,20 @@ internal sealed class StreamActions
     /// <summary>
     /// Aborts the stream immediately and notifies the remote peer.
     /// </summary>
-    internal void Abort(
-        StreamContext context,
-        ReadOnlyMemory<byte> metadata)
+    internal void AbortOutgoing(StreamContext context, ReadOnlyMemory<byte> metadata)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        this.StreamManager.Outbound.ConsumeOutgoingStreamAbort(
-            context.StreamId, metadata);
+        this.StreamManager.Outbound.ConsumeOutgoingStreamAbort(context.StreamId, metadata);
+    }
+
+    /// <summary>
+    /// Aborts the stream immediately and notifies the remote peer.
+    /// </summary>
+    internal void AbortIncoming(StreamContext context, ReadOnlyMemory<byte> metadata)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        this.StreamManager.Inbound.ConsumeIncomingStreamLocalAbort(context.StreamId, metadata);
     }
 }

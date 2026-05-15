@@ -1,4 +1,5 @@
 using MWB.Networking.Layer2_Protocol.Internal;
+using MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 
 namespace MWB.Networking.Layer2_Protocol.Requests.Api;
 
@@ -13,26 +14,27 @@ namespace MWB.Networking.Layer2_Protocol.Requests.Api;
 public abstract class PublicResponse
 {
     internal PublicResponse(
-        uint requestId,
+        RequestContext context,
         uint? responseType,
         ReadOnlyMemory<byte> payload,
-        bool isError,
-        ProtocolDirection direction)
+        bool isError)
     {
-        this.RequestId = requestId;
+        this.Context = context ?? throw new ArgumentNullException(nameof(context));
         this.ResponseType = responseType;
         this.Payload = payload;
         this.IsError = isError;
-        this.Direction = direction;
+    }
+
+    private RequestContext Context
+    {
+        get;
     }
 
     /// <summary>
     /// The protocol RequestId this response corresponds to.
     /// </summary>
     public uint RequestId
-    {
-        get;
-    }
+        => this.Context.RequestId;
 
     /// <summary>
     /// The optional response-type discriminator. The value is specified by

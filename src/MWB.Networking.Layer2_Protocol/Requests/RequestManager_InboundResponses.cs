@@ -35,7 +35,7 @@ internal sealed partial class RequestManager
         }
 
         // create the public api response
-        var incomingResponse = new IncomingResponse(requestId, responseType, payload, isError);
+        var incomingResponse = new IncomingResponse(requestContext, responseType, payload, isError);
 
         // Close the request based on a terminal frame received from the peer.
         requestContext.CompleteWithResponse(incomingResponse);

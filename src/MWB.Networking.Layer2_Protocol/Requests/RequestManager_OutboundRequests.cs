@@ -45,11 +45,11 @@ internal sealed partial class RequestManager
         var requestId = this.GetNextRequestId();
 
         // add a new request context to track the outgoing request lifecycle
-        var requestContext = new RequestContext(requestId, requestType, ProtocolDirection.Outgoing);
+        var requestContext = RequestContext.CreateOutgoing(requestId, requestType, this.Actions, payload);
         this.RequestContexts.Add(requestContext);
 
         // transmit the protocol request to the remote peer
-        var outgoingRequest = new OutgoingRequest(requestId, requestType, requestContext, this.Actions, payload);
+        var outgoingRequest = requestContext.GetOutgoingRequest();
         this.TransmitOutgoingRequest(outgoingRequest);
         return outgoingRequest;
     }
