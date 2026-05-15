@@ -39,14 +39,14 @@ internal sealed class OddEvenStreamIdProvider
         set;
     }
 
-    public uint AllocateOutbound()
+    internal uint AllocateOutbound()
     {
         var streamId = this.NextStreamId;
         this.NextStreamId += 2;
         return streamId;
     }
 
-    public bool IsValidInbound(uint streamId)
+    internal bool IsValidInbound(uint streamId)
     {
         var isOdd = (streamId & 1) == 1;
         return this.OutboundParity == OddEvenStreamIdParity.Even

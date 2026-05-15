@@ -12,6 +12,24 @@ internal sealed class StreamActions
         get;
     }
 
+    // Note:
+    // -----
+    //
+    // "Outgoing" below refers to the direction of a protocol message
+    // (i.e. StreamOpen, StreamData, StreamClose, StreamAbort):
+    //
+    //   * local peer sending to remote peer => "outgoing message"
+    //   * remote peer sending to local peer => "incoming message"
+    //
+    // This is independent of the "Direction" property of the stream
+    // (which simply indicates who initiated it):
+    //
+    //   * stream initiated by local peer => "outgoing stream"
+    //   * stream initiated by remote peer => "incoming stream"
+    //
+    // Even for remotely-initiated ("incoming") streams, a locally-generated
+    // message sent to the remote peer is "outgoing".
+
     // ------------------------------------------------------------------
     // Send Data
     // ------------------------------------------------------------------
@@ -27,6 +45,7 @@ internal sealed class StreamActions
 
         context.EnsureCanSend();
 
+        // "Outgoing" = message direction, not stream origin (see above)
         this.StreamManager.Outbound.ConsumeOutgoingStreamData(
             context.StreamId, payload);
     }
@@ -44,6 +63,7 @@ internal sealed class StreamActions
     {
         ArgumentNullException.ThrowIfNull(context);
 
+        // "Outgoing" = message direction, not stream origin (see above)
         this.StreamManager.Outbound.ConsumeOutgoingStreamClose(
             context.StreamId, metadata);
     }
@@ -55,20 +75,12 @@ internal sealed class StreamActions
     /// <summary>
     /// Aborts the stream immediately and notifies the remote peer.
     /// </summary>
-    internal void AbortOutgoing(StreamContext context, ReadOnlyMemory<byte> metadata)
+    internal void Abort(StreamContext context, ReadOnlyMemory<byte> metadata)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        this.StreamManager.Outbound.ConsumeOutgoingStreamAbort(context.StreamId, metadata);
-    }
-
-    /// <summary>
-    /// Aborts the stream immediately and notifies the remote peer.
-    /// </summary>
-    internal void AbortIncoming(StreamContext context, ReadOnlyMemory<byte> metadata)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-
-        this.StreamManager.Inbound.ConsumeIncomingStreamLocalAbort(context.StreamId, metadata);
+        // "Outgoing" = message direction, not stream origin (see above)
+        this.StreamManager.Outbound.ConsumeOutgoingStreamAbort(
+            context.StreamId, metadata);
     }
 }

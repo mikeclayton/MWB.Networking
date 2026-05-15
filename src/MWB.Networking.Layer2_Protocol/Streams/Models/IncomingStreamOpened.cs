@@ -1,18 +1,18 @@
 ﻿using MWB.Networking.Layer2_Protocol.Streams.Api;
 
-namespace MWB.Networking.Layer2_Protocol.Streams.Publish;
+namespace MWB.Networking.Layer2_Protocol.Streams.Models;
 
-public sealed class OutgoingStreamAborted
+public sealed class IncomingStreamOpened
 {
-    public OutgoingStreamAborted(
-        OutgoingStream stream,
+    public IncomingStreamOpened(
+        IncomingStream stream,
         StreamMetadata metadata)
     {
         this.Stream = stream ?? throw new ArgumentNullException(nameof(stream));
         this.Metadata = metadata;
     }
 
-    public OutgoingStream Stream
+    public IncomingStream Stream
     {
         get;
     }

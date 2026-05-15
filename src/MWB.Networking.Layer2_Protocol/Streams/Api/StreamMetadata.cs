@@ -7,6 +7,7 @@
 /// validate, or transform it. Applications are free to define their own
 /// metadata formats (e.g. filesystem metadata, clipboard formats,
 /// compression hints, database schemas, etc).
+/// </summary>
 public sealed class StreamMetadata
 {
     public StreamMetadata(ReadOnlyMemory<byte> payload)

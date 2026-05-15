@@ -1,60 +1,12 @@
 ﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.Streams.Api;
-using MWB.Networking.Layer2_Protocol.Streams.Infrastructure;
 using MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
-using MWB.Networking.Layer2_Protocol.Streams.Publish;
+using MWB.Networking.Layer2_Protocol.Streams.Models;
 
 namespace MWB.Networking.Layer2_Protocol.Streams;
 
-internal sealed class StreamManagerOutbound
+internal sealed partial class StreamManager
 {
-    internal StreamManagerOutbound(
-        ILogger logger,
-        ProtocolSession session,
-        StreamManager streamManager,
-        StreamActions actions,
-        StreamContexts streamContexts,
-        OddEvenStreamIdProvider streamIdProvider)
-    {
-        this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        this.Session = session ?? throw new ArgumentNullException(nameof(session));
-        this.StreamManager = streamManager ?? throw new ArgumentNullException(nameof(streamManager));
-        this.Actions = actions ?? throw new ArgumentNullException(nameof(actions));
-        this.StreamContexts = streamContexts ?? throw new ArgumentNullException(nameof(streamContexts));
-        this.StreamIdProvider = streamIdProvider ?? throw new ArgumentNullException(nameof(streamIdProvider));
-    }
-
-    private ILogger Logger
-    {
-        get;
-    }
-
-    private ProtocolSession Session
-    {
-        get;
-    }
-
-    private StreamManager StreamManager
-    {
-        get;
-    }
-
-    private StreamActions Actions
-    {
-        get;
-    }
-
-    private StreamContexts StreamContexts
-    {
-        get;
-    }
-
-    private OddEvenStreamIdProvider StreamIdProvider
-    {
-        get;
-    }
-
     // ------------------------------------------------------------------
     // Consume: Open
     // ------------------------------------------------------------------
@@ -88,7 +40,7 @@ internal sealed class StreamManagerOutbound
 
         var outgoingStream = streamContext.GetOutgoingStream();
         var streamData = new OutgoingStreamData(outgoingStream, payload);
-        this.Session.OutgoingActionSink.TransmitOutgoingStreamData(streamData);
+        this.TransmitOutgoingStreamData(streamData);
     }
 
     internal void ConsumeOutgoingStreamClose(
@@ -101,11 +53,11 @@ internal sealed class StreamManagerOutbound
 
         var outgoingStream = streamContext.GetOutgoingStream();
         var streamClosed = new OutgoingStreamClosed(outgoingStream, new StreamMetadata(metadata));
-        this.Session.OutgoingActionSink.TransmitOutgoingStreamClosed(streamClosed);
+        this.TransmitOutgoingStreamClosed(streamClosed);
 
         if (streamContext.IsFullyClosed)
         {
-            this.StreamManager.RemoveStream(streamId);
+            this.RemoveStream(streamId);
         }
     }
 
@@ -119,9 +71,9 @@ internal sealed class StreamManagerOutbound
 
         var outgoingStream = streamContext.GetOutgoingStream();
         var streamAborted = new OutgoingStreamAborted(outgoingStream, new StreamMetadata(metadata));
-        this.Session.OutgoingActionSink.TransmitOutgoingStreamAborted(streamAborted);
+        this.TransmitOutgoingStreamAborted(streamAborted);
 
-        this.StreamManager.RemoveStream(streamId);
+        this.RemoveStream(streamId);
     }
 
     // ------------------------------------------------------------------
@@ -166,7 +118,7 @@ internal sealed class StreamManagerOutbound
         ArgumentNullException.ThrowIfNull(streamAborted);
 
         this.Logger.LogTrace(
-            "Transmitting outgoing stream open (Id={StreamId})",
+            "Transmitting outgoing stream aborted (Id={StreamId})",
             streamAborted.Stream.StreamId);
 
         this.Session.OutgoingActionSink.TransmitOutgoingStreamAborted(streamAborted);

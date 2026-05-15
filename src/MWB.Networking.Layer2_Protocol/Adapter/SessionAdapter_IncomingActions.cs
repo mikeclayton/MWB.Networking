@@ -1,7 +1,7 @@
 ﻿using MWB.Networking.Layer2_Protocol.Events.Api;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
 using MWB.Networking.Layer2_Protocol.Session.Api;
-using MWB.Networking.Layer2_Protocol.Streams.Publish;
+using MWB.Networking.Layer2_Protocol.Streams.Models;
 
 namespace MWB.Networking.Layer2_Protocol.Adapter;
 

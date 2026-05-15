@@ -1,10 +1,10 @@
 ﻿using MWB.Networking.Layer2_Protocol.Streams.Api;
 
-namespace MWB.Networking.Layer2_Protocol.Streams.Publish;
+namespace MWB.Networking.Layer2_Protocol.Streams.Models;
 
-public sealed class OutgoingStreamClosed
+public sealed class OutgoingStreamAborted
 {
-    public OutgoingStreamClosed(
+    public OutgoingStreamAborted(
         OutgoingStream stream,
         StreamMetadata metadata)
     {

@@ -1,52 +1,13 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer2_Protocol.Internal;
-using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.Streams.Api;
 using MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
-using MWB.Networking.Layer2_Protocol.Streams.Publish;
+using MWB.Networking.Layer2_Protocol.Streams.Models;
 
 namespace MWB.Networking.Layer2_Protocol.Streams;
 
-internal sealed class StreamManagerInbound
+internal sealed partial class StreamManager
 {
-    internal StreamManagerInbound(
-        ILogger logger,
-        ProtocolSession session,
-        StreamManager streamManager,
-        StreamActions actions,
-        StreamContexts streamContexts)
-    {
-        this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        this.Session = session ?? throw new ArgumentNullException(nameof(session));
-        this.StreamManager = streamManager ?? throw new ArgumentNullException(nameof(streamManager));
-        this.Actions = actions ?? throw new ArgumentNullException(nameof(actions));
-        this.StreamContexts = streamContexts ?? throw new ArgumentNullException(nameof(streamContexts));
-    }
-
-    private ILogger Logger
-    {
-        get;
-    }
-
-    private ProtocolSession Session
-    {
-        get;
-    }
-
-    private StreamManager StreamManager
-    {
-        get;
-    }
-
-    private StreamActions Actions
-    {
-        get;
-    }
-
-    private StreamContexts StreamContexts
-    {
-        get;
-    }
 
     // ------------------------------------------------------------------
     // Consume: Open
@@ -62,7 +23,7 @@ internal sealed class StreamManagerInbound
         // Enforce the odd/even parity contract: the peer must use IDs of the
         // opposite parity to our outbound IDs. Accepting same-parity IDs would
         // guarantee a collision when we next allocate an outbound stream ID.
-        if (!this.StreamManager.IsValidInboundStreamId(streamId))
+        if (!this.IsValidInboundStreamId(streamId))
         {
             throw ProtocolException.ProtocolViolation(
                 $"StreamId {streamId} has the wrong parity for an inbound stream.");
@@ -90,8 +51,9 @@ internal sealed class StreamManagerInbound
         ReadOnlyMemory<byte> payload)
     {
         var streamContext = this.StreamContexts.GetOrThrow(streamId);
-        var incomingStream = streamContext.GetIncomingStream();
         streamContext.EnsureCanReceive();
+
+        var incomingStream = streamContext.GetIncomingStream();
 
         // Publish data event
         var streamData = new IncomingStreamData(incomingStream, payload);
@@ -119,7 +81,7 @@ internal sealed class StreamManagerInbound
         // only remove when both halves are done
         if (streamContext.IsFullyClosed)
         {
-            this.StreamManager.RemoveStream(streamId);
+            this.RemoveStream(streamId);
         }
     }
 
@@ -141,7 +103,7 @@ internal sealed class StreamManagerInbound
         var streamAborted = new IncomingStreamAborted(incomingStream, new StreamMetadata(metadata));
         this.PublishIncomingStreamAborted(streamAborted);
 
-        this.StreamManager.RemoveStream(streamId);
+        this.RemoveStream(streamId);
     }
 
     // ------------------------------------------------------------------

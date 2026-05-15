@@ -17,9 +17,6 @@ internal sealed partial class StreamManager
         this.Actions = new StreamActions(this);
 
         this.StreamIdProvider = streamIdProvider ?? throw new ArgumentNullException(nameof(streamIdProvider));
-
-        this.Inbound = new StreamManagerInbound(logger, session, this, this.Actions, this.StreamContexts);
-        this.Outbound = new StreamManagerOutbound(logger, session, this, this.Actions, this.StreamContexts, streamIdProvider);
     }
 
     private ILogger Logger
@@ -38,16 +35,6 @@ internal sealed partial class StreamManager
     }
 
     private OddEvenStreamIdProvider StreamIdProvider
-    {
-        get;
-    }
-
-    internal StreamManagerInbound Inbound
-    {
-        get;
-    }
-
-    internal StreamManagerOutbound Outbound
     {
         get;
     }

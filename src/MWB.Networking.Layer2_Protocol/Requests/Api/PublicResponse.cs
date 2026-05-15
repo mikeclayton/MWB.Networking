@@ -45,6 +45,9 @@ public abstract class PublicResponse
         get;
     }
 
+    private ProtocolDirection Direction
+        => this.Context.Direction;
+
     /// <summary>
     /// The payload associated with this response.
     /// </summary>
@@ -57,11 +60,6 @@ public abstract class PublicResponse
     /// Indicates whether this response represents a protocol-level error.
     /// </summary>
     public bool IsError
-    {
-        get;
-    }
-
-    internal ProtocolDirection Direction
     {
         get;
     }

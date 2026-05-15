@@ -38,7 +38,7 @@ public abstract class PublicEvent
         get;
     }
 
-    internal ProtocolDirection Direction
+    private ProtocolDirection Direction
     {
         get;
     }

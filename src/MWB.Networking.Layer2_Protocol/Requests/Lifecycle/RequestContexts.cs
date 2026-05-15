@@ -61,6 +61,6 @@ internal sealed class RequestContexts
             return result;
         }
         throw ProtocolException.InvalidSequence(
-            $"Unknown or completed RequestId {requestId}");
+            $"Unknown RequestId {requestId}");
     }
 }

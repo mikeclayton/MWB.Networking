@@ -10,10 +10,4 @@ public sealed class IncomingStream : SessionStream
         : base(context, actions)
     {
     }
-
-    /// <summary>
-    /// Aborts the stream immediately and notifies the remote peer.
-    /// </summary>
-    public void Abort(ReadOnlyMemory<byte> metadata = default)
-        => this.Actions.AbortIncoming(this.Context, metadata);
 }

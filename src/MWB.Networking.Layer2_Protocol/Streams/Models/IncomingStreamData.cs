@@ -1,15 +1,15 @@
 ﻿using MWB.Networking.Layer2_Protocol.Streams.Api;
 
-namespace MWB.Networking.Layer2_Protocol.Streams.Publish;
+namespace MWB.Networking.Layer2_Protocol.Streams.Models;
 
-public sealed class IncomingStreamOpened
+public sealed class IncomingStreamData
 {
-    public IncomingStreamOpened(
+    public IncomingStreamData(
         IncomingStream stream,
-        StreamMetadata metadata)
+        ReadOnlyMemory<byte> payload)
     {
         this.Stream = stream ?? throw new ArgumentNullException(nameof(stream));
-        this.Metadata = metadata;
+        this.Payload = payload;
     }
 
     public IncomingStream Stream
@@ -17,8 +17,9 @@ public sealed class IncomingStreamOpened
         get;
     }
 
-    public StreamMetadata Metadata
+    public ReadOnlyMemory<byte> Payload
     {
         get;
     }
 }
+
