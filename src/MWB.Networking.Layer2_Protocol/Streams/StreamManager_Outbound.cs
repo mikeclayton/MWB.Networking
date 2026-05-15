@@ -49,8 +49,6 @@ internal sealed partial class StreamManager
     {
         var streamContext = this.StreamContexts.GetOrThrow(streamId);
 
-        streamContext.CloseLocal();
-
         var sessionStream = streamContext.GetSessionStream();
         var streamClosed = new StreamClosedMessage(sessionStream, new StreamMetadata(metadata));
         this.TransmitOutgoingStreamClosed(streamClosed);
@@ -66,8 +64,6 @@ internal sealed partial class StreamManager
         ReadOnlyMemory<byte> metadata)
     {
         var streamContext = this.StreamContexts.GetOrThrow(streamId);
-
-        streamContext.Abort();
 
         var sessionStream = streamContext.GetSessionStream();
         var streamAborted = new StreamAbortedMessage(sessionStream, new StreamMetadata(metadata));

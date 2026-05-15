@@ -23,7 +23,7 @@ public abstract class SessionStream
     public uint? StreamType
         => this.Context.StreamType;
 
-    public StreamState StreamState
+    internal StreamState StreamState
         => this.Context.StreamState;
 
     private protected StreamActions Actions

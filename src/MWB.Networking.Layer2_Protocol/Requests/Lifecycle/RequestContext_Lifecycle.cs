@@ -13,7 +13,7 @@ internal sealed partial class RequestContext
     // A Request produces exactly one Response.
     //
     // Once the Response has been sent, the request becomes terminal and no further
-    // request request-scoped operations are permitted.
+    // request-scoped operations are permitted.
 
     private enum State
     {

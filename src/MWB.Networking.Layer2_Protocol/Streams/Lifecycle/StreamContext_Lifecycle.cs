@@ -8,7 +8,7 @@ namespace MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 /// </summary>
 internal sealed partial class StreamContext
 {  
-    private StreamState StreamState
+    internal StreamState StreamState
     {
         get;
         set;
@@ -44,8 +44,8 @@ internal sealed partial class StreamContext
     // Send
     // ------------------------------------------------------------------
 
-    private bool CanSend
-        => !this.IsLocalClosed && !this.IsAborted;
+    //private bool CanSend
+    //    => !this.IsLocalClosed && !this.IsAborted;
 
     /// <summary>
     /// Sending is only allowed while this peer's send direction is open.
@@ -69,8 +69,8 @@ internal sealed partial class StreamContext
     // Receive
     // ------------------------------------------------------------------
 
-    private bool CanReceive
-        => !this.IsRemoteClosed && !this.IsAborted;
+    //private bool CanReceive
+    //    => !this.IsRemoteClosed && !this.IsAborted;
 
     /// <summary>
     /// Receiving is only allowed while the remote peer's send direction is open.
@@ -102,13 +102,13 @@ internal sealed partial class StreamContext
     internal bool IsRemoteClosed
         => this.StreamState.HasFlag(StreamState.RemoteClosed);
 
-    private bool CanCloseLocal
-        // close is idempotent, so allow it even if already closed
-        => !this.IsAborted;
+    //private bool CanCloseLocal
+    //    // close is idempotent, so allow it even if already closed
+    //    => !this.IsAborted;
 
-    private bool CanCloseRemote
-        // close is idempotent, so allow it even if already closed
-        => !this.IsAborted;
+    //private bool CanCloseRemote
+    //    // close is idempotent, so allow it even if already closed
+    //    => !this.IsAborted;
 
     internal void EnsureCanCloseLocal()
     {
@@ -117,24 +117,16 @@ internal sealed partial class StreamContext
             throw ProtocolException.StreamAborted(
                 $"Cannot close stream {this.StreamId} - stream is aborted.");
         }
-        if (this.IsLocalClosed)
-        {
-            // idempotent close is allowed, so no exception if already closed
-        }
     }
 
-    private void EnsureCanCloseRemote()
-    {
-        if (this.IsAborted)
-        {
-            throw ProtocolException.StreamAborted(
-                $"Cannot close stream {this.StreamId} - stream is aborted.");
-        }
-        if (this.IsRemoteClosed)
-        {
-            // idempotent close is allowed, so no exception if already closed
-        }
-    }
+    //private void EnsureCanCloseRemote()
+    //{
+    //    if (this.IsAborted)
+    //    {
+    //        throw ProtocolException.StreamAborted(
+    //            $"Cannot close stream {this.StreamId} - stream is aborted.");
+    //    }
+    //}
 
     /// <summary>
     /// Marks the stream as cleanly closed by the local peer.
@@ -142,11 +134,7 @@ internal sealed partial class StreamContext
     /// </summary>
     internal void CloseLocal()
     {
-        if (this.IsAborted)
-        {
-            throw ProtocolException.InvalidSequence(
-                $"Cannot close stream {this.StreamId} - stream is aborted."); ;
-        }
+        this.EnsureCanCloseLocal();
         if (this.IsLocalClosed)
         {
             // already closed — idempotent
