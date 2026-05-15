@@ -1,4 +1,4 @@
-﻿namespace MWB.Networking.Layer2_Protocol.Streams.Api;
+﻿namespace MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 
 /// <summary>
 /// Represents the lifecycle state of a bidirectional stream.
@@ -18,7 +18,7 @@
 /// other continues (e.g. request/response streaming or end-of-stream acknowledgements).
 /// </summary>
 [Flags]
-public enum StreamState
+internal enum StreamState
 {
     /// <summary>
     /// The stream is fully open; both sides may send data.

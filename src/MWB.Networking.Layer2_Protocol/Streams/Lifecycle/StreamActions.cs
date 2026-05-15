@@ -41,12 +41,16 @@ internal sealed class StreamActions
         StreamContext context,
         ReadOnlyMemory<byte> payload)
     {
-        ArgumentNullException.ThrowIfNull(context);
+        // ordering: validate -> execute
+        // (SendData is an operation, not a state transition)
 
+        // validate the current state
+        ArgumentNullException.ThrowIfNull(context);
         context.EnsureCanSend();
 
+        // execute the external protocol work
         // "Outgoing" = message direction, not stream origin (see above)
-        this.StreamManager.Outbound.ConsumeOutgoingStreamData(
+        this.StreamManager.ConsumeOutgoingStreamData(
             context.StreamId, payload);
     }
 
@@ -58,14 +62,21 @@ internal sealed class StreamActions
     /// Cleanly closes this stream and notifies the peer.
     /// </summary>
     internal void Close(
-        StreamContext context,
+        StreamContext streamContext,
         ReadOnlyMemory<byte> metadata)
     {
-        ArgumentNullException.ThrowIfNull(context);
+        // ordering: validate -> transition -> execute
 
+        // validate the current state
+        ArgumentNullException.ThrowIfNull(streamContext);
+
+        // transition to the next state
+        streamContext.CloseLocal();
+
+        // execute the external protocol work
         // "Outgoing" = message direction, not stream origin (see above)
-        this.StreamManager.Outbound.ConsumeOutgoingStreamClose(
-            context.StreamId, metadata);
+        this.StreamManager.ConsumeOutgoingStreamClose(
+            streamContext.StreamId, metadata);
     }
 
     // ------------------------------------------------------------------
@@ -75,12 +86,19 @@ internal sealed class StreamActions
     /// <summary>
     /// Aborts the stream immediately and notifies the remote peer.
     /// </summary>
-    internal void Abort(StreamContext context, ReadOnlyMemory<byte> metadata)
+    internal void Abort(StreamContext streamContext, ReadOnlyMemory<byte> metadata)
     {
-        ArgumentNullException.ThrowIfNull(context);
+        // ordering: validate -> transition -> execute
 
+        // validate the current state
+        ArgumentNullException.ThrowIfNull(streamContext);
+
+        // transition to the next state
+        streamContext.Abort();
+
+        // execute the external protocol work
         // "Outgoing" = message direction, not stream origin (see above)
-        this.StreamManager.Outbound.ConsumeOutgoingStreamAbort(
-            context.StreamId, metadata);
+        this.StreamManager.ConsumeOutgoingStreamAbort(
+            streamContext.StreamId, metadata);
     }
 }

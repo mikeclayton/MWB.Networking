@@ -38,7 +38,7 @@ internal sealed partial class StreamManager
 
         // publish event
         var incomingStream = streamContext.GetIncomingStream();
-        var streamOpened = new IncomingStreamOpened(incomingStream, new StreamMetadata(metadata));
+        var streamOpened = new StreamOpenedMessage(incomingStream, new StreamMetadata(metadata));
         this.PublishIncomingStreamOpened(streamOpened);
     }
 
@@ -56,7 +56,7 @@ internal sealed partial class StreamManager
         var incomingStream = streamContext.GetIncomingStream();
 
         // Publish data event
-        var streamData = new IncomingStreamData(incomingStream, payload);
+        var streamData = new StreamDataMessage(incomingStream, payload);
         this.PublishIncomingStreamData(streamData);
     }
 
@@ -75,7 +75,7 @@ internal sealed partial class StreamManager
         streamContext.CloseRemote();
 
         // Publish while still registered
-        var streamClosed = new IncomingStreamClosed(incomingStream, new StreamMetadata(metadata));
+        var streamClosed = new StreamClosedMessage(incomingStream, new StreamMetadata(metadata));
         this.PublishIncomingStreamClosed(streamClosed);
 
         // only remove when both halves are done
@@ -100,7 +100,7 @@ internal sealed partial class StreamManager
 
         // The remote peer sent a StreamAbort frame.
         // tear down local state and notify the application.
-        var streamAborted = new IncomingStreamAborted(incomingStream, new StreamMetadata(metadata));
+        var streamAborted = new StreamAbortedMessage(incomingStream, new StreamMetadata(metadata));
         this.PublishIncomingStreamAborted(streamAborted);
 
         this.RemoveStream(streamId);
@@ -111,7 +111,7 @@ internal sealed partial class StreamManager
     // ------------------------------------------------------------------
 
     internal void PublishIncomingStreamOpened(
-        IncomingStreamOpened streamOpened)
+        StreamOpenedMessage streamOpened)
     {
         ArgumentNullException.ThrowIfNull(streamOpened);
 
@@ -123,7 +123,7 @@ internal sealed partial class StreamManager
     }
 
     internal void PublishIncomingStreamData(
-        IncomingStreamData streamData)
+        StreamDataMessage streamData)
     {
         ArgumentNullException.ThrowIfNull(streamData);
 
@@ -135,7 +135,7 @@ internal sealed partial class StreamManager
     }
 
     internal void PublishIncomingStreamClosed(
-        IncomingStreamClosed streamClosed)
+        StreamClosedMessage streamClosed)
     {
         ArgumentNullException.ThrowIfNull(streamClosed);
 
@@ -147,7 +147,7 @@ internal sealed partial class StreamManager
     }
 
     internal void PublishIncomingStreamAborted(
-        IncomingStreamAborted streamAborted)
+        StreamAbortedMessage streamAborted)
     {
         ArgumentNullException.ThrowIfNull(streamAborted);
 

@@ -26,7 +26,7 @@ internal sealed partial class StreamManager
 
         // transmit event
         var outgoingStream = streamContext.GetOutgoingStream();
-        var streamOpened = new OutgoingStreamOpened(outgoingStream, new StreamMetadata(metadata));
+        var streamOpened = new StreamOpenedMessage(outgoingStream, new StreamMetadata(metadata));
         this.TransmitOutgoingStreamOpen(streamOpened);
 
         return outgoingStream;
@@ -38,8 +38,8 @@ internal sealed partial class StreamManager
     {
         var streamContext = this.StreamContexts.GetOrThrow(streamId);
 
-        var outgoingStream = streamContext.GetOutgoingStream();
-        var streamData = new OutgoingStreamData(outgoingStream, payload);
+        var sessionStream = streamContext.GetSessionStream();
+        var streamData = new StreamDataMessage(sessionStream, payload);
         this.TransmitOutgoingStreamData(streamData);
     }
 
@@ -51,8 +51,8 @@ internal sealed partial class StreamManager
 
         streamContext.CloseLocal();
 
-        var outgoingStream = streamContext.GetOutgoingStream();
-        var streamClosed = new OutgoingStreamClosed(outgoingStream, new StreamMetadata(metadata));
+        var sessionStream = streamContext.GetSessionStream();
+        var streamClosed = new StreamClosedMessage(sessionStream, new StreamMetadata(metadata));
         this.TransmitOutgoingStreamClosed(streamClosed);
 
         if (streamContext.IsFullyClosed)
@@ -69,8 +69,8 @@ internal sealed partial class StreamManager
 
         streamContext.Abort();
 
-        var outgoingStream = streamContext.GetOutgoingStream();
-        var streamAborted = new OutgoingStreamAborted(outgoingStream, new StreamMetadata(metadata));
+        var sessionStream = streamContext.GetSessionStream();
+        var streamAborted = new StreamAbortedMessage(sessionStream, new StreamMetadata(metadata));
         this.TransmitOutgoingStreamAborted(streamAborted);
 
         this.RemoveStream(streamId);
@@ -80,7 +80,7 @@ internal sealed partial class StreamManager
     // Transmit
     // ------------------------------------------------------------------
 
-    internal void TransmitOutgoingStreamOpen(OutgoingStreamOpened streamOpened)
+    internal void TransmitOutgoingStreamOpen(StreamOpenedMessage streamOpened)
     {
         ArgumentNullException.ThrowIfNull(streamOpened);
 
@@ -91,7 +91,7 @@ internal sealed partial class StreamManager
         this.Session.OutgoingActionSink.TransmitOutgoingStreamOpened(streamOpened);
     }
 
-    internal void TransmitOutgoingStreamData(OutgoingStreamData streamData)
+    internal void TransmitOutgoingStreamData(StreamDataMessage streamData)
     {
         ArgumentNullException.ThrowIfNull(streamData);
 
@@ -102,7 +102,7 @@ internal sealed partial class StreamManager
         this.Session.OutgoingActionSink.TransmitOutgoingStreamData(streamData);
     }
 
-    internal void TransmitOutgoingStreamClosed(OutgoingStreamClosed streamClosed)
+    internal void TransmitOutgoingStreamClosed(StreamClosedMessage streamClosed)
     {
         ArgumentNullException.ThrowIfNull(streamClosed);
 
@@ -113,7 +113,7 @@ internal sealed partial class StreamManager
         this.Session.OutgoingActionSink.TransmitOutgoingStreamClosed(streamClosed);
     }
 
-    internal void TransmitOutgoingStreamAborted(OutgoingStreamAborted streamAborted)
+    internal void TransmitOutgoingStreamAborted(StreamAbortedMessage streamAborted)
     {
         ArgumentNullException.ThrowIfNull(streamAborted);
 

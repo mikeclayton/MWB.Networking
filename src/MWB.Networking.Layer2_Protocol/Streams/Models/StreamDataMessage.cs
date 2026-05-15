@@ -2,23 +2,24 @@
 
 namespace MWB.Networking.Layer2_Protocol.Streams.Models;
 
-public sealed class OutgoingStreamClosed
+public sealed class StreamDataMessage
 {
-    public OutgoingStreamClosed(
-        OutgoingStream stream,
-        StreamMetadata metadata)
+    public StreamDataMessage(
+        SessionStream stream,
+        ReadOnlyMemory<byte> payload)
     {
         this.Stream = stream ?? throw new ArgumentNullException(nameof(stream));
-        this.Metadata = metadata;
+        this.Payload = payload;
     }
 
-    public OutgoingStream Stream
+    public SessionStream Stream
     {
         get;
     }
 
-    public StreamMetadata Metadata
+    public ReadOnlyMemory<byte> Payload
     {
         get;
     }
 }
+

@@ -24,11 +24,43 @@ public sealed class ProtocolException : Exception
         get;
     }
 
+    internal static ProtocolException DuplicateRequestId(
+        string message)
+    {
+        return new ProtocolException(
+            ProtocolErrorKind.DuplicateRequestId,
+            message);
+    }
+
+    internal static ProtocolException DuplicateStreamId(
+        string message)
+    {
+        return new ProtocolException(
+            ProtocolErrorKind.DuplicateStreamId,
+            message);
+    }
+
+    internal static ProtocolException StreamAborted(
+        string message)
+    {
+        return new ProtocolException(
+            ProtocolErrorKind.StreamAborted,
+            message);
+    }
+
     internal static ProtocolException InvalidSequence(
         string message)
     {
         return new ProtocolException(
             ProtocolErrorKind.InvalidSequence,
+            message);
+    }
+
+    internal static ProtocolException InternalError(
+        string message)
+    {
+        return new ProtocolException(
+            ProtocolErrorKind.InternalError,
             message);
     }
 

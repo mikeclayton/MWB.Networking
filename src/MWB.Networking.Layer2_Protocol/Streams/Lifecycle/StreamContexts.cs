@@ -1,4 +1,4 @@
-﻿using MWB.Networking.Layer2_Protocol.Internal;
+﻿  using MWB.Networking.Layer2_Protocol.Internal;
 using System.Diagnostics.CodeAnalysis;
 
 namespace MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
@@ -15,8 +15,7 @@ internal sealed class StreamContexts
     {
         if (!_streamContexts.TryAdd(context.StreamId, context))
         {
-            throw new ProtocolException(
-                ProtocolErrorKind.DuplicateStreamId,
+            throw ProtocolException.DuplicateStreamId(
                 $"A stream with ID {context.StreamId} already exists in this session");
         }
     }

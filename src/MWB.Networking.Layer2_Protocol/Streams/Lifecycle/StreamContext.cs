@@ -7,7 +7,7 @@ namespace MWB.Networking.Layer2_Protocol.Streams.Lifecycle;
 /// Holds the identity and lifecycle state of a protocol stream,
 /// from opening through closure or abort.
 /// </summary>
-internal sealed class StreamContext
+internal sealed partial class StreamContext
 {
     private StreamContext(
         uint streamId,
@@ -75,6 +75,13 @@ internal sealed class StreamContext
         return this.OutgoingStream;
     }
 
+    internal SessionStream GetSessionStream()
+    {
+        return (SessionStream?)this.IncomingStream
+            ?? this.OutgoingStream
+            ?? throw new InvalidOperationException("Stream not bound.");
+    }
+
     internal uint StreamId
     {
         get;
@@ -85,108 +92,8 @@ internal sealed class StreamContext
         get;
     }
 
-    internal StreamState StreamState
-    {
-        get;
-        private set;
-    } = StreamState.None;
-
-    internal bool IsFullyClosed
-        => !this.StreamState.HasFlag(StreamState.Aborted)
-        && this.StreamState.HasFlag(StreamState.LocalClosed | StreamState.RemoteClosed);
-
     internal ProtocolDirection Direction
     {
         get;
-    }
-
-    internal void EnsureCanSend()
-    {
-        if (this.StreamState.HasFlag(StreamState.Aborted))
-        {
-            throw new ProtocolException(
-                ProtocolErrorKind.StreamAborted,
-                $"Stream {StreamId} is aborted.");
-        }
-        if (this.StreamState.HasFlag(StreamState.LocalClosed))
-        {
-            throw new ProtocolException(
-                ProtocolErrorKind.InvalidSequence,
-                $"Stream {StreamId} has already closed its send direction.");
-        }
-    }
-
-    internal void EnsureCanReceive()
-    {
-        if (this.StreamState.HasFlag(StreamState.Aborted))
-        {
-            throw new ProtocolException(
-                ProtocolErrorKind.StreamAborted,
-                $"Stream {StreamId} is aborted.");
-        }
-
-        if (this.StreamState.HasFlag(StreamState.RemoteClosed))
-        {
-            // THIS is the real invariant:
-            // it's an error for the remote to send data after closing its half of the stream.
-            throw new ProtocolException(
-                ProtocolErrorKind.InvalidSequence,
-                $"Stream {StreamId} received data after remote close.");
-        }
-    }
-
-    internal void EnsureIncoming()
-    {
-        if (this.Direction != ProtocolDirection.Incoming)
-        {
-            throw ProtocolException.ProtocolViolation(
-                $"Stream {this.StreamId} is not inbound.");
-        }
-    }
-
-    /// <summary>
-    /// Marks the stream as cleanly closed by the local peer.
-    /// The local peer cannot send any more data, but can still receive.
-    /// </summary>
-    internal void CloseLocal()
-    {
-        if (this.StreamState.HasFlag(StreamState.Aborted))
-        {
-            throw ProtocolException.InvalidSequence($"Stream {StreamId} is aborted.");
-        }
-        if (this.StreamState.HasFlag(StreamState.LocalClosed))
-        {
-            // already closed — idempotent
-            return;
-        }
-        this.StreamState |= StreamState.LocalClosed;   // callers check IsFullyClosed themselves
-    }
-
-    /// <summary>
-    /// Marks the stream as cleanly closed by the remote peer.
-    /// The remote peer cannot send any more data, but can still receive.
-    /// </summary>
-    internal void CloseRemote()
-    {
-        if (this.StreamState.HasFlag(StreamState.Aborted))
-        {
-            throw ProtocolException.InvalidSequence($"Stream {StreamId} is aborted.");
-        }
-        if (this.StreamState.HasFlag(StreamState.RemoteClosed))
-        {
-            // already closed — idempotent
-            return;
-        }
-        this.StreamState |= StreamState.RemoteClosed;
-    }
-
-    /// <summary>
-    /// Abort this stream due to a failure condition signalled by
-    /// either the local or remote peer.
-    /// </summary>
-    internal void Abort()
-    {
-        // callers publish and remove themselves
-        this.StreamState = StreamState.Aborted;
     }
 }

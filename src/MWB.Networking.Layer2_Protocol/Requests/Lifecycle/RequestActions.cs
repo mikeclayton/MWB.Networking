@@ -16,20 +16,27 @@ internal sealed class RequestActions
     }
 
     internal OutgoingResponse Respond(
-        RequestContext context,
+        RequestContext requestContext,
         uint? responseType,
         ReadOnlyMemory<byte> payload,
         bool isError)
     {
-        ArgumentNullException.ThrowIfNull(context);
+        // ordering: validate -> transition -> execute
 
-        if (context.Direction != ProtocolDirection.Incoming)
+        // validate the current state
+        ArgumentNullException.ThrowIfNull(requestContext);
+        requestContext.EnsureCanRespond();
+        if (requestContext.Direction != ProtocolDirection.Incoming)
         {
             throw new InvalidOperationException("Cannot respond to an outgoing request.");
         }
 
+        // transition to the next state
+        requestContext.Respond();
+
+        // execute the external protocol work
         var response = this.RequestManager.ConsumeOutgoingResponse(
-            context.RequestId, responseType, payload, isError);
+            requestContext.RequestId, responseType, payload, isError);
 
         return response;
     }

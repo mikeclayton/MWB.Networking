@@ -68,12 +68,12 @@ public sealed partial class SessionAdapter : IOutgoingActionSink
     // Outgoing - Streams
     // ------------------------------------------------------------------
 
-    public event Action<OutgoingStreamOpened>? OutgoingStreamOpened;
-    public event Action<OutgoingStreamData>? OutgoingStreamData;
-    public event Action<OutgoingStreamClosed>? OutgoingStreamClosed;
-    public event Action<OutgoingStreamAborted>? OutgoingStreamAborted;
+    public event Action<StreamOpenedMessage>? OutgoingStreamOpened;
+    public event Action<StreamDataMessage>? OutgoingStreamData;
+    public event Action<StreamClosedMessage>? OutgoingStreamClosed;
+    public event Action<StreamAbortedMessage>? OutgoingStreamAborted;
 
-    public void TransmitOutgoingStreamOpened(OutgoingStreamOpened streamOpened)
+    public void TransmitOutgoingStreamOpened(StreamOpenedMessage streamOpened)
     {
         ArgumentNullException.ThrowIfNull(streamOpened);
         _queue.Writer.TryWrite(
@@ -89,7 +89,7 @@ public sealed partial class SessionAdapter : IOutgoingActionSink
             });
     }
 
-    public void TransmitOutgoingStreamData(OutgoingStreamData streamData)
+    public void TransmitOutgoingStreamData(StreamDataMessage streamData)
     {
         ArgumentNullException.ThrowIfNull(streamData);
         _queue.Writer.TryWrite(
@@ -105,7 +105,7 @@ public sealed partial class SessionAdapter : IOutgoingActionSink
             });
     }
 
-    public void TransmitOutgoingStreamClosed(OutgoingStreamClosed streamClosed)
+    public void TransmitOutgoingStreamClosed(StreamClosedMessage streamClosed)
     {
         ArgumentNullException.ThrowIfNull(streamClosed);
         _queue.Writer.TryWrite(
@@ -121,7 +121,7 @@ public sealed partial class SessionAdapter : IOutgoingActionSink
             });
     }
 
-    public void TransmitOutgoingStreamAborted(OutgoingStreamAborted streamAborted)
+    public void TransmitOutgoingStreamAborted(StreamAbortedMessage streamAborted)
     {
         ArgumentNullException.ThrowIfNull(streamAborted);
         _queue.Writer.TryWrite(

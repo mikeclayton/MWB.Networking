@@ -45,33 +45,33 @@ public sealed partial class SessionAdapter : IIncomingActionSink
     // Incoming - Streams
     // ------------------------------------------------------------------
 
-    public event Action<IncomingStreamOpened>? IncomingStreamOpened;
-    public event Action<IncomingStreamData>? IncomingStreamData;
-    public event Action<IncomingStreamClosed>? IncomingStreamClosed;
-    public event Action<IncomingStreamAborted>? IncomingStreamAborted;
+    public event Action<StreamOpenedMessage>? IncomingStreamOpened;
+    public event Action<StreamDataMessage>? IncomingStreamData;
+    public event Action<StreamClosedMessage>? IncomingStreamClosed;
+    public event Action<StreamAbortedMessage>? IncomingStreamAborted;
 
-    public void PublishIncomingStreamOpened(IncomingStreamOpened streamOpened)
+    public void PublishIncomingStreamOpened(StreamOpenedMessage streamOpened)
     {
         ArgumentNullException.ThrowIfNull(streamOpened);
         _queue.Writer.TryWrite(
             () => this.IncomingStreamOpened?.Invoke(streamOpened));
     }
 
-    public void PublishIncomingStreamData(IncomingStreamData streamData)
+    public void PublishIncomingStreamData(StreamDataMessage streamData)
     {
         ArgumentNullException.ThrowIfNull(streamData);
         _queue.Writer.TryWrite(
             () => this.IncomingStreamData?.Invoke(streamData));
     }
 
-    public void PublishIncomingStreamClosed(IncomingStreamClosed streamClosed)
+    public void PublishIncomingStreamClosed(StreamClosedMessage streamClosed)
     {
         ArgumentNullException.ThrowIfNull(streamClosed);
         _queue.Writer.TryWrite(
             () => this.IncomingStreamClosed?.Invoke(streamClosed));
     }
 
-    public void PublishIncomingStreamAborted(IncomingStreamAborted streamAborted)
+    public void PublishIncomingStreamAborted(StreamAbortedMessage streamAborted)
     {
         ArgumentNullException.ThrowIfNull(streamAborted);
         _queue.Writer.TryWrite(

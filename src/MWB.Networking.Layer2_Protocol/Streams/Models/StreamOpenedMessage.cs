@@ -2,17 +2,17 @@
 
 namespace MWB.Networking.Layer2_Protocol.Streams.Models;
 
-public sealed class IncomingStreamAborted
+public sealed class StreamOpenedMessage
 {
-    public IncomingStreamAborted(
-        IncomingStream stream,
+    public StreamOpenedMessage(
+        SessionStream stream,
         StreamMetadata metadata)
     {
         this.Stream = stream ?? throw new ArgumentNullException(nameof(stream));
         this.Metadata = metadata;
     }
 
-    public IncomingStream Stream
+    public SessionStream Stream
     {
         get;
     }

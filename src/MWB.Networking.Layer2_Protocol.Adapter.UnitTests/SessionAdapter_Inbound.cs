@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer1_Framing.Codec.Frames;
 using MWB.Networking.Layer2_Protocol.Adapter.UnitTests.Fakes;
-using MWB.Networking.Layer2_Protocol.Session.Frames;
 
 namespace MWB.Networking.Layer2_Protocol.Adapter.UnitTests;
 

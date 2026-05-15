@@ -24,11 +24,11 @@ internal interface IIncomingActionSink
     // Responses (remote peer → local application)
     void PublishIncomingResponse(IncomingResponse response);
 
-    void PublishIncomingStreamOpened(IncomingStreamOpened streamOpened);
+    void PublishIncomingStreamOpened(StreamOpenedMessage streamOpened);
 
-    void PublishIncomingStreamData(IncomingStreamData streamData);
+    void PublishIncomingStreamData(StreamDataMessage streamData);
 
-    void PublishIncomingStreamClosed(IncomingStreamClosed streamClosed);
+    void PublishIncomingStreamClosed(StreamClosedMessage streamClosed);
 
-    void PublishIncomingStreamAborted(IncomingStreamAborted streamAborted);
+    void PublishIncomingStreamAborted(StreamAbortedMessage streamAborted);
 }

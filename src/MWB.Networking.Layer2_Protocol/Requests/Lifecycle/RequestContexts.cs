@@ -15,8 +15,7 @@ internal sealed class RequestContexts
     {
         if (!_requestContexts.TryAdd(context.RequestId, context))
         {
-            throw new ProtocolException(
-                ProtocolErrorKind.DuplicateRequestId,
+            throw ProtocolException.DuplicateRequestId(
                 $"A request with ID {context.RequestId} already exists in this session");
         }
     }

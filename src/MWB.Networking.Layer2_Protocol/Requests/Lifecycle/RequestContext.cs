@@ -1,6 +1,5 @@
 ﻿using MWB.Networking.Layer2_Protocol.Internal;
 using MWB.Networking.Layer2_Protocol.Requests.Api;
-using MWB.Networking.Layer2_Protocol.Streams.Api;
 
 namespace MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 
@@ -8,7 +7,7 @@ namespace MWB.Networking.Layer2_Protocol.Requests.Lifecycle;
 /// Holds the identity and lifecycle state of a protocol request,
 /// from creation through completion or cancellation.
 /// </summary>
-internal sealed class RequestContext
+internal sealed partial class RequestContext
 {
     private RequestContext(
         uint requestId,
@@ -104,29 +103,6 @@ internal sealed class RequestContext
     }
 
     // ------------------------------------------------------------------
-    // Lifecycle / state
-    // ------------------------------------------------------------------
-
-    private RequestStateMachine StateMachine
-    {
-        get;
-    } = new RequestStateMachine();
-
-    /// <summary>
-    /// Indicates whether the Request has already been responded to.
-    /// </summary>
-    internal bool IsCompleted
-        => this.StateMachine.IsResponded;
-
-    /// <summary>
-    /// Marks the request as responded (terminal).
-    /// </summary>
-    internal void Close()
-    {
-        this.StateMachine.Respond();
-    }
-
-    // ------------------------------------------------------------------
     // Response completion (outgoing requests only)
     // ------------------------------------------------------------------
 
@@ -162,7 +138,7 @@ internal sealed class RequestContext
         // make sure we have a task completion before we update the state machine
         var tcs = this.GetResponseTcs();
 
-        this.StateMachine.Respond();
+        this.Respond();
 
         tcs.SetResult(response);
     }

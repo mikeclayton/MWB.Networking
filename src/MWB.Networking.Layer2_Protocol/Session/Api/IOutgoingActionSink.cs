@@ -24,11 +24,11 @@ internal interface IOutgoingActionSink
     // Responses (local application → remote peer)
     void TransmitOutgoingResponse(OutgoingResponse response);
 
-    void TransmitOutgoingStreamOpened(OutgoingStreamOpened streamOpened);
+    void TransmitOutgoingStreamOpened(StreamOpenedMessage streamOpened);
 
-    void TransmitOutgoingStreamData(OutgoingStreamData streamData);
+    void TransmitOutgoingStreamData(StreamDataMessage streamData);
 
-    void TransmitOutgoingStreamClosed(OutgoingStreamClosed streamClosed);
+    void TransmitOutgoingStreamClosed(StreamClosedMessage streamClosed);
 
-    void TransmitOutgoingStreamAborted(OutgoingStreamAborted streamAborted);
+    void TransmitOutgoingStreamAborted(StreamAbortedMessage streamAborted);
 }

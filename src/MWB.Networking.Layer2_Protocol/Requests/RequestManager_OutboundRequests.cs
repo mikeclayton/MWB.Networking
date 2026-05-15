@@ -26,8 +26,7 @@ internal sealed partial class RequestManager
         if (next == 0)
         {
             // wrapped from uint.MaxValue → 0
-            throw new ProtocolException(
-                ProtocolErrorKind.InternalError,
+            throw ProtocolException.InternalError(
                 "Request id pool exhausted.");
         }
         return next;
