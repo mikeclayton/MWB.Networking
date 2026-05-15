@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
+using MWB.Networking.Layer1_Framing.Codecs.Default.Network.Hosting;
 using MWB.Networking.Layer3_Endpoint.Hosting;
 using System.Diagnostics;
 using System.IO.Pipelines;
@@ -47,14 +48,12 @@ public sealed partial class Pipes
         var clientEndpoint = new SessionEndpointBuilder()
             .UseLogger(logger)
             .UseEvenStreamIds()
-            .ConfigurePipelineWith(
-                pipeline =>
-                {
-                    pipeline
-                        .UseLogger(logger)
-                        .UseLengthPrefixedCodec(logger)
-                        .WrapConnectionAsProvider(logger, clientConnection);
-                }
+            .WrapConnectionAsProvider(logger, clientConnection)
+            .UsePipeline(pipeline =>
+                pipeline
+                    .UseLogger(logger)
+                    .UseDefaultNetworkCodec()
+                    .UseLengthPrefixedCodec(logger)
             )
             .Build();
 
@@ -67,14 +66,12 @@ public sealed partial class Pipes
         var serverEndpoint = new SessionEndpointBuilder()
             .UseLogger(logger)
             .UseOddStreamIds()
-            .ConfigurePipelineWith(
-                pipeline =>
-                {
-                    pipeline
-                        .UseLogger(logger)
-                        .UseLengthPrefixedCodec(logger)
-                        .WrapConnectionAsProvider(logger, serverConnection);
-                }
+            .WrapConnectionAsProvider(logger, serverConnection)
+            .UsePipeline(pipeline =>
+                pipeline
+                    .UseLogger(logger)
+                    .UseDefaultNetworkCodec()
+                    .UseLengthPrefixedCodec(logger)
             )
             .OnEventReceived((_, _) =>
             {

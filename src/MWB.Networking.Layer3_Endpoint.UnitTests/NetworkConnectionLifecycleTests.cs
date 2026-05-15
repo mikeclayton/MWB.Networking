@@ -2,6 +2,9 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Instrumented;
 using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
+using MWB.Networking.Layer1_Framing.Codecs.Default.Network.Hosting;
+using MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.Transport.Hosting;
+using MWB.Networking.Layer1_Framing.Codecs.Reverse.Frame;
 using MWB.Networking.Layer3_Endpoint.Hosting;
 using MWB.Networking.Logging;
 using MWB.Networking.Logging.Debug;
@@ -81,14 +84,15 @@ public sealed class NetworkConnectionLifecycleTests
             new SessionEndpointBuilder()
                 .UseLogger(logger)
                 .UseEvenStreamIds()
-                .ConfigurePipelineWith(pipeline =>
-                {
+                .UseConnectionProvider(manualTestProvider)
+                .UsePipeline(pipeline =>
                     // Real frame codec pipeline, exactly as in production.
                     pipeline
                         .UseLogger(logger)
+                        .UseDefaultNetworkCodec()
+                        .UseReverseFrameCodec()
                         .UseLengthPrefixedCodec(logger)
-                        .UseConnectionProvider(manualTestProvider);
-                })
+                )
                 .Build();
 
         // ------------------------------------------------------------
@@ -147,13 +151,13 @@ public sealed class NetworkConnectionLifecycleTests
                 new SessionEndpointBuilder()
                     .UseLogger(logger)
                     .UseEvenStreamIds()
-                    .ConfigurePipelineWith(pipeline =>
-                    {
+                    .UseConnectionProvider(manualTestProvider)
+                    .UsePipeline(pipeline =>
                         pipeline
                             .UseLogger(logger)
+                            .UseDefaultNetworkCodec()
                             .UseLengthPrefixedCodec(logger)
-                            .UseConnectionProvider(manualTestProvider);
-                    })
+                    )
                     .Build();
             await endpoint.StartAsync(ct);
             return endpoint;

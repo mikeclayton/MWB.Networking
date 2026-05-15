@@ -1,4 +1,6 @@
 using MWB.Networking.Layer0_Transport.Memory;
+using MWB.Networking.Layer1_Framing.Codecs.Default.Network.Hosting;
+using MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.Transport.Hosting;
 using MWB.Networking.Layer3_Endpoint.Hosting;
 using MWB.Networking.Logging.Debug;
 
@@ -59,14 +61,12 @@ public partial class StreamContext_Lifecycle
         var endpointB = new SessionEndpointBuilder()
             .UseLogger(logger)
             .UseOddStreamIds()
-            .ConfigurePipelineWith(
-                pipeline =>
-                {
-                    pipeline
-                        .UseLogger(logger)
-                        .UseLengthPrefixedCodec(logger)
-                        .UseConnectionProvider(providerB);
-                }
+            .UseConnectionProvider(providerB)
+            .UsePipeline(pipeline =>
+                pipeline
+                    .UseLogger(logger)
+                    .UseDefaultNetworkCodec()
+                    .UseLengthPrefixedCodec(logger)
             )
             .OnRequestReceived((request, payload) =>
             {
@@ -86,14 +86,12 @@ public partial class StreamContext_Lifecycle
         var endpointA = new SessionEndpointBuilder()
             .UseLogger(logger)
             .UseEvenStreamIds()
-            .ConfigurePipelineWith(
-                pipeline =>
-                {
-                    pipeline
-                        .UseLogger(logger)
-                        .UseLengthPrefixedCodec(logger)
-                        .UseConnectionProvider(providerA);
-                }
+            .UseConnectionProvider(providerA)
+            .UsePipeline(pipeline =>
+                pipeline
+                    .UseLogger(logger)
+                    .UseDefaultNetworkCodec()
+                    .UseLengthPrefixedCodec(logger)
             )
             .Build();
 

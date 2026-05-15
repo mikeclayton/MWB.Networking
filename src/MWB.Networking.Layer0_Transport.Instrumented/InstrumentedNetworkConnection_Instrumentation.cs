@@ -1,6 +1,6 @@
-﻿using MWB.Networking.Layer0_Transport.Encoding;
-using MWB.Networking.Layer0_Transport.Stack.Abstractions;
-using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
+﻿using MWB.Networking.Layer0_Transport.Stack.Core.Connection;
+using MWB.Networking.Layer0_Transport.Stack.Core.Lifecycle;
+using MWB.Networking.Layer0_Transport.Stack.Core.Primitives;
 
 namespace MWB.Networking.Layer0_Transport.Instrumented;
 

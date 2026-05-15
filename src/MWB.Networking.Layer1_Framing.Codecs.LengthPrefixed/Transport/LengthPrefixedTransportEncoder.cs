@@ -11,7 +11,7 @@ public sealed class LengthPrefixedTransportEncoder
         this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public ILogger Logger
+    private ILogger Logger
     {
         get;
     }

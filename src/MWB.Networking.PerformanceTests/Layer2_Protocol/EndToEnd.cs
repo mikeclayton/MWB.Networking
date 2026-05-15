@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Memory;
+using MWB.Networking.Layer1_Framing.Codecs.Default.Network.Hosting;
+using MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.Transport.Hosting;
 using MWB.Networking.Layer3_Endpoint.Hosting;
 using MWB.Networking.Logging;
 using System.Diagnostics;
@@ -58,14 +60,12 @@ public partial class Layer2_Protocol_EndToEnd
         var endpointA = new SessionEndpointBuilder()
             .UseLogger(logger)
             .UseOddStreamIds()
-            .ConfigurePipelineWith(
-                pipeline =>
-                {
-                    pipeline
-                        .UseLogger(logger)
-                        .UseLengthPrefixedCodec(logger)
-                        .UseConnectionProvider(providerA);
-                }
+            .UseConnectionProvider(providerA)
+            .UsePipeline(pipeline =>
+                pipeline
+                    .UseLogger(logger)
+                    .UseDefaultNetworkCodec()
+                    .UseLengthPrefixedCodec(logger)
             )
             .Build();
 
@@ -81,14 +81,12 @@ public partial class Layer2_Protocol_EndToEnd
         var endpointB = new SessionEndpointBuilder()
             .UseLogger(logger)
             .UseEvenStreamIds()
-            .ConfigurePipelineWith(
-                pipeline =>
-                {
-                    pipeline
-                        .UseLogger(logger)
-                        .UseLengthPrefixedCodec(logger)
-                        .UseConnectionProvider(providerB);
-                }
+            .UseConnectionProvider(providerB)
+            .UsePipeline(pipeline =>
+                pipeline
+                    .UseLogger(logger)
+                    .UseDefaultNetworkCodec()
+                    .UseLengthPrefixedCodec(logger)
             )
             .OnEventReceived(
                 (_, _) =>

@@ -1,6 +1,6 @@
-﻿using MWB.Networking.Layer0_Transport.Encoding;
-using MWB.Networking.Layer0_Transport.Stack.Abstractions;
-using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
+﻿using MWB.Networking.Layer0_Transport.Stack.Core.Connection;
+using MWB.Networking.Layer0_Transport.Stack.Core.Lifecycle;
+using MWB.Networking.Layer0_Transport.Stack.Core.Primitives;
 using System.Net.Sockets;
 
 namespace MWB.Networking.Layer0_Transport.Tcp;
@@ -20,7 +20,7 @@ public sealed class TcpNetworkConnection
     private readonly NetworkStream _stream;
     private readonly int _maxFrameSize;
 
-    private ObservableConnectionStatus? _status;
+    private IConnectionStatus? _status;
     private bool _started;
     private volatile bool _disposed;
 
@@ -37,7 +37,7 @@ public sealed class TcpNetworkConnection
     // Lifecycle binding (called by provider)
     // ------------------------------------------------------------------
 
-    internal void BindStatus(ObservableConnectionStatus status)
+    internal void BindStatus(IConnectionStatus status)
     {
         if (_status is not null)
             throw new InvalidOperationException("Status already bound.");

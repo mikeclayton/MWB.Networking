@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.Session.Api;
+using MWB.Networking.Layer2_Protocol.Session.Hosting;
 using MWB.Networking.Layer2_Protocol.Session.Streams.Infrastructure;
 
 namespace MWB.Networking.PerformanceTests.Helpers;
@@ -11,7 +12,7 @@ internal static class ProtocolSessionHelper
         ILogger logger,
         OddEvenStreamIdParity parity)
     {
-        var config = new ProtocolSessionConfig(
+        var config = new ProtocolSessionOptions(
             new OddEvenStreamIdProvider(parity));
 
         return new ProtocolSession(logger, config).AsHandle();

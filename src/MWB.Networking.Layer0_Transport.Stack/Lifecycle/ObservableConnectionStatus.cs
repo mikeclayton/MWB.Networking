@@ -1,6 +1,8 @@
-﻿namespace MWB.Networking.Layer0_Transport.Stack.Lifecycle;
+﻿using MWB.Networking.Layer0_Transport.Stack.Core.Lifecycle;
 
-public sealed class ObservableConnectionStatus
+namespace MWB.Networking.Layer0_Transport.Stack.Lifecycle;
+
+public sealed class ObservableConnectionStatus : IConnectionStatus
 {
     private readonly object _sync = new();
 

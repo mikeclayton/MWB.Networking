@@ -1,5 +1,6 @@
-﻿using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Instrumented;
+using MWB.Networking.Layer0_Transport.Stack.Hosting;
 using MWB.Networking.Layer0_Transport.Stack.Exceptions;
 
 namespace MWB.Networking.Layer0_Transport.Stack.UnitTests;
@@ -29,7 +30,11 @@ public sealed class AwaitConnectedTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         await stack.ConnectAsync();
         provider.Instrumentation
@@ -50,7 +55,11 @@ public sealed class AwaitConnectedTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         await stack.ConnectAsync();
         // Connection is in initial Disconnected state; not yet Connected.
@@ -78,7 +87,11 @@ public sealed class AwaitConnectedTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         await stack.ConnectAsync();
         var awaitTask = stack.AwaitConnectedAsync();
@@ -104,7 +117,11 @@ public sealed class AwaitConnectedTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         await stack.ConnectAsync();
         var awaitTask = stack.AwaitConnectedAsync();
@@ -128,7 +145,11 @@ public sealed class AwaitConnectedTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         Assert.Throws<InvalidOperationException>(
             () => stack.AwaitConnectedAsync());
@@ -143,7 +164,11 @@ public sealed class AwaitConnectedTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         await stack.ConnectAsync();
         provider.Instrumentation

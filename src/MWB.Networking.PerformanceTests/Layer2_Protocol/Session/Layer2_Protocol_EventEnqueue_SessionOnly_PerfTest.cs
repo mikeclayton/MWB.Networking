@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
+using MWB.Networking.Layer1_Framing.Codecs.Default.Network.Hosting;
+using MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.Transport;
 using MWB.Networking.Layer3_Endpoint.Hosting;
 using System.Diagnostics;
 
@@ -52,14 +54,12 @@ public sealed class Session
             new SessionEndpointBuilder()
                 .UseLogger(logger)
                 .UseEvenStreamIds()
-                .ConfigurePipelineWith(
-                    pipeline =>
-                    {
-                        pipeline
-                            .UseLogger(logger)
-                            .UseLengthPrefixedCodec(logger)
-                            .UseNullConnectionProvider(logger);
-                    }
+                .UseNullConnectionProvider(logger)
+                .UsePipeline(pipeline =>
+                    pipeline
+                        .UseLogger(logger)
+                        .UseDefaultNetworkCodec()
+                        .UseLengthPrefixedCodec(logger)
                 )
                 .Build();
 

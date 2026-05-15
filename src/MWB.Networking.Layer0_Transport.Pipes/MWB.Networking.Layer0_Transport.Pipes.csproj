@@ -7,8 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Primitives\MWB.Networking.Layer0_Transport.Encoding.csproj" />
-    <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Stack\MWB.Networking.Layer0_Transport.Stack.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Stack.Core\MWB.Networking.Layer0_Transport.Stack.Core.csproj" />
     <ProjectReference Include="..\MWB.Networking.Logging\MWB.Networking.Logging.csproj" />
   </ItemGroup>
 

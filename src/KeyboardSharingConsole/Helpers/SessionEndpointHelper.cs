@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer0_Transport.Stack.Abstractions;
-using MWB.Networking.Layer1_Framing.Codecs.Default.Network;
-using MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.Transport;
+using MWB.Networking.Layer0_Transport.Stack.Core.Connection;
+using MWB.Networking.Layer1_Framing.Codecs.Default.Network.Hosting;
+using MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.Transport.Hosting;
 using MWB.Networking.Layer2_Protocol.Session.Events.Api;
 using MWB.Networking.Layer2_Protocol.Session.Requests.Api;
 using MWB.Networking.Layer2_Protocol.Session.Streams.Infrastructure;
@@ -28,10 +28,13 @@ internal static class SessionEndpointHelper
                         : OddEvenStreamIdParity.Odd
                 )
                 .UseConnectionProvider(connectionProvider)
-                .ConfigurePipelineWith(pipeline =>
-                    pipeline
-                        .UseDefaultNetworkCodec()
-                        .UseLengthPrefixedTransport(logger));
+                .UsePipeline(
+                    pipeline =>
+                        pipeline
+                            .UseLogger(logger)
+                            .UseDefaultNetworkCodec()
+                            .UseLengthPrefixedCodec(logger)
+                );
 
         if (eventReceived is not null)
         {

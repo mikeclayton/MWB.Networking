@@ -17,7 +17,7 @@ public sealed class LengthPrefixedTransportDecoder
         _maxFrameSize = maxFrameSize;
     }
 
-    public ILogger Logger
+    private ILogger Logger
     {
         get;
     }

@@ -1,5 +1,7 @@
 ﻿using MWB.Networking.Layer0_Transport.Pipes;
 using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
+using MWB.Networking.Layer1_Framing.Codecs.Default.Network.Hosting;
+using MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.Transport;
 using MWB.Networking.Layer2_Protocol.Session.Requests.Api;
 using MWB.Networking.Layer3_Endpoint.Hosting;
 using MWB.Networking.Logging.Debug;
@@ -66,14 +68,12 @@ public sealed class EventRequests
             new SessionEndpointBuilder()
                 .UseLogger(logger)
                 .UseOddStreamIds()
-                .ConfigurePipelineWith(
-                    pipeline =>
-                    {
-                        pipeline
-                            .UseLogger(logger)
-                            .UseLengthPrefixedCodec(logger)
-                            .WrapConnectionAsProvider(logger, serverConnection);
-                    }
+                .WrapConnectionAsProvider(logger, serverConnection)
+                .UsePipeline(pipeline =>
+                    pipeline
+                        .UseLogger(logger)
+                        .UseDefaultNetworkCodec()
+                        .UseLengthPrefixedCodec(logger)
                 )
                 .OnRequestReceived(
                     (request, payload) =>
@@ -91,14 +91,12 @@ public sealed class EventRequests
             new SessionEndpointBuilder()
                 .UseLogger(logger)
                 .UseEvenStreamIds()
-                .ConfigurePipelineWith(
-                    pipeline =>
-                    {
-                        pipeline
-                            .UseLogger(logger)
-                            .UseLengthPrefixedCodec(logger)
-                            .WrapConnectionAsProvider(logger, clientConnection);
-                    }
+                .WrapConnectionAsProvider(logger, clientConnection)
+                .UsePipeline(pipeline =>
+                    pipeline
+                        .UseLogger(logger)
+                        .UseDefaultNetworkCodec()
+                        .UseLengthPrefixedCodec(logger)
                 )
                 .Build();
 

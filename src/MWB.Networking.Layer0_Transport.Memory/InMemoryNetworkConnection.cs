@@ -1,7 +1,7 @@
-﻿using MWB.Networking.Layer0_Transport.Encoding;
-using MWB.Networking.Layer0_Transport.Segmented;
-using MWB.Networking.Layer0_Transport.Stack.Abstractions;
-using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
+﻿using MWB.Networking.Buffers.Segmented;
+using MWB.Networking.Layer0_Transport.Stack.Core.Connection;
+using MWB.Networking.Layer0_Transport.Stack.Core.Lifecycle;
+using MWB.Networking.Layer0_Transport.Stack.Core.Primitives;
 
 namespace MWB.Networking.Layer0_Transport.Memory;
 
@@ -20,7 +20,7 @@ public sealed class InMemoryNetworkConnection :
     private readonly SegmentedBufferReader _reader;
     private readonly SegmentedBufferWriter _writer;
 
-    private ObservableConnectionStatus? _status;
+    private IConnectionStatus? _status;
     private bool _started;
     private volatile bool _disposed;
 
@@ -40,7 +40,7 @@ public sealed class InMemoryNetworkConnection :
     /// Binds the lifecycle status for this connection attempt.
     /// Must be called exactly once before <see cref="OnStarted"/>.
     /// </summary>
-    internal void BindStatus(ObservableConnectionStatus status)
+    internal void BindStatus(IConnectionStatus status)
     {
         if (_status is not null)
             throw new InvalidOperationException("Status already bound.");

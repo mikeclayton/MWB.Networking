@@ -1,9 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
-using MWB.Networking.Layer2_Protocol.Session;
 using MWB.Networking.Layer2_Protocol.Session.Api;
+using MWB.Networking.Layer2_Protocol.Session.Hosting;
 using MWB.Networking.Layer2_Protocol.Session.Streams.Infrastructure;
 
-namespace MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
+namespace MWB.Networking.Layer2_Protocol.Session.UnitTests.Helpers;
 
 internal static class ProtocolSessionHelper
 {
@@ -11,10 +11,10 @@ internal static class ProtocolSessionHelper
         ILogger logger,
         OddEvenStreamIdParity parity)
     {
-        var config = new ProtocolSessionConfig(
-            new OddEvenStreamIdProvider(parity));
-
-        return new ProtocolSession(logger, config).AsHandle();
+        return new ProtocolSessionBuilder()
+            .UseLogger(logger)
+            .UseStreamIdParity(parity)
+            .Build();
     }
 
     public static ProtocolSessionHandle CreateOddProtocolSession(ILogger logger)

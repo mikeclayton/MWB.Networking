@@ -40,7 +40,7 @@ public sealed class Layer2_Protocol_Events
     // ---------------------------------------------------------------
 
     [TestMethod]
-    public void Layer2_Protocol_Performance_Events_10000()
+    public void Layer2_Protocol_Performance_Events_10_000()
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
@@ -76,7 +76,7 @@ public sealed class Layer2_Protocol_Events
     // ---------------------------------------------------------------
 
     [TestMethod]
-    public void Layer2_Protocol_Performance_Requests_10000()
+    public void Layer2_Protocol_Performance_Requests_10_000()
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);
@@ -114,7 +114,7 @@ public sealed class Layer2_Protocol_Events
     // ---------------------------------------------------------------
 
     [TestMethod]
-    public void Layer2_Protocol_Performance_Streams_OpenSendClose_10000()
+    public void Layer2_Protocol_Performance_Streams_OpenSendClose_10_000()
     {
         var logger = NullLogger.Instance;
         var session = ProtocolSessionHelper.CreateOddProtocolSession(logger);

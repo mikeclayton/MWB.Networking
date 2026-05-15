@@ -1,6 +1,7 @@
-﻿using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Instrumented;
-using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
+using MWB.Networking.Layer0_Transport.Stack.Hosting;
+using MWB.Networking.Layer0_Transport.Stack.Core.Lifecycle;
 using MWB.Networking.Layer0_Transport.Stack.UnitTests.Helpers;
 
 namespace MWB.Networking.Layer0_Transport.Stack.UnitTests;
@@ -30,16 +31,20 @@ public sealed class FaultTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         TransportFaultedEventArgs? capturedArgs = null;
         stack.Faulted += (_, args) => { capturedArgs = args; };
 
-        await stack.ConnectAsync();
+        await stack.ConnectAsync(TestContext.CancellationToken);
         provider.Instrumentation
             .Connection!.Instrumentation
             .OnStarted();
-        await stack.AwaitConnectedAsync()
+        await stack.AwaitConnectedAsync(TestContext.CancellationToken)
             .WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
 
         provider.Instrumentation
@@ -60,14 +65,19 @@ public sealed class FaultTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
+
         using var recorder = new StateRecorder(stack);
 
-        await stack.ConnectAsync();
+        await stack.ConnectAsync(TestContext.CancellationToken);
         provider.Instrumentation
             .Connection!.Instrumentation
             .OnStarted();
-        await stack.AwaitConnectedAsync()
+        await stack.AwaitConnectedAsync(TestContext.CancellationToken)
             .WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
 
         provider.Instrumentation
@@ -94,18 +104,22 @@ public sealed class FaultTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         TransportFaultedEventArgs? capturedArgs = null;
         stack.Faulted += (_, args) => { capturedArgs = args; };
 
         var rootCause = new IOException("Simulated network error.");
 
-        await stack.ConnectAsync();
+        await stack.ConnectAsync(TestContext.CancellationToken);
         provider.Instrumentation
             .Connection!.Instrumentation
             .OnStarted();
-        await stack.AwaitConnectedAsync()
+        await stack.AwaitConnectedAsync(TestContext.CancellationToken)
             .WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
 
         provider.Instrumentation
@@ -125,7 +139,11 @@ public sealed class FaultTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         var faultedRaised = false;
         stack.Faulted += (_, _) => { faultedRaised = true; };
@@ -149,7 +167,11 @@ public sealed class FaultTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         var providerEx = new InvalidOperationException("Host unreachable.");
         provider.Instrumentation

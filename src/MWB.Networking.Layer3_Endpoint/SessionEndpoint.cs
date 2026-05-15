@@ -13,7 +13,7 @@ public sealed partial class SessionEndpoint : IAsyncDisposable
     // Construction
     // ------------------------------------------------------------
 
-    public SessionEndpoint(
+    internal SessionEndpoint(
         ILogger logger,
         IProtocolRuntimeFactory runtimeFactory,
         SessionEndpointObservers observers
@@ -26,7 +26,7 @@ public sealed partial class SessionEndpoint : IAsyncDisposable
 
     // construction parameters
 
-    public ILogger Logger
+    private ILogger Logger
     {
         get;
     }

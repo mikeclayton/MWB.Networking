@@ -1,6 +1,4 @@
-﻿using MWB.Networking.Layer0_Transport.Stack.Abstractions;
-
-namespace MWB.Networking.Layer0_Transport.Instrumented;
+﻿namespace MWB.Networking.Layer0_Transport.Instrumented;
 
 /// <summary>
 /// Provides a test-only control surface for an <see cref="INetworkConnectionProvider"/>,

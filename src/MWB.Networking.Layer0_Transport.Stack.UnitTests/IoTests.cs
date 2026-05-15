@@ -1,6 +1,7 @@
-﻿using Microsoft.Extensions.Logging.Abstractions;
-using MWB.Networking.Layer0_Transport.Encoding;
+using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Instrumented;
+using MWB.Networking.Layer0_Transport.Stack.Hosting;
+using MWB.Networking.Layer0_Transport.Stack.Core.Primitives;
 
 namespace MWB.Networking.Layer0_Transport.Stack.UnitTests;
 
@@ -29,13 +30,17 @@ public sealed class IoTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
-        await stack.ConnectAsync();
+        await stack.ConnectAsync(TestContext.CancellationToken);
         provider.Instrumentation
             .Connection!.Instrumentation
             .OnStarted();
-        await stack.AwaitConnectedAsync()
+        await stack.AwaitConnectedAsync(TestContext.CancellationToken)
             .WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
 
         var payload = new byte[] { 0xDE, 0xAD, 0xBE, 0xEF };
@@ -59,13 +64,17 @@ public sealed class IoTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
-        await stack.ConnectAsync();
+        await stack.ConnectAsync(TestContext.CancellationToken);
         provider.Instrumentation
             .Connection!.Instrumentation
             .OnStarted();
-        await stack.AwaitConnectedAsync()
+        await stack.AwaitConnectedAsync(TestContext.CancellationToken)
             .WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
 
         var injected = new byte[] { 1, 2, 3 };
@@ -91,9 +100,13 @@ public sealed class IoTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
-        await stack.ConnectAsync();
+        await stack.ConnectAsync(TestContext.CancellationToken);
         // Not connected yet — do NOT call OnStarted.
 
         // Inject data before the gate opens.
@@ -131,13 +144,17 @@ public sealed class IoTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
-        await stack.ConnectAsync();
+        await stack.ConnectAsync(TestContext.CancellationToken);
         // Not connected yet.
 
         var payload = new byte[] { 0xFF };
-        var writeTask = stack.WriteAsync(new ByteSegments(payload)).AsTask();
+        var writeTask = stack.WriteAsync(new ByteSegments(payload), TestContext.CancellationToken).AsTask();
 
         Assert.IsFalse(writeTask.IsCompleted,
             "WriteAsync should be gated until Connected.");
@@ -163,13 +180,17 @@ public sealed class IoTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
-        await stack.ConnectAsync();
+        await stack.ConnectAsync(TestContext.CancellationToken);
         provider.Instrumentation
             .Connection!.Instrumentation
             .OnStarted();
-        await stack.AwaitConnectedAsync()
+        await stack.AwaitConnectedAsync(TestContext.CancellationToken)
             .WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
 
         // Simulate the remote side closing.
@@ -178,7 +199,8 @@ public sealed class IoTests
             .Disconnect("EOF");
 
         var buffer = new byte[16];
-        var bytesRead = await stack.ReadAsync(buffer)
+        var bytesRead = await stack
+            .ReadAsync(buffer, TestContext.CancellationToken)
             .AsTask()
             .WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
 
@@ -194,7 +216,11 @@ public sealed class IoTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         Assert.ThrowsExactly<InvalidOperationException>(
             () => stack.ReadAsync(new byte[16]));
@@ -209,7 +235,11 @@ public sealed class IoTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         Assert.ThrowsExactly<InvalidOperationException>(
             () => stack.WriteAsync(new ByteSegments(new byte[] { 1 })));
@@ -224,9 +254,13 @@ public sealed class IoTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
-        await stack.ConnectAsync();
+        await stack.ConnectAsync(TestContext.CancellationToken);
         provider.Instrumentation
             .Connection!.Instrumentation
             .SignalConnecting(); // stuck in Connecting
@@ -250,13 +284,17 @@ public sealed class IoTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
-        await stack.ConnectAsync();
+        await stack.ConnectAsync(TestContext.CancellationToken);
         provider.Instrumentation
             .Connection!.Instrumentation
             .OnStarted();
-        await stack.AwaitConnectedAsync()
+        await stack.AwaitConnectedAsync(TestContext.CancellationToken)
             .WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
 
         var injectedEx = new IOException("Simulated mid-stream network error.");

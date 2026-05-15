@@ -1,26 +1,25 @@
-﻿using MWB.Networking.Layer1_Framing.Codec.Abstractions;
+﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer1_Framing.Codec.Abstractions;
 
 namespace MWB.Networking.Layer1_Framing.Pipeline;
 
 public sealed class NetworkPipelineFactory : INetworkPipelineFactory
 {
+    private readonly ILogger _logger;
     private readonly Func<INetworkFrameCodec> _networkFrameCodecFactory;
     private readonly IReadOnlyList<Func<IFrameCodec>> _frameCodecFactories;
     private readonly Func<ITransportCodec> _transportCodecFactory;
 
     public NetworkPipelineFactory(
+        ILogger logger,
         Func<INetworkFrameCodec> networkFrameCodecFactory,
         IReadOnlyList<Func<IFrameCodec>> frameCodecFactories,
         Func<ITransportCodec> transportCodecFactory)
     {
-        _networkFrameCodecFactory =
-            networkFrameCodecFactory ?? throw new ArgumentNullException(nameof(networkFrameCodecFactory));
-
-        _frameCodecFactories =
-            frameCodecFactories ?? throw new ArgumentNullException(nameof(frameCodecFactories));
-
-        _transportCodecFactory =
-            transportCodecFactory ?? throw new ArgumentNullException(nameof(transportCodecFactory));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _networkFrameCodecFactory = networkFrameCodecFactory ?? throw new ArgumentNullException(nameof(networkFrameCodecFactory));
+        _frameCodecFactories = frameCodecFactories ?? throw new ArgumentNullException(nameof(frameCodecFactories));
+        _transportCodecFactory = transportCodecFactory ?? throw new ArgumentNullException(nameof(transportCodecFactory));
     }
 
     public NetworkPipeline CreatePipeline()
@@ -36,6 +35,7 @@ public sealed class NetworkPipelineFactory : INetworkPipelineFactory
         var transportCodec = _transportCodecFactory();
 
         return new NetworkPipeline(
+            _logger,
             networkFrameCodec,
             frameCodecs,
             transportCodec);

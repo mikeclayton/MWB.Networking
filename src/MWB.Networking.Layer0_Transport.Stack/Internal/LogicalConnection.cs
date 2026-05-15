@@ -1,5 +1,6 @@
-﻿using MWB.Networking.Layer0_Transport.Encoding;
-using MWB.Networking.Layer0_Transport.Stack.Abstractions;
+﻿using MWB.Networking.Layer0_Transport.Stack.Core.Connection;
+using MWB.Networking.Layer0_Transport.Stack.Core.Lifecycle;
+using MWB.Networking.Layer0_Transport.Stack.Core.Primitives;
 using MWB.Networking.Layer0_Transport.Stack.Exceptions;
 using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
 

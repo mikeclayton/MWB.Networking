@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer0_Transport.Instrumented;
+using MWB.Networking.Layer0_Transport.Stack.Hosting;
+using MWB.Networking.Layer0_Transport.Stack.Core.Lifecycle;
 using MWB.Networking.Layer0_Transport.Stack.Lifecycle;
 using MWB.Networking.Layer0_Transport.Stack.UnitTests.Helpers;
 
@@ -29,7 +31,11 @@ public sealed class DisposalTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         await stack.DisposeAsync();
 
@@ -46,14 +52,19 @@ public sealed class DisposalTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
+
         using var recorder = new StateRecorder(stack);
 
-        await stack.ConnectAsync();
+        await stack.ConnectAsync(TestContext.CancellationToken);
         provider.Instrumentation
             .Connection!.Instrumentation
             .OnStarted();
-        await stack.AwaitConnectedAsync()
+        await stack.AwaitConnectedAsync(TestContext.CancellationToken)
             .WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
 
         await stack.DisposeAsync();
@@ -73,7 +84,11 @@ public sealed class DisposalTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        var stack = new TransportStack(logger, provider);
+        var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         // Should not throw on repeated disposal
         await stack.DisposeAsync();
@@ -90,7 +105,11 @@ public sealed class DisposalTests
     {
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
-        using var stack = new TransportStack(logger, provider);
+        using var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build();
 
         ((IDisposable)stack).Dispose();
 
@@ -108,13 +127,17 @@ public sealed class DisposalTests
         var logger = NullLogger.Instance;
         var provider = new InstrumentedNetworkConnectionProvider(logger);
 
-        using (var stack = new TransportStack(logger, provider))
+        using (var stack = new TransportStackBuilder()
+            .UseLogger(logger)
+            .UseConnectionProvider(provider)
+            .OwnsProvider(true)
+            .Build())
         {
-            await stack.ConnectAsync();
+            await stack.ConnectAsync(TestContext.CancellationToken);
             provider.Instrumentation
                 .Connection!.Instrumentation
                 .OnStarted();
-            await stack.AwaitConnectedAsync()
+            await stack.AwaitConnectedAsync(TestContext.CancellationToken)
                 .WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
         }
         // No exception on scope exit.

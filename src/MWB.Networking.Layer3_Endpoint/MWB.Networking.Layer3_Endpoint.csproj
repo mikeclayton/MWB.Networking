@@ -7,7 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MWB.Networking.Layer2_Protocol.Session\MWB.Networking.Layer2_Protocol.Session.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer0_Transport.Stack\MWB.Networking.Layer0_Transport.Stack.csproj" />
+    <ProjectReference Include="..\MWB.Networking.Layer1_Framing.Driver\MWB.Networking.Layer1_Framing.Driver.csproj" />
   </ItemGroup>
 
 </Project>

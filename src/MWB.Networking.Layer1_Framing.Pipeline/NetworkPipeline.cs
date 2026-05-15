@@ -1,4 +1,5 @@
-﻿using MWB.Networking.Layer0_Transport.Encoding;
+﻿using Microsoft.Extensions.Logging;
+using MWB.Networking.Layer0_Transport.Stack.Core.Primitives;
 using MWB.Networking.Layer1_Framing.Codec;
 using MWB.Networking.Layer1_Framing.Codec.Abstractions;
 using MWB.Networking.Layer1_Framing.Codec.Buffer;
@@ -13,21 +14,21 @@ namespace MWB.Networking.Layer1_Framing.Pipeline;
 /// </summary>
 public sealed class NetworkPipeline
 {
+    private readonly ILogger _logger;
     private readonly INetworkFrameCodec _networkFrameCodec;
     private readonly IReadOnlyList<IFrameCodec> _frameCodecs;
     private readonly ITransportCodec _transportCodec;
 
     public NetworkPipeline(
+        ILogger logger,
         INetworkFrameCodec networkFrameCodec,
         IReadOnlyList<IFrameCodec> frameCodecs,
         ITransportCodec transportCodec)
     {
-        _networkFrameCodec = networkFrameCodec
-            ?? throw new ArgumentNullException(nameof(networkFrameCodec));
-        _frameCodecs = frameCodecs
-            ?? throw new ArgumentNullException(nameof(frameCodecs));
-        _transportCodec = transportCodec
-            ?? throw new ArgumentNullException(nameof(transportCodec));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _networkFrameCodec = networkFrameCodec ?? throw new ArgumentNullException(nameof(networkFrameCodec));
+        _frameCodecs = frameCodecs ?? throw new ArgumentNullException(nameof(frameCodecs));
+        _transportCodec = transportCodec ?? throw new ArgumentNullException(nameof(transportCodec));
     }
 
     // --------------------------------------------------------------------
@@ -39,7 +40,6 @@ public sealed class NetworkPipeline
     /// </summary>
     public ByteSegments Encode(NetworkFrame frame)
     {
-
         var currentBuffer = new CodecBuffer();
 
         try
@@ -100,7 +100,7 @@ public sealed class NetworkPipeline
         ref ReadOnlySequence<byte> transportBytes,
         out NetworkFrame? frame)
     {
-        frame = default!;
+        frame = default;
 
         // work on a local copy so transport consumption is atomic
         var current = transportBytes;

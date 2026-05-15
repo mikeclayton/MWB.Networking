@@ -1,4 +1,4 @@
-﻿using MWB.Networking.Layer0_Transport.Segmented;
+﻿using MWB.Networking.Buffers.Segmented;
 
 namespace MWB.Networking.Layer0_Transport.Memory.Buffer;
 

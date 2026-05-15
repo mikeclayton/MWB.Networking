@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
-using MWB.Networking.Layer0_Transport.Encoding;
-using MWB.Networking.Layer1_Framing.Codec.Abstractions;
+using MWB.Networking.Layer0_Transport.Stack.Core.Primitives;
 using MWB.Networking.Layer1_Framing.Codec.Frames;
 using MWB.Networking.Layer1_Framing.Codecs.Default.Network;
 using MWB.Networking.Layer1_Framing.Codecs.LengthPrefixed.Transport;
@@ -24,8 +23,9 @@ internal static class PipelineTestHelpers
     /// </summary>
     internal static NetworkPipeline CreateStandardPipeline()
         => new(
+            NullLogger.Instance,
             new DefaultNetworkFrameCodec(),
-            new[] { new ReverseFrameCodec() },
+            [new ReverseFrameCodec()],
             new LengthPrefixedTransportCodec(NullLogger.Instance));
 
     /// <summary>
@@ -35,8 +35,9 @@ internal static class PipelineTestHelpers
     /// </summary>
     internal static NetworkPipeline CreateZeroCodecPipeline()
         => new(
+            NullLogger.Instance,
             new DefaultNetworkFrameCodec(),
-            Array.Empty<ReverseFrameCodec>(),
+            [],
             new LengthPrefixedTransportCodec(NullLogger.Instance));
 
     /// <summary>
@@ -47,8 +48,9 @@ internal static class PipelineTestHelpers
     /// </summary>
     internal static NetworkPipeline CreateDoubleReversePipeline()
         => new(
+            NullLogger.Instance,
             new DefaultNetworkFrameCodec(),
-            new[] { new ReverseFrameCodec(), new ReverseFrameCodec() },
+            [new ReverseFrameCodec(), new ReverseFrameCodec()],
             new LengthPrefixedTransportCodec(NullLogger.Instance));
 
     /// <summary>
@@ -59,8 +61,9 @@ internal static class PipelineTestHelpers
     /// </summary>
     internal static NetworkPipeline CreateAlwaysFailPipeline()
         => new(
+            NullLogger.Instance,
             new DefaultNetworkFrameCodec(),
-            new IFrameCodec[] { new AlwaysFailFrameCodec() },
+            [new AlwaysFailFrameCodec()],
             new LengthPrefixedTransportCodec(NullLogger.Instance));
 
     // -------------------------------------------------------------------------

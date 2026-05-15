@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer2_Protocol.Session.Frames;
 using MWB.Networking.Layer2_Protocol.Session.Requests.Api;
+using MWB.Networking.Layer2_Protocol.Session.UnitTests.Helpers;
 using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 
 namespace _ProtocolSession;
@@ -261,8 +262,47 @@ public sealed partial class Requests_Inbound
         processor.ProcessFrame(ProtocolFrames.Response(outgoing.RequestId, payload: responsePayload));
 
         var responseFrame = outgoing.Response.Result;
-        Assert.AreEqual(ProtocolFrameKind.Response, responseFrame.Kind);
+        Assert.IsFalse(responseFrame.IsError);
         CollectionAssert.AreEqual(responsePayload, responseFrame.Payload.ToArray());
+    }
+
+    [TestMethod]
+    public void InboundError_ResponseTask_IsError()
+    {
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(NullLogger.Instance);
+        var processor = session.Processor;
+
+        var outgoing = session.Commands.SendRequest();
+
+        processor.ProcessFrame(ProtocolFrames.Error(outgoing.RequestId));
+
+        Assert.IsTrue(outgoing.Response.Result.IsError);
+    }
+
+    [TestMethod]
+    public void InboundResponse_ResponseTask_CarriesCorrectResponseType()
+    {
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(NullLogger.Instance);
+        var processor = session.Processor;
+
+        var outgoing = session.Commands.SendRequest();
+
+        processor.ProcessFrame(ProtocolFrames.Response(outgoing.RequestId, responseType: 77u));
+
+        Assert.AreEqual(77u, outgoing.Response.Result.ResponseType);
+    }
+
+    [TestMethod]
+    public void InboundResponse_WithNullResponseType_ResponseTask_HasNullResponseType()
+    {
+        var session = ProtocolSessionHelper.CreateOddProtocolSession(NullLogger.Instance);
+        var processor = session.Processor;
+
+        var outgoing = session.Commands.SendRequest();
+
+        processor.ProcessFrame(ProtocolFrames.Response(outgoing.RequestId, responseType: null));
+
+        Assert.IsNull(outgoing.Response.Result.ResponseType);
     }
 
     [TestMethod]
@@ -270,9 +310,9 @@ public sealed partial class Requests_Inbound
     {
         var session = ProtocolSessionHelper.CreateOddProtocolSession(NullLogger.Instance);
         var processor = session.Processor;
+        using var capture = new OutboundFrameCapture(session);
 
         var outgoing = session.Commands.SendRequest();
-        using var capture = new OutboundFrameCapture(session);
         capture.Drain(); // clear the SendRequest frame
 
         processor.ProcessFrame(ProtocolFrames.Response(outgoing.RequestId));
@@ -285,9 +325,9 @@ public sealed partial class Requests_Inbound
     {
         var session = ProtocolSessionHelper.CreateOddProtocolSession(NullLogger.Instance);
         var processor = session.Processor;
+        using var capture = new OutboundFrameCapture(session);
 
         var outgoing = session.Commands.SendRequest();
-        using var capture = new OutboundFrameCapture(session);
         capture.Drain(); // clear the SendRequest frame
 
         processor.ProcessFrame(ProtocolFrames.Error(outgoing.RequestId));

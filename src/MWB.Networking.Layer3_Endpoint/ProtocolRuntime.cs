@@ -1,3 +1,4 @@
+using MWB.Networking.Layer2_Protocol.Adapter;
 using MWB.Networking.Layer2_Protocol.Session.Api;
 
 namespace MWB.Networking.Layer3_Endpoint;
@@ -27,12 +28,12 @@ public sealed class ProtocolRuntime : IDisposable
     /// the network framing layer (e.g. <c>SessionAdapter</c>).
     /// Disposing it unsubscribes all cross-layer event handlers.
     /// </summary>
-    public required IDisposable Adapter { get; init; }
+    public required SessionAdapter Adapter { get; init; }
 
     /// <summary>
     /// The transport driver that owns the read-and-decode I/O loop.
     /// </summary>
-    public required IProtocolDriver Driver { get; init; }
+    public required ITransportDriver Driver { get; init; }
 
     /// <inheritdoc />
     public void Dispose()

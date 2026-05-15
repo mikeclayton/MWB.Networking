@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using MWB.Networking.Layer2_Protocol.Session.Frames;
+using MWB.Networking.Layer2_Protocol.Session.UnitTests.Helpers;
 using MWB.Networking.Layer2_Protocol.UnitTests.Helpers;
 
 namespace _ProtocolSession;
@@ -131,7 +132,7 @@ public sealed class Session_Integration
         var stream = session.Commands.OpenSessionStream();    // → StreamOpen
 
         session.Observer.RequestReceived += (req, _) =>
-            req.Respond(new byte[] { 0xAB });                // → Response
+            req.Respond(payload: new byte[] { 0xAB });                // → Response
 
         processor.ProcessFrame(ProtocolFrames.Request(100)); // triggers Respond above
 
